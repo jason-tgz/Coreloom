@@ -318,7 +318,7 @@
             <TextBlock Grid.Column="2" Text="{Binding Primary}" FontSize="12.5" FontWeight="SemiBold" Typography.NumeralAlignment="Tabular"
                        Foreground="{DynamicResource Brush.Text}" MinWidth="64" TextAlignment="Right" />
             <ProgressBar Grid.Row="1" Grid.ColumnSpan="3" Style="{StaticResource ProgressBar.Thin}" Height="3" Margin="0,5,0,0"
-                         Value="{Binding Fraction, Converter={StaticResource FractionToPercent}}" />
+                         Value="{Binding Fraction, Mode=OneWay, Converter={StaticResource FractionToPercent}}" />
           </Grid>
         </DataTemplate>
       </ItemsControl.ItemTemplate>
@@ -361,7 +361,7 @@
           <TextBlock Text="{Binding PercentText}" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}" HorizontalAlignment="Right" />
         </Grid>
         <ProgressBar Style="{StaticResource ProgressBar.Thin}" Margin="0,6,0,0" Foreground="{DynamicResource Series.Storage.Brush}"
-                     Value="{Binding Fraction, Converter={StaticResource FractionToPercent}}" />
+                     Value="{Binding Fraction, Mode=OneWay, Converter={StaticResource FractionToPercent}}" />
         <TextBlock Style="{StaticResource Text.Caption}" Margin="0,5,0,0">
           <Run Text="{Binding UsedText, Mode=OneWay}" /><Run Text=" used · " /><Run Text="{Binding FreeText, Mode=OneWay}" /><Run Text=" free of " /><Run Text="{Binding CapacityText, Mode=OneWay}" />
         </TextBlock>

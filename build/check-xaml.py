@@ -89,6 +89,72 @@ def public_properties() -> set[str]:
     return names
 
 
+def property_access() -> dict[str, dict[str, bool]]:
+    """class name -> {property name: has a public setter} for the view models and core models."""
+    classes: dict[str, dict[str, bool]] = {}
+    sources = list((ROOT / "src" / "Vigil.ViewModels").rglob("*.cs")) + list((ROOT / "src" / "Vigil.Core").rglob("*.cs"))
+    decl = re.compile(r"public\s+(?:required\s+|override\s+|virtual\s+|new\s+)*[\w<>\[\]?,. ()]+?\s+(\w+)\s*(\{|=>)")
+    class_decl = re.compile(r"\b(?:class|record|struct)\s+(\w+)")
+    for path in sources:
+        text = path.read_text(encoding="utf-8")
+        class_positions = [(m.start(), m.group(1)) for m in class_decl.finditer(text)]
+        for m in decl.finditer(text):
+            name, opener = m.group(1), m.group(2)
+            owner = next((c for pos, c in reversed(class_positions) if pos < m.start()), None)
+            if owner is None or name == owner:
+                continue
+            if opener == "=>":
+                classes.setdefault(owner, {})[name] = False
+                continue
+            depth, i = 0, m.end() - 1
+            while i < len(text):
+                if text[i] == "{":
+                    depth += 1
+                elif text[i] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                i += 1
+            block = text[m.end():i]
+            top = re.sub(r"\{[^{}]*\}", "", re.sub(r"\{[^{}]*\}", "", block))
+            if "get" not in top and "set" not in top:
+                continue  # a method or a type, not a property
+            classes.setdefault(owner, {})[name] = bool(
+                re.search(r"(?<![\w.])set\b", top) and not re.search(r"(private|protected|internal)\s+set\b", top))
+        for owner, params in re.findall(r"record(?:\s+struct|\s+class)?\s+(\w+)(?:<[^>]+>)?\s*\(([^)]*)\)", text):
+            for name in re.findall(r"(\w+)\s*(?:,|$|=)", params.strip()):
+                classes.setdefault(owner, {})[name] = False
+    return classes
+
+
+def property_types() -> dict[tuple[str, str], str]:
+    types: dict[tuple[str, str], str] = {}
+    sources = list((ROOT / "src" / "Vigil.ViewModels").rglob("*.cs")) + list((ROOT / "src" / "Vigil.Core").rglob("*.cs"))
+    class_decl = re.compile(r"\b(?:class|record|struct)\s+(\w+)")
+    decl = re.compile(r"public\s+(?:required\s+|override\s+|virtual\s+)*([\w<>\[\]?.]+)\s+(\w+)\s*(?:\{|=>)")
+    for path in sources:
+        text = path.read_text(encoding="utf-8")
+        class_positions = [(m.start(), m.group(1)) for m in class_decl.finditer(text)]
+        for m in decl.finditer(text):
+            owner = next((c for pos, c in reversed(class_positions) if pos < m.start()), None)
+            if owner:
+                types[(owner, m.group(2))] = m.group(1).rstrip("?").split(".")[-1]
+    return types
+
+
+PROPERTY_TYPES: dict[tuple[str, str], str] = {}
+
+# Dependency properties that bind TwoWay unless Mode says otherwise (element local name, attribute).
+TWO_WAY_DEFAULT = {
+    ("ProgressBar", "Value"), ("Slider", "Value"), ("ScrollBar", "Value"),
+    ("CheckBox", "IsChecked"), ("ToggleButton", "IsChecked"), ("RadioButton", "IsChecked"), ("MenuItem", "IsChecked"),
+    ("ComboBox", "SelectedItem"), ("ComboBox", "SelectedValue"), ("ComboBox", "SelectedIndex"), ("ComboBox", "Text"),
+    ("ComboBox", "IsDropDownOpen"),
+    ("ListBox", "SelectedItem"), ("ListBox", "SelectedValue"), ("ListBox", "SelectedIndex"),
+    ("TextBox", "Text"), ("Run", "Text"), ("Expander", "IsExpanded"), ("Popup", "IsOpen"), ("ListBoxItem", "IsSelected"),
+}
+
+
 def binding_paths(text: str) -> list[str]:
     paths: list[str] = []
     for match in re.finditer(r"\{Binding(?:\s+([^,}=]+?))?(\s*,[^}]*)?\}", text):
@@ -107,6 +173,7 @@ def binding_paths(text: str) -> list[str]:
 def main() -> int:
     problems = Problems()
     runtime_keys = runtime_brush_keys()
+    PROPERTY_TYPES.update(property_types())
     props = public_properties()
 
     trees: dict[Path, ET.ElementTree] = {}
@@ -200,6 +267,61 @@ def main() -> int:
                     continue
                 if segment not in props and segment not in WPF_PROPERTIES:
                     problems.add(path, f"binding path segment '{segment}' (in '{binding}') is not a known property")
+
+    # ---- TwoWay-by-default bindings must target writable properties --------------------------------
+    access = property_access()
+    page_models = {"OverviewPage": "OverviewViewModel", "GpuPage": "GpuViewModel", "CpuPage": "CpuViewModel",
+                   "MemoryPage": "MemoryViewModel", "StoragePage": "StorageViewModel", "NetworkPage": "NetworkViewModel",
+                   "HistoryPage": "HistoryViewModel", "SettingsPage": "SettingsViewModel", "MainWindow": "ShellViewModel"}
+
+    def resolve(owner: str | None, dotted: str) -> tuple[str | None, str]:
+        """Walk a dotted path through known property types (best effort)."""
+        parts = dotted.split(".")
+        for part in parts[:-1]:
+            owner = PROPERTY_TYPES.get((owner, part)) if owner else None
+        return owner, parts[-1]
+
+    for path in [*(APP / p for p in GLOBAL_ORDER), *VIEWS]:
+        root = trees[path].getroot()
+        parents = {child: parent for parent in root.iter() for child in parent}
+        default_owner = page_models.get(path.stem)
+        for el in root.iter():
+            tag = el.tag.split("}")[-1]
+            for attr, value in el.attrib.items():
+                local = attr.split("}")[-1]
+                if (tag, local) not in TWO_WAY_DEFAULT or not value.startswith("{Binding"):
+                    continue
+                if re.search(r"Mode=(OneWay|OneTime)", value) or "RelativeSource" in value or "ElementName" in value:
+                    continue
+                inner = value[len("{Binding"):].strip().rstrip("}")
+                first = inner.split(",")[0].strip()
+                explicit = re.search(r"Path=([\w.]+)", inner)
+                bound = explicit.group(1) if explicit else ("" if "=" in first else first)
+                if not bound:
+                    continue
+                # Context: nearest DataTemplate/DataContext type, else the page's view model.
+                owner, node = default_owner, el
+                while node in parents:
+                    node = parents[node]
+                    dtype = node.attrib.get("DataType", "")
+                    match = re.search(r"\{x:Type\s+\w+:(\w+)\}", dtype)
+                    if node.tag.endswith("DataTemplate") and match:
+                        owner = match.group(1)
+                        break
+                    context = node.attrib.get("DataContext", "")
+                    ctx_match = re.match(r"\{Binding\s+([\w.]+)\}", context)
+                    if ctx_match:
+                        owner = resolve(owner, ctx_match.group(1) + ".x")[0]
+                        break
+                cls, prop = resolve(owner, bound)
+                known = access.get(cls or "", {})
+                if prop in known and not known[prop]:
+                    problems.add(path, f"{tag}.{local} binds TwoWay by default but {cls}.{prop} is read-only; add Mode=OneWay")
+                elif cls is None or prop not in known:
+                    # Unknown context: be strict only when every class declaring the name has it read-only.
+                    declared = [props[prop] for props in access.values() if prop in props]
+                    if declared and not any(declared):
+                        problems.add(path, f"{tag}.{local} binds TwoWay by default but '{bound}' is read-only; add Mode=OneWay")
 
     # ---- icon keys referenced from code / view models -------------------------------------------
     vm_text = "\n".join(p.read_text(encoding="utf-8") for p in (ROOT / "src" / "Vigil.ViewModels").rglob("*.cs"))

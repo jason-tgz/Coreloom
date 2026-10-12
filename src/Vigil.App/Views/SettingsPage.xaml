@@ -573,7 +573,7 @@
                 </Border>
 
                 <StackPanel Margin="0,12,0,0" Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibility}}">
-                  <ProgressBar Style="{StaticResource ProgressBar.Thin}" Value="{Binding Progress, Converter={StaticResource FractionToPercent}}" />
+                  <ProgressBar Style="{StaticResource ProgressBar.Thin}" Value="{Binding Progress, Mode=OneWay, Converter={StaticResource FractionToPercent}}" />
                   <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding DownloadText}" Margin="0,6,0,0" />
                 </StackPanel>
 

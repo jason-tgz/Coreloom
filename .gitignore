@@ -38,3 +38,7 @@ Desktop.ini
 
 # Local diagnostics reports
 vigil-diagnostics-*.md
+
+# Python
+__pycache__/
+*.pyc
