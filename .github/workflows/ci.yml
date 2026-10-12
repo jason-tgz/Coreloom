@@ -23,9 +23,9 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
 
@@ -36,7 +36,7 @@ jobs:
       # A ready-to-run copy of every build: download "Vigil-win-x64" from the run's Summary page,
       # unzip it and double-click Vigil.exe (no .NET install needed).
       - name: Upload ready-to-run app
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Vigil-win-x64
           path: artifacts/publish/win-x64/
@@ -58,7 +58,7 @@ jobs:
 
       - name: Upload test results and diagnostic report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: windows-results
           path: |
@@ -68,12 +68,12 @@ jobs:
 
   linux:
     name: Core & view-model tests (Linux)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
 
