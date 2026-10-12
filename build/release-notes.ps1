@@ -30,7 +30,7 @@ foreach ($line in $lines) {
 $body = ($notes -join "`n").Trim()
 if (-not $body) {
     Write-Warning "CHANGELOG.md has no section for $Version; using a generic note."
-    $body = "Vigil $Version."
+    $body = "Coreloom $Version."
 }
 
 $body += @"
@@ -39,8 +39,8 @@ $body += @"
 ---
 **Verify your download:** compare the file's SHA-256 with ``SHA256SUMS.txt`` (PowerShell: ``Get-FileHash .\<file> -Algorithm SHA256``). The in-app updater does this automatically.
 
-**Installer** (recommended): per-user install, no administrator rights needed, updates in place from inside Vigil.
-**Portable zip**: unzip anywhere and run ``Vigil.exe``; settings stay in the ``Data`` folder next to it.
+**Installer** (recommended): per-user install (no administrator rights needed to install), updates in place from inside Coreloom. Coreloom itself always runs as administrator, so Windows asks for approval when you start it by hand.
+**Portable zip**: unzip anywhere and run ``Coreloom.exe``; settings stay in the ``Data`` folder next to it.
 "@
 
 $dir = Split-Path -Parent $OutFile

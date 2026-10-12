@@ -1,0 +1,288 @@
+using Coreloom.Core.Alerts;
+using Coreloom.Core.Formatting;
+using Coreloom.Core.History;
+using Coreloom.Core.Telemetry;
+
+namespace Coreloom.Core.Settings;
+
+public enum ThemePreference
+{
+    Dark,
+    Light,
+    System,
+}
+
+public enum UpdateCheckFrequency
+{
+    Never,
+    OnStartup,
+    Daily,
+    Weekly,
+}
+
+/// <summary>All persisted user settings. Serialized as JSON; unknown fields are ignored and missing
+/// fields take defaults, so files from older/newer versions load safely.</summary>
+public sealed class AppSettings
+{
+    public const int CurrentSchemaVersion = 1;
+
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
+
+    public AppearanceSettings Appearance { get; set; } = new();
+
+    public MonitoringSettings Monitoring { get; set; } = new();
+
+    public DashboardSettings Dashboard { get; set; } = new();
+
+    public DesktopSettings Desktop { get; set; } = new();
+
+    public AlertSettings Alerts { get; set; } = new();
+
+    public UpdateSettings Updates { get; set; } = new();
+
+    public DiagnosticsSettings Diagnostics { get; set; } = new();
+
+    public WindowPlacement? Window { get; set; }
+
+    /// <summary>Repairs out-of-range or missing values. Returns the same instance for chaining.</summary>
+    public AppSettings Normalize()
+    {
+        SchemaVersion = CurrentSchemaVersion;
+        Appearance ??= new AppearanceSettings();
+        Monitoring ??= new MonitoringSettings();
+        Dashboard ??= new DashboardSettings();
+        Desktop ??= new DesktopSettings();
+        Alerts ??= new AlertSettings();
+        Updates ??= new UpdateSettings();
+        Diagnostics ??= new DiagnosticsSettings();
+
+        if (!AccentPalette.IsValidHex(Appearance.Accent))
+        {
+            Appearance.Accent = AccentPalette.Default;
+        }
+
+        Monitoring.PollingIntervalMs = Math.Clamp(Monitoring.PollingIntervalMs, (int)TelemetryEngine.MinimumInterval.TotalMilliseconds, (int)TelemetryEngine.MaximumInterval.TotalMilliseconds);
+        if (!Enum.IsDefined(Monitoring.DefaultWindow))
+        {
+            Monitoring.DefaultWindow = HistoryWindow.Seconds60;
+        }
+
+        Dashboard.Cards = DashboardCatalog.Normalize(Dashboard.Cards);
+        Alerts.CooldownMinutes = Math.Clamp(Alerts.CooldownMinutes, 1, 24 * 60);
+        Alerts.Rules ??= AlertSettings.DefaultRules();
+        foreach (var rule in Alerts.Rules)
+        {
+            rule.SustainSeconds = Math.Clamp(rule.SustainSeconds, 0, 3600);
+            rule.Hysteresis = Math.Clamp(rule.Hysteresis, 0, 1000);
+            if (string.IsNullOrWhiteSpace(rule.Id))
+            {
+                rule.Id = Guid.NewGuid().ToString("N");
+            }
+        }
+
+        if (Window is { } w && (w.Width < 640 || w.Height < 420 || !double.IsFinite(w.Left) || !double.IsFinite(w.Top)))
+        {
+            Window = null;
+        }
+
+        return this;
+    }
+}
+
+public sealed class AppearanceSettings
+{
+    public ThemePreference Theme { get; set; } = ThemePreference.Dark;
+
+    /// <summary>Accent color as #RRGGBB.</summary>
+    public string Accent { get; set; } = AccentPalette.Default;
+
+    /// <summary>Disables value tweens, chart scrolling and transitions.</summary>
+    public bool ReducedMotion { get; set; }
+
+    /// <summary>Continuously scroll charts between samples (GPU-composited).</summary>
+    public bool SmoothChartScrolling { get; set; } = true;
+
+    /// <summary>Animate numbers, gauges and donuts when values change.</summary>
+    public bool AnimateValues { get; set; } = true;
+
+    /// <summary>Use the Windows 11 Mica backdrop for the navigation pane when supported.</summary>
+    public bool UseMica { get; set; } = true;
+
+    public bool SidebarCollapsed { get; set; }
+}
+
+public sealed class MonitoringSettings
+{
+    public int PollingIntervalMs { get; set; } = 1000;
+
+    public HistoryWindow DefaultWindow { get; set; } = HistoryWindow.Seconds60;
+
+    public TemperatureUnit TemperatureUnit { get; set; } = TemperatureUnit.Celsius;
+
+    public DataUnitStyle DataUnits { get; set; } = DataUnitStyle.Binary;
+
+    public NetworkUnitStyle NetworkUnits { get; set; } = NetworkUnitStyle.BitsPerSecond;
+
+    public bool GpuEnabled { get; set; } = true;
+
+    public bool CpuEnabled { get; set; } = true;
+
+    public bool MemoryEnabled { get; set; } = true;
+
+    public bool StorageEnabled { get; set; } = true;
+
+    public bool NetworkEnabled { get; set; } = true;
+
+    /// <summary>Use LibreHardwareMonitor for CPU temperature/power/clocks, GPU hot spot, board and drive sensors.</summary>
+    public bool UseLibreHardwareMonitor { get; set; } = true;
+
+    /// <summary>Scan USB/HID cooling controllers (Corsair, NZXT, Aquacomputer...). Off by default for faster startup.</summary>
+    public bool ScanUsbControllers { get; set; }
+
+    public bool ShowPerThreadGraphs { get; set; } = true;
+
+    /// <summary>Preferred GPU slot for the Overview page; null = automatic (first discrete GPU).</summary>
+    public int? PreferredGpuSlot { get; set; }
+
+    /// <summary>Preferred network adapter id; null = automatic (adapter with the default route).</summary>
+    public string? PreferredNetworkAdapter { get; set; }
+
+    public bool IsSectionEnabled(MonitoringSection section) => section switch
+    {
+        MonitoringSection.Gpu => GpuEnabled,
+        MonitoringSection.Cpu => CpuEnabled,
+        MonitoringSection.Memory => MemoryEnabled,
+        MonitoringSection.Storage => StorageEnabled,
+        MonitoringSection.Network => NetworkEnabled,
+        _ => true,
+    };
+}
+
+public sealed class DashboardSettings
+{
+    /// <summary>Card order and visibility for the Overview page.</summary>
+    public List<DashboardCardSetting> Cards { get; set; } = DashboardCatalog.Defaults();
+
+    public bool ShowStatistics { get; set; } = true;
+}
+
+public sealed class DashboardCardSetting
+{
+    public string Id { get; set; } = string.Empty;
+
+    public bool Visible { get; set; } = true;
+}
+
+public sealed class DesktopSettings
+{
+    /// <summary>Start at sign-in through an elevated Task Scheduler task (the app always runs as administrator).</summary>
+    public bool StartWithWindows { get; set; }
+
+    public bool LaunchMinimized { get; set; }
+
+    public bool MinimizeToTray { get; set; } = true;
+
+    public bool CloseToTray { get; set; } = true;
+
+    public bool ShowTrayTooltipStats { get; set; } = true;
+
+    /// <summary>The one-time "Coreloom is still running in the tray" notification was shown.</summary>
+    public bool TrayHintShown { get; set; }
+}
+
+public sealed class AlertSettings
+{
+    public bool Enabled { get; set; } = true;
+
+    public int CooldownMinutes { get; set; } = 10;
+
+    public List<AlertRule> Rules { get; set; } = DefaultRules();
+
+    public static List<AlertRule> DefaultRules() =>
+    [
+        new AlertRule { Id = "gpu-temp", Name = "GPU temperature", MetricId = MetricIds.GpuTemperature(0), Threshold = 83, SustainSeconds = 10, Hysteresis = 3, Enabled = true },
+        new AlertRule { Id = "cpu-temp", Name = "CPU temperature", MetricId = MetricIds.CpuTemperature, Threshold = 90, SustainSeconds = 10, Hysteresis = 3, Enabled = true },
+        new AlertRule { Id = "ram-load", Name = "Memory usage", MetricId = MetricIds.MemoryLoad, Threshold = 90, SustainSeconds = 30, Hysteresis = 5, Enabled = false },
+        new AlertRule { Id = "vram-load", Name = "VRAM usage", MetricId = MetricIds.GpuMemoryLoad(0), Threshold = 95, SustainSeconds = 30, Hysteresis = 5, Enabled = false },
+    ];
+}
+
+public sealed class UpdateSettings
+{
+    public UpdateCheckFrequency Frequency { get; set; } = UpdateCheckFrequency.Daily;
+
+    public bool IncludePrereleases { get; set; }
+
+    public string? SkippedVersion { get; set; }
+
+    public DateTime? LastCheckUtc { get; set; }
+
+    /// <summary>Overrides the repository compiled into the build ("owner/name").</summary>
+    public string? RepositoryOverride { get; set; }
+
+    public bool IsCheckDue(DateTime utcNow, bool isStartup)
+    {
+        return Frequency switch
+        {
+            UpdateCheckFrequency.Never => false,
+            UpdateCheckFrequency.OnStartup => isStartup,
+            UpdateCheckFrequency.Daily => LastCheckUtc is null || utcNow - LastCheckUtc.Value >= TimeSpan.FromDays(1),
+            UpdateCheckFrequency.Weekly => LastCheckUtc is null || utcNow - LastCheckUtc.Value >= TimeSpan.FromDays(7),
+            _ => false,
+        };
+    }
+}
+
+public sealed class DiagnosticsSettings
+{
+    public bool VerboseLogging { get; set; }
+}
+
+public sealed class WindowPlacement
+{
+    public double Left { get; set; }
+
+    public double Top { get; set; }
+
+    public double Width { get; set; } = 1360;
+
+    public double Height { get; set; } = 880;
+
+    public bool Maximized { get; set; }
+}
+
+/// <summary>Accent colors offered in Settings (any valid #RRGGBB is accepted).</summary>
+public static class AccentPalette
+{
+    public const string Default = "#5B8CFF";
+
+    public static IReadOnlyList<(string Name, string Hex)> Presets { get; } =
+    [
+        ("Blue", "#5B8CFF"),
+        ("Green", "#45D6A0"),
+        ("Orange", "#FFB454"),
+        ("Purple", "#AA86FF"),
+        ("Pink", "#FF7AB6"),
+        ("Teal", "#3CC8D8"),
+        ("Coral", "#FF7A6B"),
+        ("Graphite", "#A3ABBA"),
+    ];
+
+    public static bool IsValidHex(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length != 7 || value[0] != '#')
+        {
+            return false;
+        }
+
+        for (int i = 1; i < 7; i++)
+        {
+            if (!Uri.IsHexDigit(value[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Builds, tests, publishes and packages Vigil.
+    Builds, tests, publishes and packages Coreloom.
 
 .DESCRIPTION
     Typical uses:
@@ -29,7 +29,7 @@
     Skip unit tests.
 
 .PARAMETER Publish
-    Publish the self-contained app and VigilDiag into artifacts/publish/<runtime>.
+    Publish the self-contained app and CoreloomDiag into artifacts/publish/<runtime>.
 
 .PARAMETER Package
     Publish, then build the installer, the portable zip and SHA256SUMS.txt into artifacts/release.
@@ -55,7 +55,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $Root = Split-Path -Parent $PSScriptRoot
-$Solution = Join-Path $Root 'Vigil.sln'
+$Solution = Join-Path $Root 'Coreloom.sln'
 $Artifacts = Join-Path $Root 'artifacts'
 $PublishDir = Join-Path $Artifacts "publish/$Runtime"
 $ReleaseDir = Join-Path $Artifacts 'release'
@@ -105,10 +105,10 @@ if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
 }
 
 $msbuildProps = @("-p:Version=$Version")
-if ($Repository) { $msbuildProps += "-p:VigilUpdateRepository=$Repository" }
-if ($NoLhm) { $msbuildProps += '-p:VigilNoLhm=true' }
+if ($Repository) { $msbuildProps += "-p:CoreloomUpdateRepository=$Repository" }
+if ($NoLhm) { $msbuildProps += '-p:CoreloomNoLhm=true' }
 
-Write-Host "Vigil build  version=$Version  configuration=$Configuration  runtime=$Runtime  repository=$(if ($Repository) { $Repository } else { '(none: update checks disabled)' })"
+Write-Host "Coreloom build  version=$Version  configuration=$Configuration  runtime=$Runtime  repository=$(if ($Repository) { $Repository } else { '(none: update checks disabled)' })"
 
 Write-Step 'dotnet SDK'
 Invoke-Native 'dotnet' @('--version')
@@ -133,11 +133,11 @@ if ($Publish) {
     $publishCommon = @('-c', $Configuration, '-r', $Runtime, '--self-contained', 'true', '-nologo', '-o', $PublishDir,
         '-p:DebugType=none', '-p:GenerateDocumentationFile=false') + $msbuildProps
 
-    # VigilDiag first, then the app (the app's files win where both ship the same library).
-    Invoke-Native 'dotnet' (@('publish', (Join-Path $Root 'src/Vigil.Diagnostics/Vigil.Diagnostics.csproj')) + $publishCommon)
-    Invoke-Native 'dotnet' (@('publish', (Join-Path $Root 'src/Vigil.App/Vigil.App.csproj'), '-p:PublishReadyToRun=true') + $publishCommon)
+    # CoreloomDiag first, then the app (the app's files win where both ship the same library).
+    Invoke-Native 'dotnet' (@('publish', (Join-Path $Root 'src/Coreloom.Diagnostics/Coreloom.Diagnostics.csproj')) + $publishCommon)
+    Invoke-Native 'dotnet' (@('publish', (Join-Path $Root 'src/Coreloom.App/Coreloom.App.csproj'), '-p:PublishReadyToRun=true') + $publishCommon)
 
-    foreach ($required in @('Vigil.exe', 'VigilDiag.exe', 'Vigil.dll', 'Vigil.Core.dll', 'Vigil.Hardware.dll')) {
+    foreach ($required in @('Coreloom.exe', 'CoreloomDiag.exe', 'Coreloom.dll', 'Coreloom.Core.dll', 'Coreloom.Hardware.dll')) {
         if (-not (Test-Path (Join-Path $PublishDir $required))) { throw "Publish output is missing $required" }
     }
 }
@@ -145,14 +145,14 @@ if ($Publish) {
 if ($Package) {
     if (Test-Path $ReleaseDir) { Remove-Item $ReleaseDir -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
-    $baseName = "Vigil-$Version-$Runtime"
+    $baseName = "Coreloom-$Version-$Runtime"
 
     Write-Step 'Installer (Inno Setup)'
     $iscc = Find-InnoSetupCompiler
     if ($iscc) {
         $repoUrl = if ($Repository) { "https://github.com/$Repository" } else { 'https://github.com' }
         Invoke-Native $iscc @("/DAppVersion=$Version", "/DSourceDir=$PublishDir", "/DOutputDir=$ReleaseDir",
-            "/DRepositoryUrl=$repoUrl", '/Q', (Join-Path $Root 'installer/Vigil.iss'))
+            "/DRepositoryUrl=$repoUrl", '/Q', (Join-Path $Root 'installer/Coreloom.iss'))
         if (-not (Test-Path (Join-Path $ReleaseDir "$baseName-Setup.exe"))) { throw 'Installer was not produced.' }
     }
     elseif ($RequireInstaller) {
@@ -168,7 +168,7 @@ if ($Package) {
     New-Item -ItemType Directory -Force -Path $staging | Out-Null
     Copy-Item (Join-Path $PublishDir '*') $staging -Recurse
     Set-Content -Path (Join-Path $staging 'portable.txt') -Encoding ASCII -Value @(
-        'This file makes Vigil run in portable mode: settings and logs are stored next to Vigil.exe',
+        'This file makes Coreloom run in portable mode: settings and logs are stored next to Coreloom.exe',
         'in the "Data" folder instead of your user profile. Delete it to use the normal locations.')
     $zip = Join-Path $ReleaseDir "$baseName-Portable.zip"
     Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zip -CompressionLevel Optimal

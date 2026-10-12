@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The WPF desktop application (Coreloom.exe). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <UseWPF>true</UseWPF>
+    <!-- WinForms is used only for the notification-area icon (NotifyIcon). -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Coreloom.App</RootNamespace>
+    <AssemblyName>Coreloom</AssemblyName>
+    <!-- The compiled Coreloom.exe embeds this icon (File Explorer, taskbar, Start menu, shortcuts, installer). -->
+    <ApplicationIcon>..\..\assets\branding\coreloom.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Smaller, faster-starting self-contained publish; WPF does not support trimming. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+
+  <!-- Keep WPF and WinForms types from colliding (Application, Button, Color, ...). -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Branding: the one tracked copy of the approved icon kit lives in assets/branding; these links expose the
+         files the UI needs as pack://application:,,,/Assets/... resources. -->
+    <Resource Include="..\..\assets\branding\coreloom.ico" Link="Assets\coreloom.ico" />
+    <Resource Include="..\..\assets\branding\png\coreloom-16.png" Link="Assets\coreloom-16.png" />
+    <Resource Include="..\..\assets\branding\png\coreloom-24.png" Link="Assets\coreloom-24.png" />
+    <Resource Include="..\..\assets\branding\png\coreloom-32.png" Link="Assets\coreloom-32.png" />
+    <Resource Include="..\..\assets\branding\png\coreloom-48.png" Link="Assets\coreloom-48.png" />
+    <Resource Include="..\..\assets\branding\png\coreloom-64.png" Link="Assets\coreloom-64.png" />
+    <Resource Include="..\..\assets\branding\png\coreloom-128.png" Link="Assets\coreloom-128.png" />
+    <!-- Inter and JetBrains Mono (SIL Open Font License 1.1); the license texts ship next to the app. -->
+    <Resource Include="Fonts\*.ttf" />
+    <None Include="Fonts\LICENSE-*.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\LICENSE" Link="LICENSE.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Coreloom.Core\Coreloom.Core.csproj" />
+    <ProjectReference Include="..\Coreloom.Hardware\Coreloom.Hardware.csproj" />
+    <ProjectReference Include="..\Coreloom.ViewModels\Coreloom.ViewModels.csproj" />
+  </ItemGroup>
+
+</Project>

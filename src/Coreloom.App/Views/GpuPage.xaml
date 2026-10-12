@@ -1,0 +1,79 @@
+<UserControl x:Class="Coreloom.App.Views.GpuPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:Coreloom.App.Controls"
+             xmlns:b="clr-namespace:Coreloom.App.Behaviors">
+
+  <ScrollViewer Style="{StaticResource ScrollViewer.Page}">
+    <StackPanel Margin="32,14,28,32" b:Motion.Entrance="True">
+
+      <!-- Device header -->
+      <Grid Margin="0,0,0,16">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Gpu}" Stroke="{DynamicResource Series.Gpu.Brush}" />
+          <TextBlock Text="{Binding GpuName}" Style="{StaticResource Text.Section}" Margin="10,0,0,0" VerticalAlignment="Center" />
+        </StackPanel>
+        <ComboBox Style="{StaticResource ComboBox.Default}" HorizontalAlignment="Right" MinWidth="260"
+                  ItemsSource="{Binding Gpus}" SelectedItem="{Binding SelectedGpu}" DisplayMemberPath="Display"
+                  Visibility="{Binding HasMultipleGpus, Converter={StaticResource BoolToVisibility}}" ToolTip="GPU shown on this page and the Overview" />
+      </Grid>
+
+      <!-- Gauges -->
+      <c:AdaptiveGrid MinColumnWidth="250" MaxColumns="4" Spacing="16">
+        <ContentPresenter Content="{Binding Load}" ContentTemplate="{StaticResource GaugeCard}" />
+        <ContentPresenter Content="{Binding Temperature}" ContentTemplate="{StaticResource GaugeCard}" />
+        <ContentPresenter Content="{Binding Power}" ContentTemplate="{StaticResource GaugeCard}" />
+        <ContentPresenter Content="{Binding MemoryLoad}" ContentTemplate="{StaticResource GaugeCard}" />
+      </c:AdaptiveGrid>
+
+      <!-- Clock limit reasons -->
+      <Border Style="{StaticResource Card.Inset}" Margin="0,16,0,0" Visibility="{Binding ClockReasons, Converter={StaticResource HasValueToVisibility}}"
+              ToolTip="Why the GPU is not running at its maximum clocks right now (reported by the NVIDIA driver).">
+        <StackPanel Orientation="Horizontal">
+          <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Info}" />
+          <TextBlock Text="Clock limits:" Style="{StaticResource Text.Label}" Margin="8,0,6,0" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding ClockReasons}" FontSize="12.5" VerticalAlignment="Center" />
+        </StackPanel>
+      </Border>
+
+      <!-- Secondary metrics -->
+      <ItemsControl ItemsSource="{Binding Details}" ItemTemplate="{StaticResource MetricTile}" Margin="0,16,0,0" Focusable="False">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <c:AdaptiveGrid MinColumnWidth="168" MaxColumns="6" Spacing="12" UniformRowHeight="True" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+
+      <!-- Charts -->
+      <c:AdaptiveGrid MinColumnWidth="460" MaxColumns="2" Spacing="16" Margin="0,16,0,0">
+        <ContentPresenter Content="{Binding UsageChart}" ContentTemplate="{StaticResource ChartCard}" Height="280" />
+        <ContentPresenter Content="{Binding TemperatureChart}" ContentTemplate="{StaticResource ChartCard}" Height="280" />
+        <ContentPresenter Content="{Binding PowerChart}" ContentTemplate="{StaticResource ChartCard}" Height="280" />
+        <ContentPresenter Content="{Binding ClockChart}" ContentTemplate="{StaticResource ChartCard}" Height="280" />
+        <ContentPresenter Content="{Binding MemoryChart}" ContentTemplate="{StaticResource ChartCard}" Height="280" />
+      </c:AdaptiveGrid>
+
+      <!-- Specifications + sensors -->
+      <c:AdaptiveGrid MinColumnWidth="460" MaxColumns="2" Spacing="16" Margin="0,16,0,0">
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource Text.CardTitle}" Text="Specifications" Margin="0,0,0,10" />
+            <ItemsControl ItemsSource="{Binding Specifications}" ItemTemplate="{StaticResource KeyValueRow}" Focusable="False" Grid.IsSharedSizeScope="True" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <Grid Margin="0,0,0,8">
+              <TextBlock Style="{StaticResource Text.CardTitle}" Text="All sensors" />
+              <CheckBox Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" IsChecked="{Binding Sensors.ShowRaw}">
+                <TextBlock Text="Raw sensors" Style="{StaticResource Text.Secondary}" />
+              </CheckBox>
+            </Grid>
+            <ContentPresenter Content="{Binding Sensors}" ContentTemplate="{StaticResource SensorTable}" />
+          </StackPanel>
+        </Border>
+      </c:AdaptiveGrid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

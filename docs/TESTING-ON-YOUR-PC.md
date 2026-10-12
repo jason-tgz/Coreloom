@@ -1,6 +1,6 @@
-# Testing Vigil on your PC
+# Testing Coreloom on your PC
 
-Vigil was written and unit-tested in a Linux build environment that had no Windows, no GPU and no
+Coreloom was written and unit-tested in a Linux build environment that had no Windows, no GPU and no
 access to NuGet. The Windows app has **not been built or run yet** (see [VERIFICATION.md](VERIFICATION.md)).
 This checklist takes you from a fresh clone to a verified build on the target machine:
 
@@ -20,30 +20,30 @@ fixing.
 - Optional, for comparison: [HWiNFO64](https://www.hwinfo.com/) (sensors-only mode) and the NVIDIA app
   overlay.
 - Optional, for CPU temperature and motherboard sensors: [PawnIO](https://pawnio.eu). Install it only if
-  you want those sensors; Vigil works without it.
+  you want those sensors; Coreloom works without it.
 - Optional, for building the installer: [Inno Setup 6](https://jrsoftware.org/isinfo.php).
 
 ## 1. Build and run the tests
 
 ```powershell
-git clone https://github.com/<you>/Vigil.git
-cd Vigil
+git clone https://github.com/<you>/Coreloom.git
+cd Coreloom
 ./build/build.ps1
 ```
 
 **Expect:** the restore, build and all tests succeed. On Windows, the integration tests in
-`Vigil.Hardware.Tests` really run, against PDH, storage, SMBIOS, NVML and processes on your machine. On
+`Coreloom.Hardware.Tests` really run, against PDH, storage, SMBIOS, NVML and processes on your machine. On
 Linux they are skipped.
 
 If the build fails, copy the first error and stop here; everything else depends on it. The most likely
 spots are listed in [VERIFICATION.md](VERIFICATION.md#highest-risk-areas).
 
-## 2. VigilDiag as a standard user
+## 2. CoreloomDiag as a standard user
 
 Run this from a normal (non-administrator) terminal:
 
 ```powershell
-dotnet run --project src/Vigil.Diagnostics -c Release -- --samples 30 --compare --out diag-standard.md
+dotnet run --project src/Coreloom.Diagnostics -c Release -- --samples 30 --compare --out diag-standard.md
 ```
 
 **Expect:**
@@ -59,15 +59,15 @@ dotnet run --project src/Vigil.Diagnostics -c Release -- --samples 30 --compare 
 - **Storage**: every disk is listed with read/write throughput, and NVMe temperature where Windows exposes
   it to standard users.
 - **Network**: the active adapter is the one with your default gateway.
-- **Overhead**: the "Overhead while sampling" line prints Vigil's own CPU use. The design budget is well
+- **Overhead**: the "Overhead while sampling" line prints Coreloom's own CPU use. The design budget is well
   under 1 % of total CPU at a 1 s interval. Please report what you see.
 
-## 3. VigilDiag as administrator, with PawnIO installed
+## 3. CoreloomDiag as administrator, with PawnIO installed
 
 Run this from an elevated terminal:
 
 ```powershell
-dotnet run --project src/Vigil.Diagnostics -c Release -- --samples 30 --lhm-report --out diag-admin.md
+dotnet run --project src/Coreloom.Diagnostics -c Release -- --samples 30 --lhm-report --out diag-admin.md
 ```
 
 **Expect:**
@@ -80,7 +80,7 @@ dotnet run --project src/Vigil.Diagnostics -c Release -- --samples 30 --lhm-repo
 Compare a few values with HWiNFO64. The **Manual comparison checklist** section of the report lists the
 tolerances to expect. If CPU temperature is still missing, look in the `--lhm-report` section for the
 sensor names LibreHardwareMonitor actually reports. The mapping lives in
-`src/Vigil.Hardware/SensorMapping.cs` and may need a name added.
+`src/Coreloom.Hardware/SensorMapping.cs` and may need a name added.
 
 > The `--lhm-report` section is LibreHardwareMonitor's raw output and can include drive or memory serial
 > numbers. Review it before sharing.
@@ -88,7 +88,7 @@ sensor names LibreHardwareMonitor actually reports. The mapping lives in
 ## 4. The app
 
 ```powershell
-dotnet run --project src/Vigil.App -c Release
+dotnet run --project src/Coreloom.App -c Release
 ```
 
 Work through each area and tick what works.
@@ -124,13 +124,31 @@ Work through each area and tick what works.
 
 **Single instance and startup**
 
-- [ ] Starting Vigil a second time brings the first window forward instead of opening a second copy.
-- [ ] *Settings → Desktop → Start with Windows*: after signing out and back in, Vigil starts (minimized if
+- [ ] Starting Coreloom a second time brings the first window forward instead of opening a second copy.
+- [ ] *Settings → Desktop → Start with Windows*: after signing out and back in, Coreloom starts (minimized if
       chosen).
-- [ ] *Start with administrator rights*: one UAC prompt when you turn it on, then CPU temperature works
-      after sign-in with no further prompts.
-- [ ] *Settings → Diagnostics → Restart as administrator*: one UAC prompt, and Vigil comes back elevated
-      with CPU temperature available.
+- [ ] Starting Coreloom by hand shows the Windows administrator prompt once; *Settings → Diagnostics* says
+      "Running as administrator".
+- [ ] With *Start with Windows* on, a *Coreloom startup* task exists in Task Scheduler (Run level: highest).
+      After signing out and back in, Coreloom starts **without** a UAC prompt.
+- [ ] Turning *Start with Windows* off removes that task, and no *Vigil* entry remains under
+      *Settings → Apps → Startup*.
+- [ ] If you used Vigil before: the first start imports your settings from `%APPDATA%\Vigil`.
+
+**Memory and speed (leave it running)**
+
+- [ ] Open *Settings → Diagnostics* and note the working set, managed heap and handle count. Click through every
+      page twice, then leave Coreloom open for an hour: the managed heap should settle and the handle count
+      should stay flat. Steady growth is a leak: export a diagnostic report and send it.
+- [ ] CPU use shown in the sidebar stays around 1 % or less at a 1 s interval; it should drop to about zero
+      while the window is minimized to the tray.
+- [ ] Page switches feel instant and charts keep scrolling smoothly. The log's first lines show the animation
+      rate in use (for example "animation 240 fps").
+
+**Icon**
+
+- [ ] `Coreloom.exe` shows the Coreloom icon in File Explorer, the taskbar, Alt+Tab and the tray. If an old icon
+      shows, run a freshly named copy or restart Explorer; Windows caches icons.
 
 **Alerts**
 
@@ -141,13 +159,13 @@ Work through each area and tick what works.
 **Sleep and drivers**
 
 - [ ] Sleep and resume the PC. Values continue within about 10 seconds.
-- [ ] (Optional) Update or reinstall the NVIDIA driver while Vigil runs. GPU values come back by themselves.
+- [ ] (Optional) Update or reinstall the NVIDIA driver while Coreloom runs. GPU values come back by themselves.
       *Settings → Diagnostics* shows NVML recovering.
 
 **Overhead**
 
-- [ ] With the dashboard open, Vigil's own usage at the bottom of the sidebar stays low (note the numbers).
-- [ ] When minimized, Task Manager shows Vigil's CPU close to zero.
+- [ ] With the dashboard open, Coreloom's own usage at the bottom of the sidebar stays low (note the numbers).
+- [ ] When minimized, Task Manager shows Coreloom's CPU close to zero.
 
 ## 5. Installer and portable build
 
@@ -157,28 +175,30 @@ Work through each area and tick what works.
 
 **Expect:** `artifacts/release` contains these files:
 
-- `Vigil-1.0.0-beta.1-win-x64-Setup.exe` (needs Inno Setup)
+- `Coreloom-1.0.0-beta.1-win-x64-Setup.exe` (needs Inno Setup)
 - `...-Portable.zip`
 - `SHA256SUMS.txt`
 
 Then check the following:
 
 - [ ] The installer runs without an administrator prompt, installs to
-      `%LOCALAPPDATA%\Programs\Vigil` and starts Vigil.
-- [ ] Uninstalling from *Settings → Apps* removes the program and the Run entry, and keeps your settings.
-- [ ] Unzipping the portable build elsewhere and running it creates a `Data` folder next to `Vigil.exe`.
+      `%LOCALAPPDATA%\Programs\Coreloom` and starts Coreloom (Windows shows its administrator prompt for the app).
+- [ ] The installer, the Start menu entry, the desktop shortcut and the uninstall entry show the Coreloom icon.
+- [ ] Uninstalling from *Settings → Apps* removes the program (and, after one administrator prompt, the
+      *Coreloom startup* task) and keeps your settings.
+- [ ] Unzipping the portable build elsewhere and running it creates a `Data` folder next to `Coreloom.exe`.
 
 ## 6. Update flow (after publishing two releases)
 
 1. Push the repository to GitHub and tag `v1.0.0-beta.1`, following [RELEASING.md](RELEASING.md).
 2. Install that build, then turn on *Settings → Updates → Include pre-release versions*.
-3. Tag `v1.0.0-beta.2`, then choose *Check now* in Vigil.
+3. Tag `v1.0.0-beta.2`, then choose *Check now* in Coreloom.
 
 **Expect:**
 
 - The update is offered with its release notes.
 - *Download and install* shows progress and verifies the SHA-256.
-- Vigil closes, the installer runs silently, and the new version starts.
+- Coreloom closes, the installer runs silently, and the new version starts.
 - *Settings → About* shows the new version.
 
 ## 7. What to send back

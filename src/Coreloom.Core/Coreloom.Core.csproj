@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Platform-neutral domain logic: metrics, history, alerts, settings, formatting, updates.
+       Contains no Windows or UI dependencies so it can be unit tested on any OS. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Coreloom.Core</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Coreloom.Core.Tests" />
+  </ItemGroup>
+
+</Project>

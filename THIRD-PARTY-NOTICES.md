@@ -1,22 +1,22 @@
 # Third-party notices
 
-Vigil is licensed under the MIT License (see `LICENSE`). Vigil's release packages also contain the
+Coreloom is licensed under the MIT License (see `LICENSE`). Coreloom's release packages also contain the
 components listed below, which are distributed unmodified under their own licenses. The source code for
 each one is available at the linked project.
 
-This list covers the packages Vigil references directly and their notable dependencies. The exact set of
+This list covers the packages Coreloom references directly and their notable dependencies. The exact set of
 files in a build is determined by NuGet; run `dotnet list package --include-transitive` to see it.
 
 ## LibreHardwareMonitorLib
 
 - License: Mozilla Public License 2.0 (MPL-2.0), https://mozilla.org/MPL/2.0/
 - Source: https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
-- Used for CPU, motherboard, non-NVIDIA GPU, SSD health and some NVIDIA sensors (through NvAPI). Vigil uses
+- Used for CPU, motherboard, non-NVIDIA GPU, SSD health and some NVIDIA sensors (through NvAPI). Coreloom uses
   the library as published on NuGet, without modification.
 - LibreHardwareMonitorLib includes **PawnIO modules**, licensed under the GNU Lesser General Public
   License v2.1. See LibreHardwareMonitor's `THIRD-PARTY-NOTICES.txt` for the full text. The PawnIO
   **driver** itself (GPL-2.0, https://github.com/namazso/PawnIO, downloads at https://pawnio.eu) is
-  **not** included with Vigil. Users who want low-level sensors install it separately.
+  **not** included with Coreloom. Users who want low-level sensors install it separately.
 
 ### Dependencies of LibreHardwareMonitorLib
 
@@ -27,6 +27,20 @@ files in a build is determined by NuGet; run `dotnet list package --include-tran
 | RAMSPDToolkit-NDD | MPL-2.0 | https://github.com/Blacktempel/RAMSPDToolkit |
 | Mono.Posix.NETStandard | MIT (Mono project) | https://github.com/mono/mono |
 | System.Management, System.IO.Ports, System.IO.FileSystem.AccessControl | MIT (.NET Foundation) | https://github.com/dotnet/runtime |
+
+## Fonts: Inter and JetBrains Mono
+
+- License: SIL Open Font License 1.1 (OFL-1.1), https://openfontlicense.org
+- Inter: © 2016 The Inter Project Authors, https://github.com/rsms/inter (Regular, Medium, SemiBold, Bold)
+- JetBrains Mono: © 2020 The JetBrains Mono Project Authors, https://github.com/JetBrains/JetBrainsMono
+  (Regular, Medium, SemiBold)
+- The font files are embedded unmodified in `Coreloom.exe`'s assembly resources. Each license text is
+  also installed next to the app as `LICENSE-Inter.txt` and `LICENSE-JetBrainsMono.txt`.
+
+## Coreloom icon
+
+The application icon and logo files in `assets/branding` are Coreloom's own artwork and are used as supplied.
+They are covered by the project's license unless the owner states otherwise.
 
 ## CommunityToolkit.Mvvm
 
@@ -46,7 +60,7 @@ The self-contained builds include the .NET runtime, WPF and Windows Forms.
 
 ## NVIDIA Management Library (NVML)
 
-Vigil does **not** redistribute NVML. At runtime it loads `nvml.dll` from the NVIDIA display driver already
+Coreloom does **not** redistribute NVML. At runtime it loads `nvml.dll` from the NVIDIA display driver already
 installed on the PC (from `System32` or the NVSMI folder only). NVML is © NVIDIA Corporation and is subject
 to NVIDIA's driver license.
 
@@ -59,5 +73,5 @@ distributed.
 ---
 
 NVIDIA, GeForce and RTX are trademarks of NVIDIA Corporation. AMD and Ryzen are trademarks of Advanced
-Micro Devices, Inc. Windows is a trademark of Microsoft Corporation. Vigil is an independent project, and
+Micro Devices, Inc. Windows is a trademark of Microsoft Corporation. Coreloom is an independent project, and
 it is not affiliated with or endorsed by these companies.

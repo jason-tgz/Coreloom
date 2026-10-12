@@ -37,7 +37,7 @@ Desktop.ini
 .DS_Store
 
 # Local diagnostics reports
-vigil-diagnostics-*.md
+coreloom-diagnostics-*.md
 
 # Python
 __pycache__/

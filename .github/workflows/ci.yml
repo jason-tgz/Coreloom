@@ -33,28 +33,28 @@ jobs:
         shell: pwsh
         run: ./build/build.ps1 -Configuration Release -Publish
 
-      # A ready-to-run copy of every build: download "Vigil-win-x64" from the run's Summary page,
-      # unzip it and double-click Vigil.exe (no .NET install needed).
+      # A ready-to-run copy of every build: download "Coreloom-win-x64" from the run's Summary page,
+      # unzip it and double-click Coreloom.exe (no .NET install needed).
       - name: Upload ready-to-run app
         uses: actions/upload-artifact@v6
         with:
-          name: Vigil-win-x64
+          name: Coreloom-win-x64
           path: artifacts/publish/win-x64/
           if-no-files-found: error
           retention-days: 30
 
       - name: Build without the LibreHardwareMonitor adapter
         shell: pwsh
-        run: dotnet build src/Vigil.Hardware/Vigil.Hardware.csproj -c Release -p:VigilNoLhm=true -nologo
+        run: dotnet build src/Coreloom.Hardware/Coreloom.Hardware.csproj -c Release -p:CoreloomNoLhm=true -nologo
 
       # Hosted runners have no GPU and no PawnIO driver, so most sensors are expected to be unavailable.
       # This checks that the published diagnostic tool starts, polls and writes its report.
-      - name: VigilDiag smoke run
+      - name: CoreloomDiag smoke run
         shell: pwsh
         run: |
-          ./artifacts/publish/win-x64/VigilDiag.exe --samples 3 --interval 500 --out artifacts/vigildiag-ci.md
-          if (-not (Test-Path artifacts/vigildiag-ci.md)) { throw 'VigilDiag did not write its report' }
-          Get-Content artifacts/vigildiag-ci.md -TotalCount 60
+          ./artifacts/publish/win-x64/CoreloomDiag.exe --samples 3 --interval 500 --out artifacts/coreloomdiag-ci.md
+          if (-not (Test-Path artifacts/coreloomdiag-ci.md)) { throw 'CoreloomDiag did not write its report' }
+          Get-Content artifacts/coreloomdiag-ci.md -TotalCount 60
 
       - name: Upload test results and diagnostic report
         if: always()
@@ -63,7 +63,7 @@ jobs:
           name: windows-results
           path: |
             artifacts/test-results/
-            artifacts/vigildiag-ci.md
+            artifacts/coreloomdiag-ci.md
           if-no-files-found: ignore
 
   linux:
@@ -78,8 +78,8 @@ jobs:
           global-json-file: global.json
 
       # The platform-neutral layers must stay free of Windows dependencies.
-      - name: Test Vigil.Core
-        run: dotnet test tests/Vigil.Core.Tests/Vigil.Core.Tests.csproj -c Release
+      - name: Test Coreloom.Core
+        run: dotnet test tests/Coreloom.Core.Tests/Coreloom.Core.Tests.csproj -c Release
 
-      - name: Test Vigil.ViewModels
-        run: dotnet test tests/Vigil.ViewModels.Tests/Vigil.ViewModels.Tests.csproj -c Release
+      - name: Test Coreloom.ViewModels
+        run: dotnet test tests/Coreloom.ViewModels.Tests/Coreloom.ViewModels.Tests.csproj -c Release

@@ -1,29 +1,29 @@
 # Architecture
 
-Vigil is a layered .NET 10 application. Only the bottom-right box knows about WPF, and only the Hardware
+Coreloom is a layered .NET 10 application. Only the bottom-right box knows about WPF, and only the Hardware
 layer calls Windows sensor APIs, so most of the logic is testable on any OS.
 
 ```
-┌────────────────────────────── Vigil.App (WPF, net10.0-windows) ──────────────────────────────┐
+┌────────────────────────────── Coreloom.App (WPF, net10.0-windows) ──────────────────────────────┐
 │ Views (XAML) · chart controls · ThemeService · tray · startup · single instance · App.xaml.cs │
 └───────────────▲──────────────────────────────────────────────────────────────────────────────┘
                 │ data binding (frames delivered on the UI thread, coalesced)
-┌───────────────┴────────────── Vigil.ViewModels (net10.0, no WPF types) ──────────────────────┐
+┌───────────────┴────────────── Coreloom.ViewModels (net10.0, no WPF types) ──────────────────────┐
 │ ShellViewModel · page view models · TimelineViewModel · Metric/Chart VMs · Settings · Updates │
 └───────────────▲──────────────────────────────────────────────────────────────────────────────┘
                 │ TelemetryFrame (immutable) · HistoryStore · MetricCatalog · DeviceRegistry
-┌───────────────┴────────────── Vigil.Core (net10.0, platform-neutral) ────────────────────────┐
+┌───────────────┴────────────── Coreloom.Core (net10.0, platform-neutral) ────────────────────────┐
 │ TelemetryEngine · ITelemetryProvider · History + M4 downsampling · AlertEngine · Settings     │
 │ UnitFormatter · axis/curve math · GitHub release client · checksums · resumable downloads    │
 └───────────────▲──────────────────────────────────────────────────────────────────────────────┘
                 │ ITelemetryProvider implementations
-┌───────────────┴────────────── Vigil.Hardware (net10.0-windows) ──────────────────────────────┐
+┌───────────────┴────────────── Coreloom.Hardware (net10.0-windows) ──────────────────────────────┐
 │ NVML (GPU) · PDH + NtQuerySystemInformation (CPU) · memory · storage IOCTLs + PDH (disks)     │
 │ network statistics · SMBIOS · process sampler · LibreHardwareMonitor adapter (optional)      │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-`Vigil.Diagnostics` (VigilDiag.exe) reuses Core and Hardware without any UI.
+`Coreloom.Diagnostics` (CoreloomDiag.exe) reuses Core and Hardware without any UI.
 
 ## Telemetry pipeline
 
@@ -67,7 +67,7 @@ layer calls Windows sensor APIs, so most of the logic is testable on any OS.
   - Each point is 12 bytes: a monotonic timestamp (`Environment.TickCount64`, unaffected by clock changes)
     and a float value.
   - Capacity is one hour at the current interval plus slack. At 1 s that's 3,632 points, about 43 KB per
-    metric, so memory is bounded no matter how long Vigil runs.
+    metric, so memory is bounded no matter how long Coreloom runs.
 - **Downsampling.** Long windows are reduced with M4: the first, minimum, maximum and last point per pixel
   column. This keeps spikes that plain averaging would hide.
 - **Curves** use monotone cubic interpolation (Fritsch–Carlson), so smoothed lines never overshoot the data:
@@ -90,34 +90,60 @@ layer calls Windows sensor APIs, so most of the logic is testable on any OS.
   changes. All XAML uses `DynamicResource` for brushes. Mica uses `DWMWA_SYSTEMBACKDROP_TYPE` on Windows 11
   22H2 and later. The custom caption buttons support Snap Layouts by answering `WM_NCHITTEST` with
   `HTMAXBUTTON`.
-- **Settings** are JSON in `%APPDATA%\Vigil\settings.json`, or `Data\` in portable mode.
+- **Settings** are JSON in `%APPDATA%\Coreloom\settings.json`, or `Data\` in portable mode.
   - Writes are atomic: write a temp file, then replace.
   - Writes are debounced by 600 ms.
   - A corrupt file is kept as `settings.json.bad` and defaults are used.
 
 ## Privileges
 
-Vigil's manifest is `asInvoker`.
+Coreloom's manifest is `requireAdministrator`: Windows shows a UAC prompt each time the app is started by
+hand, and the process always holds an elevated token. CoreloomDiag stays `asInvoker` (run it from an elevated
+terminal to include the admin-only sensors).
 
-- **Without elevation:** NVML, PDH, memory, network, SMBIOS, process lists, and storage queries through
-  zero-access handles all work.
-- **With elevation plus PawnIO:** only LibreHardwareMonitor's low-level CPU and Super I/O sensors need both.
-- **How elevation happens:** Vigil detects both conditions and explains them. It never elevates on its
-  own: *Restart as administrator* relaunches with `runas` after the user clicks it. The optional elevated
-  autostart is a Task Scheduler task (`HighestAvailable`), created after a UAC confirmation and never
-  changed silently at launch.
+- **Without PawnIO:** NVML, PDH, memory, network, SMBIOS, process lists and storage queries all work.
+- **With PawnIO (the app is already elevated):** LibreHardwareMonitor's low-level CPU and Super I/O sensors
+  need both. If the driver is missing Coreloom explains that; it never installs drivers.
+- **Starting at sign-in:** *Start with Windows* creates a Task Scheduler logon task (`HighestAvailable`, named
+  `Coreloom startup`). A Run-key entry would trigger a UAC prompt at every sign-in for an app that requires
+  administrator rights, so Coreloom does not use one. The app is already elevated when it creates or removes the
+  task, so there is no extra prompt, and it refreshes the task at launch if the executable moved. The
+  uninstaller calls `Coreloom.exe --remove-startup-task` (one elevation prompt) because only an elevated process
+  can delete that task.
+- **Restart:** relaunching from the elevated process (settings changes, `--wait-for <pid>`) does not prompt
+  again, because the child of an elevated parent inherits the elevation.
+- **Installer:** per-user and not elevated, so `Coreloom.exe` is launched with `shellexec` and an in-app update
+  (started by the elevated app) inherits elevation. A manual install over a running instance requires exiting
+  Coreloom first, because a non-elevated installer cannot close an elevated app.
+
+## Rendering, fonts and lifetime
+
+- **Text:** Inter (UI) and JetBrains Mono (numbers and technical values) ship embedded in the assembly as
+  `Resource`s (SIL OFL 1.1; licence texts ship next to the app). `TextFormattingMode="Display"` with fixed
+  hinting and ClearType hints on opaque cards keeps small text sharp; custom-drawn chart text uses
+  `FormattedText` in Display mode.
+- **Animation rate:** WPF animates at 60 fps unless told otherwise, so `App` raises
+  `Timeline.DesiredFrameRate`'s default to the fastest attached display (60–240 Hz, read with
+  `EnumDisplaySettings`). The rate is a request, not a guarantee: WPF composites in software and the DWM still
+  decides what reaches the screen. Number tweens stay at 60 fps because each tick re-lays-out a `TextBlock`.
+- **Page cache:** `PageHost` keeps one view per page view model, so navigating back is instant. A page that is not
+  shown is unloaded, which detaches every chart's event handlers (`Loaded`/`Unloaded` symmetry); charts
+  re-attach when the page returns.
+- **Memory:** history is a bounded ring per metric (12 bytes per point, one hour). Bound immutable items derive
+  from `StaticRecord`/`StaticItem`, so WPF uses its weak event path for them. Settings › Diagnostics shows the
+  process working set, the managed heap and the handle count so growth is visible.
 
 ## Updates
 
 `GitHubReleaseClient` lists releases from `api.github.com`. This is anonymous: the 60 requests per hour
-limit is far above Vigil's check frequency.
+limit is far above Coreloom's check frequency.
 
 1. It picks the newest non-draft release, skipping pre-releases unless the user opted in.
 2. It downloads the `-Setup.exe` asset with HTTP range resume.
 3. It verifies the SHA-256 against `SHA256SUMS.txt` from the same release, using a constant-time
    comparison.
 4. It starts the installer with `/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /UPDATE=1`, then
-   exits. Inno Setup replaces the files once Vigil has exited, then relaunches it.
+   exits. Inno Setup replaces the files once Coreloom has exited, then relaunches it.
 
 Portable copies are never modified in place; they link to the release page instead. The repository is
 embedded at build time as `AssemblyMetadata("UpdateRepository")`. A build without it simply has no
@@ -126,7 +152,7 @@ update checks.
 ## Extending
 
 - **New sensor source:** add an `ITelemetryProvider` (see CONTRIBUTING.md).
-- **FPS / frame times:** a future `Vigil.PresentMon` provider based on ETW. It needs administrator rights
+- **FPS / frame times:** a future `Coreloom.PresentMon` provider based on ETW. It needs administrator rights
   or membership in *Performance Log Users*, so it belongs behind an explicit opt-in.
 - **Other GPU vendors:** AMD and Intel GPUs already flow through LibreHardwareMonitor's mappings. A native
   ADLX or IGCL provider could be added with a higher priority, the same way NVML outranks

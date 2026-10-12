@@ -1,0 +1,16 @@
+# Coreloom branding
+
+Approved Coreloom Windows icon kit, used exactly as supplied (do not redraw, recolor or re-export it).
+
+| File | Used for |
+|---|---|
+| `coreloom.ico` | Embedded in `Coreloom.exe` and `CoreloomDiag.exe` (`ApplicationIcon`), window icon, installer icon, shortcuts |
+| `png/coreloom-16/24/32/48.png` | Notification-area (tray) icon, picked by DPI |
+| `png/coreloom-64.png`, `png/coreloom-128.png` | Sidebar logo and the About page |
+| `coreloom-app-icon-1024.png`, `png/coreloom-256/512.png` | Reference sizes for store/web/README use |
+| `coreloom-brand-lockup-reference.png` | Brand reference only; not an application icon |
+| `coreloom-size-preview.png` | How the icon looks at several sizes on light and dark backgrounds |
+
+`src/Coreloom.App/Coreloom.App.csproj` links these files in as resources, so this folder is the single copy.
+Windows caches icons: if an old icon shows after a rebuild, test a freshly named copy of the executable or restart
+Explorer before assuming the build is wrong.

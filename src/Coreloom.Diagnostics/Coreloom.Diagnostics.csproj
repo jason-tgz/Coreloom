@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- CoreloomDiag.exe: headless sensor discovery, cross-checks and overhead measurement. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- Allows compiling (not running) on macOS/Linux, e.g. for cross-platform CI checks. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>Coreloom.Diagnostics</RootNamespace>
+    <AssemblyName>CoreloomDiag</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\assets\branding\coreloom.ico</ApplicationIcon>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Coreloom.Core\Coreloom.Core.csproj" />
+    <ProjectReference Include="..\Coreloom.Hardware\Coreloom.Hardware.csproj" />
+  </ItemGroup>
+
+</Project>

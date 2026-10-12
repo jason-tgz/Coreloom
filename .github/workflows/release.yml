@@ -47,10 +47,10 @@ jobs:
 
       # Hosted runners have no GPU or PawnIO; a failure here is reported but doesn't block the release
       # (CI runs the same check strictly on every push).
-      - name: Smoke-test the published VigilDiag
+      - name: Smoke-test the published CoreloomDiag
         continue-on-error: true
         shell: pwsh
-        run: ./artifacts/publish/win-x64/VigilDiag.exe --samples 2 --interval 500 --out artifacts/vigildiag-release.md
+        run: ./artifacts/publish/win-x64/CoreloomDiag.exe --samples 2 --interval 500 --out artifacts/coreloomdiag-release.md
 
       - name: Release notes
         shell: pwsh
@@ -61,7 +61,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $ghArgs = @('release', 'create', '${{ github.ref_name }}', '--title', 'Vigil ${{ steps.version.outputs.version }}',
+          $ghArgs = @('release', 'create', '${{ github.ref_name }}', '--title', 'Coreloom ${{ steps.version.outputs.version }}',
                       '--notes-file', 'artifacts/release-notes.md', '--verify-tag')
           if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $ghArgs += '--prerelease' }
           $ghArgs += (Get-ChildItem artifacts/release -File | ForEach-Object { $_.FullName })
@@ -76,5 +76,5 @@ jobs:
           path: |
             artifacts/release/
             artifacts/test-results/
-            artifacts/vigildiag-release.md
+            artifacts/coreloomdiag-release.md
           if-no-files-found: ignore

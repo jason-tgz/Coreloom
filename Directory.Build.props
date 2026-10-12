@@ -8,7 +8,7 @@
     <NeutralLanguage>en-US</NeutralLanguage>
 
     <!-- Product metadata. CI overrides Version from the git tag (e.g. v1.2.3 -> 1.2.3). -->
-    <Product>Vigil</Product>
+    <Product>Coreloom</Product>
     <Company>Jerry Ubah</Company>
     <Authors>Jerry Ubah</Authors>
     <Copyright>Copyright © 2026 Jerry Ubah</Copyright>
@@ -17,15 +17,15 @@
 
     <!-- GitHub repository used by the in-app updater ("owner/name").
          CI sets this automatically from GITHUB_REPOSITORY; local builds can pass
-         -p:VigilUpdateRepository=owner/name or edit the default below. -->
-    <VigilUpdateRepository Condition="'$(VigilUpdateRepository)' == '' and '$(GITHUB_REPOSITORY)' != ''">$(GITHUB_REPOSITORY)</VigilUpdateRepository>
-    <VigilUpdateRepository Condition="'$(VigilUpdateRepository)' == ''">OWNER/Vigil</VigilUpdateRepository>
+         -p:CoreloomUpdateRepository=owner/name or edit the default below. -->
+    <CoreloomUpdateRepository Condition="'$(CoreloomUpdateRepository)' == '' and '$(GITHUB_REPOSITORY)' != ''">$(GITHUB_REPOSITORY)</CoreloomUpdateRepository>
+    <CoreloomUpdateRepository Condition="'$(CoreloomUpdateRepository)' == ''">OWNER/Coreloom</CoreloomUpdateRepository>
 
     <WarningLevel>9999</WarningLevel>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <AssemblyMetadata Include="UpdateRepository" Value="$(VigilUpdateRepository)" />
+    <AssemblyMetadata Include="UpdateRepository" Value="$(CoreloomUpdateRepository)" />
   </ItemGroup>
 </Project>
