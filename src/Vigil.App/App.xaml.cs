@@ -49,6 +49,36 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        try
+        {
+            Start(e);
+        }
+        catch (Exception ex)
+        {
+            // A failure while starting must never leave an invisible process behind (it would also hold the
+            // single-instance lock, so the next launch would silently exit).
+            Log.Error("App", "Vigil failed to start.", ex);
+            Log.Flush();
+            MessageBox.Show(
+                $"Vigil could not start:\n\n{DescribeError(ex)}\n\nDetails were written to the log folder (%LOCALAPPDATA%\\Vigil\\Logs).",
+                "Vigil", MessageBoxButton.OK, MessageBoxImage.Error);
+            _exiting = true;
+            try
+            {
+                _tray?.Dispose();
+                _host?.Dispose();
+            }
+            catch (Exception cleanup)
+            {
+                Log.Warn("App", "Cleanup after a failed start also failed.", cleanup);
+            }
+
+            ReleaseAndShutdown(1);
+        }
+    }
+
+    private void Start(StartupEventArgs e)
+    {
         var args = CommandLine.Parse(e.Args);
 
         // A restart (elevation, settings change) passes our old PID: wait for it so the instance lock is free.
@@ -99,7 +129,7 @@ public partial class App : Application
         {
             Log.Error("App", "Creating the monitoring host failed.", ex);
             Log.Flush();
-            MessageBox.Show($"Vigil could not start its monitoring engine:\n\n{ex.Message}\n\nDetails were written to {paths.LogDirectory}.",
+            MessageBox.Show($"Vigil could not start its monitoring engine:\n\n{DescribeError(ex)}\n\nDetails were written to {paths.LogDirectory}.",
                 "Vigil", MessageBoxButton.OK, MessageBoxImage.Error);
             ReleaseAndShutdown(1);
             return;
@@ -481,7 +511,7 @@ public partial class App : Application
             if (!_exiting && DateTime.UtcNow - _lastCrashDialog > TimeSpan.FromSeconds(30))
             {
                 _lastCrashDialog = DateTime.UtcNow;
-                MessageBox.Show($"Something went wrong in Vigil:\n\n{e.Exception.Message}\n\nThe error was logged. Vigil will keep running.",
+                MessageBox.Show($"Something went wrong in Vigil:\n\n{DescribeError(e.Exception)}\n\nThe error was logged. Vigil will keep running.",
                     "Vigil", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         };
@@ -497,6 +527,32 @@ public partial class App : Application
             Log.Warn("Crash", "Unobserved task exception.", e.Exception);
             e.SetObserved();
         };
+    }
+
+    /// <summary>
+    /// Message plus the innermost exception type and the first Vigil frame, so a screenshot of the dialog is
+    /// enough to locate the problem. The full stack trace is always in the log file.
+    /// </summary>
+    internal static string DescribeError(Exception ex)
+    {
+        var inner = ex;
+        while (inner.InnerException is not null && (inner is System.Reflection.TargetInvocationException || inner is System.Windows.Markup.XamlParseException || inner.Message == ex.Message))
+        {
+            inner = inner.InnerException;
+        }
+
+        string where = (inner.StackTrace ?? ex.StackTrace ?? string.Empty)
+            .Split('\n')
+            .Select(line => line.Trim())
+            .FirstOrDefault(line => line.StartsWith("at Vigil.", StringComparison.Ordinal)) ?? string.Empty;
+        if (where.Length > 0)
+        {
+            int paren = where.IndexOf('(');
+            where = "\n\n" + (paren > 0 ? where[..paren] : where);
+        }
+
+        string message = inner == ex ? ex.Message : $"{ex.Message}\n→ {inner.GetType().Name}: {inner.Message}";
+        return $"{message}{where}";
     }
 }
 

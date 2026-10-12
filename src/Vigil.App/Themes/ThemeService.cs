@@ -10,15 +10,27 @@ using Vigil.ViewModels.Services;
 namespace Vigil.App.Themes;
 
 /// <summary>
-/// Owns all theme brushes ("Brush.*" and "Series.*.Brush" resources). Applying a theme or accent animates
-/// the existing brush colors, so the whole UI cross-fades without rebuilding any visuals.
-/// Also applies reduced motion, the Mica backdrop and the immersive dark title bar.
+/// Owns all theme brushes ("Brush.*" and "Series.*.Brush" resources) and applies reduced motion, the Mica
+/// backdrop and the immersive dark title bar.
+/// <para>
+/// Each color exists as two brushes:
+/// <list type="bullet">
+/// <item>a <b>resource brush</b> in Application.Resources for XAML <c>DynamicResource</c> references. WPF
+/// freezes any Freezable added to an application-level ResourceDictionary, so resource brushes are never
+/// modified: a theme or accent change publishes a new brush. To cross-fade, the new brush starts at the old
+/// color and is already animating when it is inserted (an animating Freezable cannot be frozen).</item>
+/// <item>a <b>live brush</b>, never placed in a ResourceDictionary, returned by <see cref="GetBrush"/> and
+/// <see cref="GetSeriesBrush"/> for converters and custom-drawn controls. It is updated in place, so
+/// values produced by converters follow theme changes without re-binding.</item>
+/// </list>
+/// </para>
 /// </summary>
 public sealed class ThemeService : IThemeService
 {
     private static readonly string[] SurfaceKeys = ["WindowBackground", "Sidebar", "ContentLayer", "TitleBar"];
     private readonly ResourceDictionary _resources;
-    private readonly Dictionary<string, SolidColorBrush> _brushes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, SolidColorBrush> _live = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Color> _published = new(StringComparer.Ordinal);
     private AppearanceSettings? _current;
     private bool _isDark = true;
     private bool _initialized;
@@ -49,25 +61,10 @@ public sealed class ThemeService : IThemeService
 
     public Color AccentColor { get; private set; } = ThemePalette.Hex(AccentPalette.Default);
 
-    /// <summary>Creates every brush with the dark palette. Call once, before any window is created.</summary>
+    /// <summary>Creates every brush for the saved appearance. Call once, before any window is created.</summary>
     public void Initialize(AppearanceSettings appearance)
     {
         Instance = this;
-        foreach (var (key, color) in ThemePalette.Dark)
-        {
-            var brush = new SolidColorBrush(color);
-            string resourceKey = key.StartsWith("Series.", StringComparison.Ordinal) ? key + ".Brush" : "Brush." + key;
-            _brushes[resourceKey] = brush;
-            _resources[resourceKey] = brush;
-        }
-
-        foreach (string key in new[] { "Brush.Accent", "Brush.AccentSoft", "Brush.AccentHover", "Brush.OnAccent", "Series.Accent.Brush" }.Concat(SurfaceKeys.Select(k => "Brush." + k)))
-        {
-            var brush = new SolidColorBrush(Colors.Transparent);
-            _brushes[key] = brush;
-            _resources[key] = brush;
-        }
-
         Apply(appearance, animate: false);
         _initialized = true;
     }
@@ -124,24 +121,57 @@ public sealed class ThemeService : IThemeService
     /// <summary>Applies DWM attributes to a newly created window.</summary>
     public void ApplyToWindow(Window window) => NativeWindow.ApplyBackdrop(window, _isDark, IsMicaActive);
 
+    /// <summary>Live (in-place updated) brush for a resource key such as "Brush.Text".</summary>
     public Brush GetBrush(string resourceKey) =>
-        _brushes.TryGetValue(resourceKey, out var brush) ? brush : Brushes.Gray;
+        _live.TryGetValue(resourceKey, out var brush) ? brush : Brushes.Gray;
 
-    /// <summary>Brush for a semantic series color key such as "Cpu" or "Gpu".</summary>
+    /// <summary>Live brush for a semantic series color key such as "Cpu" or "Gpu".</summary>
     public Brush GetSeriesBrush(string? colorKey) =>
-        _brushes.TryGetValue($"Series.{colorKey ?? "Accent"}.Brush", out var brush) ? brush : _brushes["Series.Accent.Brush"];
+        _live.TryGetValue($"Series.{colorKey ?? "Accent"}.Brush", out var brush) ? brush
+        : _live.TryGetValue("Series.Accent.Brush", out var accent) ? accent : Brushes.SteelBlue;
 
     private void SetColor(string key, Color color, TimeSpan duration)
     {
-        if (!_brushes.TryGetValue(key, out var brush))
+        // Live brush: private to this service, so it is never frozen and can be animated in place.
+        if (!_live.TryGetValue(key, out var live))
         {
-            brush = new SolidColorBrush(color);
-            _brushes[key] = brush;
-            _resources[key] = brush;
+            _live[key] = new SolidColorBrush(color);
+        }
+        else
+        {
+            AnimateTo(live, color, duration);
+        }
+
+        // Resource brush: publish a new instance (the previous one may be frozen by the ResourceDictionary).
+        bool hadPrevious = _published.TryGetValue(key, out var previous);
+        if (hadPrevious && previous == color && _resources.Contains(key))
+        {
             return;
         }
 
-        if (duration <= TimeSpan.Zero)
+        var published = new SolidColorBrush(hadPrevious ? previous : color);
+        if (hadPrevious && duration > TimeSpan.Zero)
+        {
+            // Start the animation before inserting: an animating brush can't be frozen by the dictionary.
+            AnimateTo(published, color, duration);
+        }
+        else
+        {
+            published.Color = color;
+        }
+
+        _resources[key] = published;
+        _published[key] = color;
+    }
+
+    private static void AnimateTo(SolidColorBrush brush, Color color, TimeSpan duration)
+    {
+        if (brush.IsFrozen)
+        {
+            return; // defensive: never throw from a theme change
+        }
+
+        if (duration <= TimeSpan.Zero || brush.Color == color)
         {
             brush.BeginAnimation(SolidColorBrush.ColorProperty, null);
             brush.Color = color;
@@ -151,8 +181,11 @@ public sealed class ThemeService : IThemeService
         var animation = new ColorAnimation(color, duration) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }, FillBehavior = FillBehavior.HoldEnd };
         animation.Completed += (_, _) =>
         {
-            brush.BeginAnimation(SolidColorBrush.ColorProperty, null);
-            brush.Color = color;
+            if (!brush.IsFrozen)
+            {
+                brush.BeginAnimation(SolidColorBrush.ColorProperty, null);
+                brush.Color = color;
+            }
         };
         brush.BeginAnimation(SolidColorBrush.ColorProperty, animation);
     }
