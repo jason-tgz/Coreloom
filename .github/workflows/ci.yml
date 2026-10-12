@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  windows:
+    name: Build, test & publish (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build, test and publish (self-contained)
+        shell: pwsh
+        run: ./build/build.ps1 -Configuration Release -Publish
+
+      # A ready-to-run copy of every build: download "Vigil-win-x64" from the run's Summary page,
+      # unzip it and double-click Vigil.exe (no .NET install needed).
+      - name: Upload ready-to-run app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vigil-win-x64
+          path: artifacts/publish/win-x64/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Build without the LibreHardwareMonitor adapter
+        shell: pwsh
+        run: dotnet build src/Vigil.Hardware/Vigil.Hardware.csproj -c Release -p:VigilNoLhm=true -nologo
+
+      # Hosted runners have no GPU and no PawnIO driver, so most sensors are expected to be unavailable.
+      # This checks that the published diagnostic tool starts, polls and writes its report.
+      - name: VigilDiag smoke run
+        shell: pwsh
+        run: |
+          ./artifacts/publish/win-x64/VigilDiag.exe --samples 3 --interval 500 --out artifacts/vigildiag-ci.md
+          if (-not (Test-Path artifacts/vigildiag-ci.md)) { throw 'VigilDiag did not write its report' }
+          Get-Content artifacts/vigildiag-ci.md -TotalCount 60
+
+      - name: Upload test results and diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-results
+          path: |
+            artifacts/test-results/
+            artifacts/vigildiag-ci.md
+          if-no-files-found: ignore
+
+  linux:
+    name: Core & view-model tests (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # The platform-neutral layers must stay free of Windows dependencies.
+      - name: Test Vigil.Core
+        run: dotnet test tests/Vigil.Core.Tests/Vigil.Core.Tests.csproj -c Release
+
+      - name: Test Vigil.ViewModels
+        run: dotnet test tests/Vigil.ViewModels.Tests/Vigil.ViewModels.Tests.csproj -c Release

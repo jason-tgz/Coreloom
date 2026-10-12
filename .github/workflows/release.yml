@@ -1,0 +1,80 @@
+name: Release
+
+# Push a tag like v1.2.0 (or v1.3.0-beta.1 for a pre-release) to build, test, package and publish a
+# GitHub release with the installer, the portable zip and SHA256SUMS.txt.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # create the release and upload assets
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Read version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?)$') { throw "Tag '$tag' is not a version tag like v1.2.3" }
+          $version = $Matches[1]
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "prerelease=$(if ($version.Contains('-')) { 'true' } else { 'false' })" >> $env:GITHUB_OUTPUT
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup could not be installed' }
+
+      - name: Build, test and package
+        shell: pwsh
+        run: ./build/build.ps1 -Version ${{ steps.version.outputs.version }} -Repository ${{ github.repository }} -Package -RequireInstaller
+
+      # Hosted runners have no GPU or PawnIO; a failure here is reported but doesn't block the release
+      # (CI runs the same check strictly on every push).
+      - name: Smoke-test the published VigilDiag
+        continue-on-error: true
+        shell: pwsh
+        run: ./artifacts/publish/win-x64/VigilDiag.exe --samples 2 --interval 500 --out artifacts/vigildiag-release.md
+
+      - name: Release notes
+        shell: pwsh
+        run: ./build/release-notes.ps1 -Version ${{ steps.version.outputs.version }} -OutFile artifacts/release-notes.md
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ghArgs = @('release', 'create', '${{ github.ref_name }}', '--title', 'Vigil ${{ steps.version.outputs.version }}',
+                      '--notes-file', 'artifacts/release-notes.md', '--verify-tag')
+          if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $ghArgs += '--prerelease' }
+          $ghArgs += (Get-ChildItem artifacts/release -File | ForEach-Object { $_.FullName })
+          gh @ghArgs
+          if ($LASTEXITCODE -ne 0) { throw "gh release create failed ($LASTEXITCODE)" }
+
+      - name: Upload build outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ steps.version.outputs.version }}
+          path: |
+            artifacts/release/
+            artifacts/test-results/
+            artifacts/vigildiag-release.md
+          if-no-files-found: ignore

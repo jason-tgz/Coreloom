@@ -1,0 +1,31 @@
+<Project>
+  <!-- Shared build settings for every project in the repository. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <NeutralLanguage>en-US</NeutralLanguage>
+
+    <!-- Product metadata. CI overrides Version from the git tag (e.g. v1.2.3 -> 1.2.3). -->
+    <Product>Vigil</Product>
+    <Company>Jerry Ubah</Company>
+    <Authors>Jerry Ubah</Authors>
+    <Copyright>Copyright © 2026 Jerry Ubah</Copyright>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionSuffix Condition="'$(VersionSuffix)' == '' and '$(CI)' != 'true'">dev</VersionSuffix>
+
+    <!-- GitHub repository used by the in-app updater ("owner/name").
+         CI sets this automatically from GITHUB_REPOSITORY; local builds can pass
+         -p:VigilUpdateRepository=owner/name or edit the default below. -->
+    <VigilUpdateRepository Condition="'$(VigilUpdateRepository)' == '' and '$(GITHUB_REPOSITORY)' != ''">$(GITHUB_REPOSITORY)</VigilUpdateRepository>
+    <VigilUpdateRepository Condition="'$(VigilUpdateRepository)' == ''">OWNER/Vigil</VigilUpdateRepository>
+
+    <WarningLevel>9999</WarningLevel>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="UpdateRepository" Value="$(VigilUpdateRepository)" />
+  </ItemGroup>
+</Project>
