@@ -7,88 +7,54 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
-### Changed
-- **Renamed from Vigil to Coreloom**, with the approved Coreloom icon used as supplied (kit kept in
-  `assets/branding`). It is embedded in `Coreloom.exe` and `CoreloomDiag.exe` through `ApplicationIcon`, so
-  local builds and CI/release builds both carry it, and the window, tray (supplied PNG sizes), installer,
-  shortcuts and About page use it too. Project, namespace, assembly, installer and artifact names changed to
-  match (`Coreloom.exe`, `CoreloomDiag.exe`, `Coreloom-<version>-win-x64-Setup.exe`). The installer has a new
-  AppId, so it installs next to an existing Vigil rather than upgrading it. Settings are copied once from
-  `%APPDATA%\Vigil` on first start; the old folder is left in place.
-- **Always runs as administrator.** The manifest is now `requireAdministrator`. *Start with Windows* uses a
-  Task Scheduler task (highest privileges, no prompt at sign-in) instead of a Run-key entry; *Start with
-  administrator rights* and *Restart as administrator* are gone. The limited-mode banner now only appears when
-  the PawnIO driver is missing. The uninstaller removes the sign-in task through
-  `Coreloom.exe --remove-startup-task`.
-- **Typography.** Inter is the UI font and JetBrains Mono is used for numbers and technical values. Both are
-  embedded (SIL OFL 1.1, notices added). Text uses Display formatting with fixed hinting and ClearType hints for
-  crisper small text, including in the custom-drawn charts.
-- **Animation.** Animation frame rate follows the fastest attached display (60–240 Hz); chart and gauge
-  animations no longer have a 30 fps cap. Pages are cached so switching is instant.
+## [1.0.0] - 2026-10-13
 
-### Fixed
-- Chart, donut and sparkline controls hold event subscriptions only while they are on screen; bound immutable
-  items (option lists, spec rows, sensor groups) no longer rely on WPF's static property-descriptor table;
-  per-frame allocations in the sparkline and gauge were removed.
+**The first release of Coreloom**: a native Windows 11 hardware monitor with a calm, modern dashboard for your GPU, CPU, memory, storage and network.
 
-### Added
-- **Startup splash.** A launch that opens a window shows the Coreloom splash (icon, wordmark and a quiet
-  indeterminate loading line) right away, then fades into the dashboard once the main window has drawn its first
-  frame. The splash runs on its own thread so it keeps moving while the dashboard is built; it stays up at least
-  850 ms on very fast starts so it never flashes, has no taskbar button or Alt+Tab entry, and is skipped when
-  Coreloom starts minimized to the tray or a second launch hands over to the running copy. Reduced motion
-  (Coreloom's setting or Windows' *Animation effects*) removes the entrance, the moving line and the fades. A
-  failed start shows an error state behind the existing error dialog instead of an endless animation. Startup
-  timings are written to the log.
-- **Vendor marks next to the processor and graphics card names.** The GPU and CPU pages show the vendor's logo
-  when official logo files are supplied (`assets/vendors/` or `%AppData%\Coreloom\Vendors`; see
-  `assets/vendors/README.md`) and a plain-text badge ("NVIDIA", "AMD", "Intel") until then. No third-party logos
-  are bundled. The vendor is recognised from the driver/CPUID vendor string first and the device name second.
-- Settings › Diagnostics shows the managed heap and handle count next to the working set, so a memory or handle
-  leak is visible.
-- Tests for the vendor detection, the splash timing rules, the sign-in task sync and the settings import.
+Coreloom only *reads* sensors. It never changes clocks, voltages, fan curves or firmware, never installs drivers or services, and never sends your data anywhere.
 
-## [1.0.0-beta.1]
+### Highlights
 
-The first public build, intended for on-device validation before 1.0.0.
+- **Overview dashboard.** Six live cards (GPU utilization, GPU temperature, CPU utilization, CPU temperature, RAM and GPU power), each with a radial gauge, a sparkline, threshold colors and min/max/avg. Below them sit large charts and memory, storage and network panels. Hide and reorder the cards; your layout is saved.
+- **Detail pages** for the GPU, CPU, memory, storage and network:
+  - GPU clocks, VRAM, power and power limit, fans, hot spot and memory junction temperatures, clock-limit reasons and video engine load, with multi-GPU selection;
+  - per-thread CPU graphs, a per-core table and top processes;
+  - installed memory modules;
+  - per-disk activity, temperature and volumes;
+  - per-adapter network traffic.
+- **Performance History.** Compare up to six metrics on stacked, time-aligned charts with synchronized hover. Pick a 60 s, 5 min, 15 min or 1 h window and export to CSV.
+- **Honest data.** Every value is labelled *measured* or *derived* and names its source (NVML, Windows performance counters or LibreHardwareMonitor). Missing sensors tell you why they're missing. Nothing is estimated or faked.
+- **Smooth, sharp interface.** Inter and JetBrains Mono typography, animation that keeps up with your display's refresh rate (up to 240 Hz), and charts that never hide a peak. Dark and light themes with a custom accent color, Mica, Snap Layouts, a collapsible sidebar and a reduced-motion mode.
+- **Startup splash** that fades into the dashboard the moment it's ready.
+- **Alerts.** Per-metric rules with a sustain time, hysteresis and a cooldown, delivered as Windows notifications.
+- **Tray and startup.** A tray icon with a live tooltip, minimize or close to tray, single instance, and *Start with Windows*.
+- **In-app updates** from GitHub Releases. Downloads resume if interrupted and are SHA-256 verified before anything runs. You can skip a version or opt in to pre-releases.
+- **Light on your system.** Sensors are polled on their own thread (every second by default, adjustable), nothing is drawn while Coreloom is minimized, and its own CPU and memory use is shown in the sidebar.
+- **CoreloomDiag**, a command-line companion that writes a Markdown report of your hardware, every sensor and its source, and Coreloom's own overhead.
 
-### Added
-- **Overview**:
-  - six summary cards (GPU utilization, GPU temperature, CPU utilization, CPU temperature, RAM, GPU power)
-    with gauges, sparklines, threshold colors and min/max/avg;
-  - large utilization, temperature and power charts;
-  - memory, storage and network panels;
-  - cards you can hide and reorder, with the layout persisted.
-- **GPU page** (NVIDIA through NVML, other vendors through LibreHardwareMonitor):
-  - utilization, temperatures (hot spot and memory junction when available), clocks, VRAM, power and power
-    limit, fans, voltage, memory controller and video engine load, P-state;
-  - clock-limit reasons;
-  - multi-GPU selection.
-- **CPU page**:
-  - total and per-thread utilization from Windows performance counters (no administrator rights);
-  - temperatures, package power and per-core clocks through LibreHardwareMonitor and PawnIO;
-  - per-core table, top processes and motherboard sensors.
-- **Memory, Storage and Network pages**:
-  - donut charts, per-disk activity and temperature, volumes;
-  - per-adapter traffic with automatic active-adapter detection.
-- **Performance History**:
-  - up to six metrics on time-aligned charts with synchronized hover;
-  - windows of 60 s, 5 min, 15 min and 1 h with M4 downsampling;
-  - CSV export.
-- **Provenance labels**: every value is marked measured or derived and names its source. Unavailable
-  sensors explain why.
-- **Themes**: dark and light themes, a custom accent color, Mica, a reduced-motion mode, smooth chart
-  scrolling and animated values.
-- **Tray and startup**: a tray icon with a live tooltip, pause/resume, start with Windows (optionally
-  elevated through Task Scheduler), minimize/close to tray, and single instance.
-- **Alerts**: threshold alerts with sustain time, hysteresis and cooldown, shown as Windows notifications.
-- **Updates**: in-app updates from GitHub Releases.
-  - Resumable downloads with SHA-256 verification.
-  - The installer runs only after Vigil exits.
-  - Updates can be skipped per version.
-- **VigilDiag**: a command-line diagnostic report with an `nvidia-smi` comparison and an overhead
-  measurement.
-- **Packaging and CI**:
-  - per-user Inno Setup installer, portable zip and SHA256SUMS.txt;
-  - CI on Windows and Linux;
-  - tag-triggered releases.
+### Hardware support
+
+- **NVIDIA GPUs** through NVML, which comes with the NVIDIA driver.
+- **AMD and Intel GPUs** through LibreHardwareMonitor.
+- **CPU temperatures, package power and motherboard sensors** need the free, open-source [PawnIO](https://pawnio.eu) driver. Coreloom never installs it for you: install it yourself, then restart Coreloom. Everything else works without it, and the affected cards explain what's missing.
+
+### Requirements
+
+- Windows 11 x64, version 23H2 or later.
+- Nothing else. The installer and the portable build include the .NET runtime.
+
+### Good to know
+
+- **Coreloom runs as administrator** so it can read the sensor driver. Windows asks for approval when you start it by hand; with *Start with Windows* on, it starts at sign-in without a prompt. It still only reads sensors.
+- **Windows SmartScreen may warn you on first run** ("Windows protected your PC") because this release isn't code-signed yet. Choose *More info* → *Run anyway*, and compare the file with `SHA256SUMS.txt` if you'd like to confirm it's genuine.
+- **No telemetry.** The only network request Coreloom makes is the optional update check to GitHub.
+- **Vendor logos aren't bundled**, since they're trademarks. The CPU and GPU names show a text badge, or the official logo if you add the file yourself (see `assets/vendors/README.md`).
+- Alert thresholds are reminders, not safety limits. Modern CPUs and GPUs protect themselves by throttling.
+
+### Feedback
+
+Found a bug or a sensor that reads wrong? [Open an issue](https://github.com/jerryubah/Vigil/issues) and attach a CoreloomDiag report. It's the fastest way to get it fixed:
+
+```powershell
+CoreloomDiag.exe --samples 30 --out coreloom-report.md
+```

@@ -7,10 +7,11 @@ verified in-app updates.
 Coreloom only **reads** sensors. It never changes clocks, voltages, fan curves or firmware settings, never
 installs drivers or services, and never sends your data anywhere.
 
-> **Project status:** the code is complete and the platform-neutral parts are unit-tested, but the
-> Windows app has **not yet been built or run on real hardware**. See [docs/VERIFICATION.md](docs/VERIFICATION.md)
-> for exactly what has and hasn't been verified, and [docs/TESTING-ON-YOUR-PC.md](docs/TESTING-ON-YOUR-PC.md)
-> for the on-device checklist.
+> **Project status:** 1.0.0 is the first release. Every build is compiled and tested by GitHub Actions, and
+> the app is run on Windows 11 with an NVIDIA GeForce RTX 5090 and an AMD Ryzen 9 9950X3D. It hasn't been
+> tried on a wide range of other hardware yet, so if a sensor reads wrong, please
+> [open an issue](../../issues) with a [CoreloomDiag report](#diagnostics-coreloomdiag) attached.
+> [docs/VERIFICATION.md](docs/VERIFICATION.md) lists what has and hasn't been verified.
 
 ---
 
