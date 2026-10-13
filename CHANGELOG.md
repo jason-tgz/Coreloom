@@ -7,20 +7,13 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
-### Added
-- **Your PC at a glance.** The Overview opens with a header for this PC: the motherboard name, the graphics card and the key specs (processor, cores, memory, storage, graphics memory, driver, Windows and BIOS), next to a drawing of the build that follows your hardware (memory sticks, graphics card size and model) and your accent color, with the CPU temperature on the pump screen. You can show a render or photo of your own build instead: save it as `pc.png` in `%AppData%\Coreloom`.
-
-### Changed
-- **Tidier Graphics page.** Specifications now sit next to the VRAM chart at the same height as the charts and scroll inside the card when the list is long.
-- **Sensors in two columns.** Long sensor lists on the Graphics and Processor pages are split into two balanced columns instead of one long card, and cards fit their content instead of stretching to their neighbour.
-- Coreloom's own CPU use is no longer shown under Settings in the sidebar; it's in *Settings › Diagnostics*.
-
 ## [1.1.0] - 2026-10-13
 
-Coreloom now keeps itself up to date and tells you what changed.
+Coreloom now keeps itself up to date, and the Overview opens with your PC and its specs at a glance.
 
 ### Added
 - **Automatic updates.** Coreloom downloads new versions in the background, checks them against the release's SHA-256 checksums and installs them the next time it starts, while your PC is idle, or right away with *Restart to update*. You can turn this off in *Settings › Updates*.
+- **Your PC at a glance.** The Overview opens with a header for this PC: the motherboard name, the graphics card and the key specs (processor, cores, memory, storage, graphics memory, driver, Windows and BIOS), next to a drawing of the build that follows your hardware (memory sticks, graphics card size and model) and your accent color, with the CPU temperature on the pump screen. You can show a render or photo of your own build instead: save it as `pc.png` in `%AppData%\Coreloom`.
 - **What's new.** Every update comes with a short summary of the release: in *Settings › Updates*, in the notification, and in a banner after Coreloom has updated.
 - **Update badge.** The sidebar, the *Updates* section in Settings and the tray menu show when a new version is available, downloading or ready to install.
 - **Redesigned Settings › Updates** with *Check for updates*, download progress, *Restart to update*, *Skip this version* and the update preferences in one place.
@@ -29,8 +22,11 @@ Coreloom now keeps itself up to date and tells you what changed.
 - **Safer installs.** A downloaded installer only runs if its SHA-256 matches a hash that only administrators can change, it stays locked from that check until it starts, and downloads never write through links placed in the updates folder.
 
 ### Changed
+- **Tidier Graphics page.** Specifications now sit next to the VRAM chart at the same height as the charts and scroll inside the card when the list is long.
+- **Sensors in two columns.** Long sensor lists on the Graphics and Processor pages are split into two balanced columns instead of one long card, and cards fit their content instead of stretching to their neighbour.
 - After a background update, Coreloom returns to the notification area and says it was updated. If an update can't finish, the installer rolls back and starts the previous version again, and Coreloom stops retrying that version on its own.
 - Portable copies are told about new versions and link to the release page; they're never changed in place.
+- Coreloom's own CPU use is no longer shown under Settings in the sidebar; it's in *Settings › Diagnostics*.
 
 ### Fixed
 - The release workflow adds its installer, portable zip and checksums to a release that already exists (for example one created on GitHub's website) instead of failing, and can be re-run for an existing tag from the Actions tab.
