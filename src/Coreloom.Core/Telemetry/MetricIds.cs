@@ -71,25 +71,6 @@ public static class MetricIds
 
     public static string GpuPowerLimit(int slot) => $"gpu/{Inv(slot)}/power/limit";
 
-    // Read-only tuning state (NVML). Offsets are signed MHz; power values are watts.
-    public static string GpuCoreClockOffset(int slot) => $"gpu/{Inv(slot)}/clock/core-offset";
-
-    public static string GpuCoreClockOffsetMin(int slot) => $"gpu/{Inv(slot)}/clock/core-offset/min";
-
-    public static string GpuCoreClockOffsetMax(int slot) => $"gpu/{Inv(slot)}/clock/core-offset/max";
-
-    public static string GpuMemoryClockOffset(int slot) => $"gpu/{Inv(slot)}/clock/memory-offset";
-
-    public static string GpuMemoryClockOffsetMin(int slot) => $"gpu/{Inv(slot)}/clock/memory-offset/min";
-
-    public static string GpuMemoryClockOffsetMax(int slot) => $"gpu/{Inv(slot)}/clock/memory-offset/max";
-
-    public static string GpuPowerLimitDefault(int slot) => $"gpu/{Inv(slot)}/power/limit-default";
-
-    public static string GpuPowerLimitMin(int slot) => $"gpu/{Inv(slot)}/power/limit-min";
-
-    public static string GpuPowerLimitMax(int slot) => $"gpu/{Inv(slot)}/power/limit-max";
-
     public static string GpuVoltage(int slot) => $"gpu/{Inv(slot)}/voltage";
 
     public static string GpuPerformanceState(int slot) => $"gpu/{Inv(slot)}/pstate";

@@ -140,27 +140,13 @@ Work through each area and tick what works.
 - [ ] *Performance History*: picking metrics stacks the charts, hover is synchronized, and *Export CSV*
       writes a file.
 
-**Vendor marks, tuning indicator and tuning viewer**
+**Vendor marks**
 
 - [ ] The *Processor* page shows an *AMD* mark next to the CPU name, and the *GPU* page shows an *NVIDIA* mark next
       to the GPU name. Without logo files these are plain-text badges; that is expected.
 - [ ] (Optional) Put `nvidia.png` and `amd.png` (official logos you downloaded, transparent PNG) in
       `%AppData%\Coreloom\Vendors`, restart, and check they replace the badges and read well in dark and light
       themes. Add `-on-dark` / `-on-light` versions if one theme is hard to read.
-- [ ] With the GPU at stock settings, the GPU header shows no tuning badge, and the *Tuning* panel says no overclock
-      or reduced limits were detected (and mentions that curve edits can't be seen).
-- [ ] Apply a core clock offset (for example +100 MHz) or raise/lower the power limit in your tuning tool. Within
-      a few seconds the GPU header shows *Overclock*, *Reduced limits* or *Custom tuning*, and *Tuning* lists the
-      matching line ("Core clock offset +100 MHz", "Power limit …"). Reset it and the badge goes away.
-- [ ] Open *Tuning*: the offset and power-limit meters show the allowed range, a tick at stock and a marker at the
-      current value. Nothing in the panel can be dragged or typed into; *Clear* only empties the voltage chart's recorded
-      readings.
-- [ ] Leave Coreloom running under a game or load for a few minutes: the voltage-per-clock chart fills in. If it
-      stays empty, the panel should say core voltage isn't available; send the CoreloomDiag report.
-- [ ] Note whether the memory offset number matches your tuning tool. A different scale is expected (the driver's
-      units); a wrong *sign* or an offset shown while your tool says 0 is not. Report it.
-- [ ] An undervolt made only by editing the voltage/frequency curve is **not** expected to raise the badge. The
-      voltage chart should show lower voltage at the same clock after you apply it.
 
 **Tray**
 

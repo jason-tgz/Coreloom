@@ -81,7 +81,6 @@ public sealed class UnitFormatter
             MetricKind.Load or MetricKind.Control or MetricKind.Level => Percent(value),
             MetricKind.Temperature => Temperature(value),
             MetricKind.Clock => Clock(value),
-            MetricKind.ClockOffset => ClockOffset(value),
             MetricKind.Power => Power(value),
             MetricKind.Voltage => Voltage(value),
             MetricKind.Current => new FormattedValue(Number(value, value < 10 ? 2 : 1), "A"),
@@ -137,19 +136,6 @@ public sealed class UnitFormatter
         }
 
         return new FormattedValue(Number(mhz, 0), "MHz");
-    }
-
-    /// <summary>Signed clock offset in MHz with an explicit plus sign, e.g. "+150 MHz", "-75 MHz", "0 MHz".</summary>
-    public FormattedValue ClockOffset(double mhz)
-    {
-        if (!double.IsFinite(mhz))
-        {
-            return FormattedValue.Unavailable;
-        }
-
-        string number = Number(mhz, 0);
-        bool positive = Math.Round(mhz, MidpointRounding.AwayFromZero) > 0;
-        return new FormattedValue(positive ? "+" + number : number, "MHz");
     }
 
     /// <summary>Clock in GHz with two decimals, e.g. "5.24 GHz".</summary>

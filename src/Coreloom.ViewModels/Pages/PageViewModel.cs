@@ -1,7 +1,6 @@
 using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Coreloom.Core.Formatting;
-using Coreloom.Core.Hardware;
 using Coreloom.Core.History;
 using Coreloom.Core.Telemetry;
 using Coreloom.ViewModels.Infrastructure;
@@ -177,9 +176,6 @@ public sealed class PageContext
     public required SettingsService Settings { get; init; }
 
     public required TimelineViewModel Timeline { get; init; }
-
-    /// <summary>Voltage the GPU actually ran at per core clock, recorded from every frame (shown in the GPU tuning viewer).</summary>
-    public VoltageFrequencyRecorder VoltageFrequency { get; } = new();
 
     /// <summary>GPU slot to show on Overview/GPU pages (user preference or automatic).</summary>
     public int GpuSlot => Settings.Current.Monitoring.PreferredGpuSlot is int slot && Monitor.Gpus().Any(g => g.Slot == slot)

@@ -44,24 +44,9 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
   when official logo files are supplied (`assets/vendors/` or `%AppData%\Coreloom\Vendors`; see
   `assets/vendors/README.md`) and a plain-text badge ("NVIDIA", "AMD", "Intel") until then. No third-party logos
   are bundled. The vendor is recognised from the driver/CPUID vendor string first and the device name second.
-- **Overclock / reduced-limit indicator on the GPU page** (NVIDIA, read-only). Coreloom reads the core and memory
-  clock offsets and the power limit through NVML and compares them with their stock values. A badge in the GPU
-  header says *Overclock*, *Reduced limits* or *Custom tuning* when something differs. When nothing is set, or
-  the driver does not expose the values, the page says so instead of guessing.
-- **Tuning viewer on the GPU page** (a *Tuning* toggle beside the GPU selector). It is read-only: it shows the
-  detected offsets and power limit against their allowed ranges, and a chart of the **voltage the GPU actually
-  used at each core clock** (measured, built up while Coreloom runs, from core clock and core voltage). Nothing
-  in it can be edited, and Coreloom never writes any GPU setting.
 - Settings › Diagnostics shows the managed heap and handle count next to the working set, so a memory or handle
   leak is visible.
-- Tests for the vendor detection, the tuning analysis, the measured voltage/frequency curve and the tuning view
-  model, and for the sign-in task sync and the settings import.
-
-### Known limits
-- The voltage/frequency *curve* that tools such as MSI Afterburner store (an undervolt made by dragging curve
-  points) is not available through the public NVIDIA interface Coreloom uses, so editing that curve is not
-  detected by the indicator. The measured voltage-per-clock chart is the way to see its effect.
-- Memory clock offsets are shown in the driver's own units, which can differ from the numbers a tuning tool shows.
+- Tests for the vendor detection, the splash timing rules, the sign-in task sync and the settings import.
 
 ## [1.0.0-beta.1]
 

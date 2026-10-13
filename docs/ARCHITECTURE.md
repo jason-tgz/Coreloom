@@ -95,26 +95,11 @@ layer calls Windows sensor APIs, so most of the logic is testable on any OS.
   - Writes are debounced by 600 ms.
   - A corrupt file is kept as `settings.json.bad` and defaults are used.
 
-## GPU tuning indicator and viewer
+## Vendor marks
 
-Everything here is read-only.
-
-- **Reading.** `NvmlGpuProvider` polls the core and memory clock offsets (and their allowed ranges) and the stock
-  power-limit range every 2 s, as the `Tuning` group of metrics (`MetricKind.ClockOffset`, not tracked in history).
-  The exports are resolved individually, so a driver without one reports that metric as unavailable with the
-  reason. Only "get" functions are bound.
-- **Classifying.** `GpuTuningAnalyzer` (Core, platform-neutral) turns a `GpuTuningReading` into a
-  `GpuTuningStatus`: `Unavailable`, `NotDetected`, `Overclock`, `Reduced` or `Mixed`, with one finding per
-  setting that differs from stock. Unreadable values are never treated as stock.
-- **Measuring.** `VoltageFrequencyRecorder` bins (core clock, core voltage) pairs from every frame, including
-  while the window is hidden, into 15 MHz bins with min, mean and max. This is what the viewer plots; it is a
-  record of where the card ran, not the curve a tuning tool stores.
-- **Showing.** `GpuTuningViewModel` exposes the badge, meters and chart data; `RangeMeter` and
-  `VoltageFrequencyChart` are non-interactive (`IsHitTestVisible = false`). The only buttons are show/hide and *Clear*
-  (empties Coreloom's own recorded readings).
-- **Vendor marks.** `HardwareVendors.Detect` identifies NVIDIA/AMD/Intel from the vendor string, then the device
-  name. `BrandMark` shows a logo file from `%AppData%\Coreloom\Vendors` or the embedded `assets/vendors/` set, and
-  a text badge otherwise. No logos are bundled.
+`HardwareVendors.Detect` (Core) identifies NVIDIA, AMD or Intel from the vendor string first, then the device name.
+`BrandMark` shows a logo file from `%AppData%\Coreloom\Vendors` or the embedded `assets/vendors/` set, and a
+plain-text badge otherwise. No logos are bundled.
 
 ## Privileges
 

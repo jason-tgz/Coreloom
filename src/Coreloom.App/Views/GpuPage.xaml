@@ -7,36 +7,22 @@
   <ScrollViewer Style="{StaticResource ScrollViewer.Page}">
     <StackPanel Margin="32,14,28,32" b:Motion.Entrance="True">
 
-      <!-- Device header: vendor mark, GPU name, tuning indicator, tuning viewer toggle, GPU picker -->
+      <!-- Device header: vendor mark, GPU name, GPU picker -->
       <Grid Margin="0,0,0,16">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
           <c:BrandMark Vendor="{Binding VendorKey}" Margin="0,0,12,0" />
           <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Gpu}" Stroke="{DynamicResource Series.Gpu.Brush}" Margin="0,0,10,0" VerticalAlignment="Center"
                 Visibility="{Binding VendorKey, Converter={StaticResource HasValueToVisibility}, ConverterParameter=Invert}" />
           <TextBlock Text="{Binding GpuName}" Style="{StaticResource Text.Section}" VerticalAlignment="Center" />
-          <ContentPresenter Content="{Binding Tuning}" ContentTemplate="{StaticResource TuningBadge}" VerticalAlignment="Center" />
-        </WrapPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-          <ToggleButton Style="{StaticResource ToggleButton.Secondary}" IsChecked="{Binding Tuning.IsOpen}" Padding="12,6" Margin="12,0,0,0"
-                        ToolTip="View overclock, undervolt and power-limit settings (read-only)">
-            <StackPanel Orientation="Horizontal">
-              <Path Style="{StaticResource IconPath}" Width="15" Height="15" Data="{StaticResource Icon.Eye}" />
-              <TextBlock Text="Tuning" Margin="8,0,0,0" VerticalAlignment="Center" />
-            </StackPanel>
-          </ToggleButton>
-          <ComboBox Style="{StaticResource ComboBox.Default}" MinWidth="260" Margin="12,0,0,0"
-                    ItemsSource="{Binding Gpus}" SelectedItem="{Binding SelectedGpu}" DisplayMemberPath="Display"
-                    Visibility="{Binding HasMultipleGpus, Converter={StaticResource BoolToVisibility}}" ToolTip="GPU shown on this page and the Overview" />
         </StackPanel>
+        <ComboBox Grid.Column="1" Style="{StaticResource ComboBox.Default}" MinWidth="260" Margin="12,0,0,0" VerticalAlignment="Center"
+                  ItemsSource="{Binding Gpus}" SelectedItem="{Binding SelectedGpu}" DisplayMemberPath="Display"
+                  Visibility="{Binding HasMultipleGpus, Converter={StaticResource BoolToVisibility}}" ToolTip="GPU shown on this page and the Overview" />
       </Grid>
-
-      <!-- Read-only tuning viewer (opened with the Tuning button) -->
-      <ContentPresenter Content="{Binding Tuning}" ContentTemplate="{StaticResource TuningViewer}" Margin="0,0,0,16"
-                        Visibility="{Binding Tuning.IsOpen, Converter={StaticResource BoolToVisibility}}" />
 
       <!-- Gauges -->
       <c:AdaptiveGrid MinColumnWidth="250" MaxColumns="4" Spacing="16">

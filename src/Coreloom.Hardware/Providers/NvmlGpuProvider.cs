@@ -9,19 +9,14 @@ namespace Coreloom.Hardware.Providers;
 /// <summary>
 /// NVIDIA GPUs via NVML (the same library nvidia-smi uses). No administrator rights required.
 /// Covers utilization, temperature, clocks, VRAM, power and power limit, fan duty, P-state,
-/// encoder/decoder load, PCIe link and clock-limit reasons, and the read-only tuning state (core/memory clock offsets
-/// and the power-limit range, used to detect overclock/reduced-limit settings). Hot spot / memory junction temperatures,
+/// encoder/decoder load, PCIe link and clock-limit reasons. Hot spot / memory junction temperatures,
 /// fan RPM and core voltage are not exposed by NVML; those come from LibreHardwareMonitor (NvAPI) when available.
-/// Coreloom never writes any GPU setting: only the "Get" NVML functions are bound.
 /// </summary>
 public sealed class NvmlGpuProvider : ITelemetryProvider
 {
     public const int Priority = 100;
     private const string Source = "NVML";
     private const string LogCategory = "NVML";
-
-    /// <summary>Tuning settings change only when the user runs a tuning tool, so they are re-read at this interval.</summary>
-    private const long TuningRefreshMilliseconds = 2000;
 
     private readonly HardwareServices _services;
     private readonly List<Device> _devices = [];
@@ -176,59 +171,6 @@ public sealed class NvmlGpuProvider : ITelemetryProvider
             device.PowerLimit = Reg(MetricIds.GpuPowerLimit(slot), "Power limit (enforced)", MetricKind.Power, "Power", track: false);
         }
 
-        // ---- Tuning state (read-only) ----------------------------------------------------------------
-        // Clock offsets and the power-limit range are all NVML exposes about tuning. A voltage/frequency curve edited
-        // with a tool such as MSI Afterburner is stored in a form NVML cannot read, so it can never be reported here.
-        var coreOffsetResult = nvml.GetCoreClockOffset(handle, out int coreOffset);
-        if (coreOffsetResult == NvmlReturn.Success)
-        {
-            device.CoreOffsetValue = coreOffset;
-            device.CoreOffset = Reg(MetricIds.GpuCoreClockOffset(slot), "Core clock offset", MetricKind.ClockOffset, "Tuning", track: false);
-            if (nvml.GetCoreClockOffsetRange(handle, out int lo, out int hi) == NvmlReturn.Success && hi > lo)
-            {
-                device.CoreOffsetMinValue = lo;
-                device.CoreOffsetMaxValue = hi;
-                device.CoreOffsetMin = Reg(MetricIds.GpuCoreClockOffsetMin(slot), "Core clock offset (lowest allowed)", MetricKind.ClockOffset, "Tuning", track: false);
-                device.CoreOffsetMax = Reg(MetricIds.GpuCoreClockOffsetMax(slot), "Core clock offset (highest allowed)", MetricKind.ClockOffset, "Tuning", track: false);
-            }
-        }
-        else
-        {
-            context.SetUnavailableReason(MetricIds.GpuCoreClockOffset(slot), OffsetUnavailableReason(nvml, coreOffsetResult));
-        }
-
-        var memoryOffsetResult = nvml.GetMemoryClockOffset(handle, out int memoryOffset);
-        if (memoryOffsetResult == NvmlReturn.Success)
-        {
-            device.MemoryOffsetValue = memoryOffset;
-            device.MemoryOffset = Reg(MetricIds.GpuMemoryClockOffset(slot), "Memory clock offset", MetricKind.ClockOffset, "Tuning", track: false, note: "In the units the NVIDIA driver reports; tuning tools may display memory offsets on a different scale.");
-            if (nvml.GetMemoryClockOffsetRange(handle, out int lo, out int hi) == NvmlReturn.Success && hi > lo)
-            {
-                device.MemoryOffsetMinValue = lo;
-                device.MemoryOffsetMaxValue = hi;
-                device.MemoryOffsetMin = Reg(MetricIds.GpuMemoryClockOffsetMin(slot), "Memory clock offset (lowest allowed)", MetricKind.ClockOffset, "Tuning", track: false);
-                device.MemoryOffsetMax = Reg(MetricIds.GpuMemoryClockOffsetMax(slot), "Memory clock offset (highest allowed)", MetricKind.ClockOffset, "Tuning", track: false);
-            }
-        }
-        else
-        {
-            context.SetUnavailableReason(MetricIds.GpuMemoryClockOffset(slot), OffsetUnavailableReason(nvml, memoryOffsetResult));
-        }
-
-        if (nvml.GetDefaultPowerLimit(handle, out uint defaultLimitMw) == NvmlReturn.Success && defaultLimitMw > 0)
-        {
-            device.DefaultPowerWatts = defaultLimitMw / 1000.0;
-            device.PowerDefault = Reg(MetricIds.GpuPowerLimitDefault(slot), "Power limit (default)", MetricKind.Power, "Tuning", track: false);
-        }
-
-        if (nvml.GetPowerLimitConstraints(handle, out uint minLimitMw, out uint maxLimitMw) == NvmlReturn.Success && maxLimitMw > minLimitMw)
-        {
-            device.MinPowerWatts = minLimitMw / 1000.0;
-            device.MaxPowerWatts = maxLimitMw / 1000.0;
-            device.PowerMin = Reg(MetricIds.GpuPowerLimitMin(slot), "Power limit (lowest allowed)", MetricKind.Power, "Tuning", track: false);
-            device.PowerMax = Reg(MetricIds.GpuPowerLimitMax(slot), "Power limit (highest allowed)", MetricKind.Power, "Tuning", track: false);
-        }
-
         if (nvml.GetFanCount(handle, out uint fans) != NvmlReturn.Success)
         {
             fans = nvml.GetFanSpeed(handle, 0, out _) == NvmlReturn.Success ? 1u : 0u;
@@ -287,11 +229,6 @@ public sealed class NvmlGpuProvider : ITelemetryProvider
         context.UpsertDevice(BuildDeviceInfo(nvml, handle, deviceId, name, driver, totalVram, slowdown, shutdown, gpuMax, busId, index));
         return device;
     }
-
-    private static string OffsetUnavailableReason(NvmlLibrary nvml, NvmlReturn result) =>
-        result == NvmlReturn.FunctionNotFound
-            ? "This NVIDIA driver version does not provide clock offset readings."
-            : $"The NVIDIA driver did not report a clock offset for this GPU ({nvml.ErrorString(result)}).";
 
     private static DeviceInfo BuildDeviceInfo(NvmlLibrary nvml, IntPtr handle, string deviceId, string name, string driver, ulong totalVram, uint slowdown, uint shutdown, uint gpuMax, string busId, uint index)
     {
@@ -440,9 +377,6 @@ public sealed class NvmlGpuProvider : ITelemetryProvider
                 writer.Write(d.PowerLimit!, limit / 1000.0);
             }
 
-            RefreshTuning(nvml, d);
-            WriteTuning(writer, d);
-
             for (int i = d.Fans.Count - 1; i >= 0; i--)
             {
                 var (fan, handle) = d.Fans[i];
@@ -490,66 +424,6 @@ public sealed class NvmlGpuProvider : ITelemetryProvider
             {
                 writer.Write(d.PcieWidth!, width);
             }
-        }
-    }
-
-    /// <summary>Re-reads the clock offsets (they only change when a tuning tool runs, so not on every poll).</summary>
-    private static void RefreshTuning(NvmlLibrary nvml, Device d)
-    {
-        if (d.CoreOffset is null && d.MemoryOffset is null)
-        {
-            return;
-        }
-
-        long now = Environment.TickCount64;
-        if (now < d.NextTuningReadTick)
-        {
-            return;
-        }
-
-        d.NextTuningReadTick = now + TuningRefreshMilliseconds;
-        if (d.CoreOffset is not null && Check(nvml, nvml.GetCoreClockOffset(d.Handle, out int core), "core clock offset", ref d.CoreOffset))
-        {
-            d.CoreOffsetValue = core;
-        }
-
-        if (d.MemoryOffset is not null && Check(nvml, nvml.GetMemoryClockOffset(d.Handle, out int memory), "memory clock offset", ref d.MemoryOffset))
-        {
-            d.MemoryOffsetValue = memory;
-        }
-    }
-
-    private static void WriteTuning(IMetricWriter writer, Device d)
-    {
-        if (d.CoreOffset is not null)
-        {
-            writer.Write(d.CoreOffset, d.CoreOffsetValue);
-            if (d.CoreOffsetMin is not null && d.CoreOffsetMax is not null)
-            {
-                writer.Write(d.CoreOffsetMin, d.CoreOffsetMinValue);
-                writer.Write(d.CoreOffsetMax, d.CoreOffsetMaxValue);
-            }
-        }
-
-        if (d.MemoryOffset is not null)
-        {
-            writer.Write(d.MemoryOffset, d.MemoryOffsetValue);
-            if (d.MemoryOffsetMin is not null && d.MemoryOffsetMax is not null)
-            {
-                writer.Write(d.MemoryOffsetMin, d.MemoryOffsetMinValue);
-                writer.Write(d.MemoryOffsetMax, d.MemoryOffsetMaxValue);
-            }
-        }
-
-        if (d.PowerDefault is not null)
-        {
-            writer.Write(d.PowerDefault, d.DefaultPowerWatts);
-        }
-
-        if (d.PowerMin is not null && d.PowerMax is not null)
-        {
-            writer.Write(d.PowerMin, d.MinPowerWatts);
-            writer.Write(d.PowerMax, d.MaxPowerWatts);
         }
     }
 
@@ -639,27 +513,6 @@ public sealed class NvmlGpuProvider : ITelemetryProvider
         public MetricHandle? DecoderLoad;
         public MetricHandle? PcieGeneration;
         public MetricHandle? PcieWidth;
-
-        // Read-only tuning state; values are cached and re-read every TuningRefreshMilliseconds.
-        public MetricHandle? CoreOffset;
-        public MetricHandle? CoreOffsetMin;
-        public MetricHandle? CoreOffsetMax;
-        public MetricHandle? MemoryOffset;
-        public MetricHandle? MemoryOffsetMin;
-        public MetricHandle? MemoryOffsetMax;
-        public MetricHandle? PowerDefault;
-        public MetricHandle? PowerMin;
-        public MetricHandle? PowerMax;
-        public int CoreOffsetValue;
-        public int CoreOffsetMinValue;
-        public int CoreOffsetMaxValue;
-        public int MemoryOffsetValue;
-        public int MemoryOffsetMinValue;
-        public int MemoryOffsetMaxValue;
-        public double DefaultPowerWatts;
-        public double MinPowerWatts;
-        public double MaxPowerWatts;
-        public long NextTuningReadTick;
 
         public List<(uint Fan, MetricHandle Handle)> Fans { get; } = [];
     }
