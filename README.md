@@ -22,8 +22,9 @@ installs drivers or services, and never sends your data anywhere.
   speeds; or a render of your own build. Six summary cards (GPU utilization, GPU
   temperature, CPU utilization, CPU temperature, RAM, GPU power), each with a radial gauge, a sparkline,
   threshold colors and min/max/avg.
-  Below them are large charts and memory, storage and network panels. *Customize* opens a card right on the
-  Overview to pick the PC's lighting and to hide and reorder cards; the layout is saved.
+  Below them are large charts and memory, storage and network panels, all on one grid: drag a card to move it and
+  drag its corner to resize it. *Customize* opens a card right on the Overview to show or hide the PC picture, pick
+  its lighting, and hide and reorder cards; the layout is saved.
 - **Detail pages** for the GPU, CPU, memory, storage and network:
   - per-thread CPU graphs and a per-core table;
   - top processes;

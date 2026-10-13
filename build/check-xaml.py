@@ -51,6 +51,7 @@ WPF_PROPERTIES = {
     "Text", "IsChecked", "SelectedItem", "SelectedValue", "SelectedIndex", "DataContext", "ActualWidth", "ActualHeight",
     "IsMouseOver", "IsEnabled", "Visibility", "Count", "Content", "Tag", "Value", "Maximum", "Minimum", "Width", "Height",
     "IsKeyboardFocused", "IsSelected", "Items", "HasItems", "IsCompactSidebar", "Foreground", "Background", "IsDropDownOpen",
+    "VerticalOffset",
 }
 
 
@@ -362,7 +363,7 @@ def main() -> int:
         if key not in global_keys:
             problems.add(APP / "Themes" / "Icons.xaml", f"icon '{key}' is referenced from code but not defined")
     for key in set(re.findall(r'FindResource\("([^"]+)"', all_code)) | set(re.findall(r'"(Glyph\.\w+)"', all_code)):
-        if key not in global_keys:
+        if key not in all_keys:  # theme brushes are added at runtime
             problems.add(APP / "Views" / "MainWindow.xaml.cs", f"resource '{key}' looked up from code is not defined")
 
     # ---- pack URIs -------------------------------------------------------------------------------

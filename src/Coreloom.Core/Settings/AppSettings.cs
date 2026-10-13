@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Coreloom.Core.Alerts;
 using Coreloom.Core.Formatting;
 using Coreloom.Core.History;
@@ -170,6 +171,9 @@ public sealed class DashboardSettings
 
     public bool ShowStatistics { get; set; } = true;
 
+    /// <summary>The picture of the PC on the left of the Overview header.</summary>
+    public bool ShowPcPicture { get; set; } = true;
+
     /// <summary>Lighting color of the PC picture in the Overview header.</summary>
     public PcGlow PcGlow { get; set; } = PcGlow.Blue;
 }
@@ -194,6 +198,14 @@ public sealed class DashboardCardSetting
     public string Id { get; set; } = string.Empty;
 
     public bool Visible { get; set; } = true;
+
+    /// <summary>Width in dashboard columns; not set means the card's default (see <see cref="DashboardCatalog.SizeOf"/>).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Columns { get; set; }
+
+    /// <summary>Height in dashboard rows; not set means the card's default.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Rows { get; set; }
 }
 
 public sealed class DesktopSettings

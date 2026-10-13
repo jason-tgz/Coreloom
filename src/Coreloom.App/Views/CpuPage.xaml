@@ -5,7 +5,7 @@
              xmlns:b="clr-namespace:Coreloom.App.Behaviors"
              xmlns:pages="clr-namespace:Coreloom.ViewModels.Pages;assembly=Coreloom.ViewModels">
 
-  <ScrollViewer Style="{StaticResource ScrollViewer.Page}">
+  <ScrollViewer Style="{StaticResource ScrollViewer.Window}">
     <StackPanel Margin="32,14,28,32" b:Motion.Entrance="True">
 
       <StackPanel Orientation="Horizontal" Margin="0,0,0,16">

@@ -92,13 +92,14 @@
   <!-- ================================================================================= -->
   <!-- Overview summary card                                                              -->
   <!-- ================================================================================= -->
+  <!-- A card made taller on the dashboard gives the extra height to its sparkline. -->
   <DataTemplate x:Key="SummaryCard" DataType="{x:Type pages:SummaryCardViewModel}">
     <Border Style="{StaticResource Card}" Padding="18,16,18,14" ToolTip="{Binding Metric.ToolTip}" ToolTipService.InitialShowDelay="500">
       <Grid>
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
-          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <!-- Header -->
@@ -155,7 +156,7 @@
         </Grid>
 
         <!-- Sparkline -->
-        <c:Sparkline Grid.Row="2" Height="34" Margin="-2,12,-2,0"
+        <c:Sparkline Grid.Row="2" MinHeight="34" Margin="-2,12,-2,0"
                      MetricId="{Binding Metric.MetricId}" ColorKey="{Binding ColorKey}"
                      Timeline="{Binding DataContext.Timeline, RelativeSource={RelativeSource AncestorType=UserControl}}" />
 

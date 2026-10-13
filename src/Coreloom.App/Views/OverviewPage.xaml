@@ -7,9 +7,14 @@
              xmlns:pages="clr-namespace:Coreloom.ViewModels.Pages;assembly=Coreloom.ViewModels">
 
   <UserControl.Resources>
-    <!-- Panel templates (resolved by type inside the panels ItemsControl). -->
+    <!-- Card and panel templates (resolved by type inside the dashboard tiles). Each fills its tile, so a card made
+         bigger on the dashboard grows its chart, list or sparkline. -->
+    <DataTemplate DataType="{x:Type pages:SummaryCardViewModel}">
+      <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource SummaryCard}" />
+    </DataTemplate>
+
     <DataTemplate DataType="{x:Type pages:ChartPanelViewModel}">
-      <ContentPresenter Content="{Binding Chart}" ContentTemplate="{StaticResource ChartCard}" Height="300" />
+      <ContentPresenter Content="{Binding Chart}" ContentTemplate="{StaticResource ChartCard}" />
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type pages:MemoryPanelViewModel}">
@@ -61,9 +66,11 @@
               <TextBlock Text="{Binding Write.Unit}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
             </StackPanel>
           </Grid>
-          <ScrollViewer Grid.Row="1" Margin="0,10,0,0" Style="{StaticResource ScrollViewer.Page}" MaxHeight="250" b:ScrollChain.Enabled="True">
-            <ItemsControl ItemsSource="{Binding Volumes}" ItemTemplate="{StaticResource VolumeRow}" Focusable="False" />
-          </ScrollViewer>
+          <c:HeightCap Grid.Row="1" Margin="0,10,0,0" Cap="250">
+            <ScrollViewer Style="{StaticResource ScrollViewer.Page}" b:ScrollChain.Enabled="True">
+              <ItemsControl ItemsSource="{Binding Volumes}" ItemTemplate="{StaticResource VolumeRow}" Focusable="False" />
+            </ScrollViewer>
+          </c:HeightCap>
         </Grid>
       </Border>
     </DataTemplate>
@@ -110,6 +117,50 @@
                            Timeline="{Binding DataContext.Timeline, RelativeSource={RelativeSource AncestorType=UserControl}}" />
         </Grid>
       </Border>
+    </DataTemplate>
+
+    <!-- A card on the dashboard grid: the card itself, a grip at the top and a corner to resize it (both show on hover),
+         and a right-click menu. The card can be dragged from anywhere that isn't a control. -->
+    <DataTemplate x:Key="DashboardTile" DataType="{x:Type pages:DashboardTileViewModel}">
+      <Grid x:Name="Tile" Background="Transparent" AutomationProperties.Name="{Binding Name}">
+        <Grid.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="Wider" Command="{Binding WiderCommand}" />
+            <MenuItem Header="Narrower" Command="{Binding NarrowerCommand}" />
+            <MenuItem Header="Taller" Command="{Binding TallerCommand}" />
+            <MenuItem Header="Shorter" Command="{Binding ShorterCommand}" />
+            <MenuItem Header="Reset size" Command="{Binding ResetSizeCommand}" />
+            <Separator />
+            <MenuItem Header="Hide card" Command="{Binding HideCommand}" />
+          </ContextMenu>
+        </Grid.ContextMenu>
+
+        <ContentPresenter Content="{Binding Content}" />
+
+        <Border x:Name="Grip" c:DashboardGrid.Handle="Move" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,2,0,0"
+                Width="44" Height="13" Background="Transparent" Cursor="SizeAll" Opacity="0" ToolTip="Drag to move">
+          <UniformGrid Rows="2" Columns="3" Width="15" Height="7" IsHitTestVisible="False">
+            <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource Brush.TextTertiary}" />
+            <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource Brush.TextTertiary}" />
+            <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource Brush.TextTertiary}" />
+            <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource Brush.TextTertiary}" />
+            <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource Brush.TextTertiary}" />
+            <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource Brush.TextTertiary}" />
+          </UniformGrid>
+        </Border>
+
+        <Border x:Name="Corner" c:DashboardGrid.Handle="Resize" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,3,3"
+                Width="18" Height="18" Background="Transparent" Cursor="SizeNWSE" Opacity="0" ToolTip="Drag to resize">
+          <Path Data="M 13,5 L 5,13 M 13,9.5 L 9.5,13" Stroke="{DynamicResource Brush.TextTertiary}" StrokeThickness="1.5"
+                StrokeStartLineCap="Round" StrokeEndLineCap="Round" IsHitTestVisible="False" />
+        </Border>
+      </Grid>
+      <DataTemplate.Triggers>
+        <Trigger SourceName="Tile" Property="IsMouseOver" Value="True">
+          <Setter TargetName="Grip" Property="Opacity" Value="1" />
+          <Setter TargetName="Corner" Property="Opacity" Value="1" />
+        </Trigger>
+      </DataTemplate.Triggers>
     </DataTemplate>
 
     <!-- One lighting color in the Customize card: a swatch with its name underneath. -->
@@ -188,21 +239,44 @@
   </UserControl.InputBindings>
 
   <Grid>
-    <ScrollViewer Style="{StaticResource ScrollViewer.Page}">
+    <ScrollViewer Style="{StaticResource ScrollViewer.Window}">
       <StackPanel Margin="32,14,28,32" b:Motion.Entrance="True">
-        <!-- This PC: its picture (or the user's own render of the build), board name, graphics card and key specs -->
-        <Border Style="{StaticResource Card}" Padding="14,14,22,14" Margin="0,0,0,16">
+        <!-- This PC: its picture (or the user's own render of the build), board name, graphics card and key specs.
+             It stays put; the cards under it can be moved and resized. -->
+        <Border Margin="0,0,0,16">
+          <Border.Style>
+            <Style TargetType="Border" BasedOn="{StaticResource Card}">
+              <Setter Property="Padding" Value="14,14,22,14" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding ShowPcPicture}" Value="False">
+                  <Setter Property="Padding" Value="24,18,22,16" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
           <Grid>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <!-- Lighting color and fans: see Customize -->
-            <views:PcIllustration Width="196" Height="234" VerticalAlignment="Center" DataContext="{Binding Specs}"
-                                  Glow="{Binding Glow}" TopFanSpeed="{Binding TopFanSpeed}" BottomFanSpeed="{Binding BottomFanSpeed}"
-                                  AnimateFans="{Binding AnimateFans}" />
+            <!-- Shown or not, lighting color and fans: see Customize -->
+            <Border Visibility="{Binding ShowPcPicture, Converter={StaticResource BoolToVisibility}}" VerticalAlignment="Center">
+              <views:PcIllustration Width="196" Height="234" DataContext="{Binding Specs}"
+                                    Glow="{Binding Glow}" TopFanSpeed="{Binding TopFanSpeed}" BottomFanSpeed="{Binding BottomFanSpeed}"
+                                    AnimateFans="{Binding AnimateFans}" />
+            </Border>
 
-            <Grid Grid.Column="1" Margin="22,6,0,6" VerticalAlignment="Center">
+            <Grid Grid.Column="1" VerticalAlignment="Center">
+              <Grid.Style>
+                <Style TargetType="Grid">
+                  <Setter Property="Margin" Value="22,6,0,6" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding ShowPcPicture}" Value="False">
+                      <Setter Property="Margin" Value="0" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Grid.Style>
               <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -217,7 +291,7 @@
               <TextBlock Grid.Row="1" Text="{Binding Specs.Subtitle}" Style="{StaticResource Text.Secondary}" FontSize="14" Margin="0,3,0,0"
                          TextTrimming="CharacterEllipsis" />
               <Button Grid.Column="1" Grid.RowSpan="2" Style="{StaticResource Button.Subtle}" VerticalAlignment="Top" Margin="16,0,0,0"
-                      Command="{Binding CustomizeCommand}" Padding="10,5" ToolTip="Show, hide and reorder dashboard cards">
+                      Command="{Binding CustomizeCommand}" Padding="10,5" ToolTip="PC picture, lighting and which cards the dashboard shows">
                 <StackPanel Orientation="Horizontal">
                   <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Edit}" />
                   <TextBlock Text="Customize" Margin="8,0,0,0" Foreground="{DynamicResource Brush.TextSecondary}" />
@@ -232,20 +306,23 @@
           </Grid>
         </Border>
 
-        <ItemsControl ItemsSource="{Binding SummaryCards}" ItemTemplate="{StaticResource SummaryCard}" Focusable="False">
+        <!-- The dashboard: cards and panels on one grid. Drag a card to move it, drag its corner to resize it. -->
+        <ItemsControl ItemsSource="{Binding Tiles}" ItemTemplate="{StaticResource DashboardTile}" Focusable="False">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <c:AdaptiveGrid MinColumnWidth="232" MaxColumns="6" Spacing="16" UniformRowHeight="True" />
+              <c:DashboardGrid MinColumnWidth="232" Spacing="16"
+                               MoveCommand="{Binding MoveTileCommand}" ResizeCommand="{Binding ResizeTileCommand}" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
-        </ItemsControl>
-
-        <ItemsControl ItemsSource="{Binding Panels}" Margin="0,16,0,0" Focusable="False">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <c:AdaptiveGrid MinColumnWidth="440" MaxColumns="3" Spacing="16" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemContainerStyle>
+            <Style TargetType="ContentPresenter">
+              <Setter Property="c:DashboardGrid.Order" Value="{Binding Order}" />
+              <Setter Property="c:DashboardGrid.ColumnSpan" Value="{Binding ColumnSpan}" />
+              <Setter Property="c:DashboardGrid.RowSpan" Value="{Binding RowSpan}" />
+              <Setter Property="c:DashboardGrid.MinColumns" Value="{Binding MinColumns}" />
+              <Setter Property="c:DashboardGrid.MinRows" Value="{Binding MinRows}" />
+            </Style>
+          </ItemsControl.ItemContainerStyle>
         </ItemsControl>
       </StackPanel>
     </ScrollViewer>
@@ -300,15 +377,34 @@
 
           <ScrollViewer Grid.Row="1" Style="{StaticResource ScrollViewer.Page}">
             <StackPanel Margin="22,10,22,6">
-              <TextBlock Style="{StaticResource Text.Label}" Text="PC lighting" />
-              <TextBlock Style="{StaticResource Text.Caption}" Text="The glow of the PC in the header. Rainbow cycles slowly through the colors." TextWrapping="Wrap" Margin="0,2,0,12" />
-              <ItemsControl ItemsSource="{Binding Specs.GlowOptions}" ItemTemplate="{StaticResource GlowSwatch}" Focusable="False">
-                <ItemsControl.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <WrapPanel />
-                  </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-              </ItemsControl>
+              <TextBlock Style="{StaticResource Text.Label}" Text="PC picture" />
+              <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Customize.ShowPcPicture}" Margin="0,10,0,0">
+                <StackPanel>
+                  <TextBlock Text="Show the PC picture" FontSize="13.5" Foreground="{DynamicResource Brush.Text}" TextWrapping="Wrap" />
+                  <TextBlock Style="{StaticResource Text.Caption}" Text="On the left of the header, with its lighting and turning fans."
+                             TextWrapping="Wrap" Margin="0,3,0,0" />
+                </StackPanel>
+              </CheckBox>
+
+              <StackPanel Margin="0,14,0,0" IsEnabled="{Binding Customize.ShowPcPicture}">
+                <StackPanel.Style>
+                  <Style TargetType="StackPanel">
+                    <Style.Triggers>
+                      <Trigger Property="IsEnabled" Value="False">
+                        <Setter Property="Opacity" Value="0.45" />
+                      </Trigger>
+                    </Style.Triggers>
+                  </Style>
+                </StackPanel.Style>
+                <TextBlock Style="{StaticResource Text.Caption}" Text="Lighting color. Rainbow cycles slowly through the colors." TextWrapping="Wrap" Margin="0,0,0,10" />
+                <ItemsControl ItemsSource="{Binding Specs.GlowOptions}" ItemTemplate="{StaticResource GlowSwatch}" Focusable="False">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                </ItemsControl>
+              </StackPanel>
 
               <Border Style="{StaticResource Divider}" Margin="0,18,0,16" />
 
@@ -319,7 +415,8 @@
                   <TextBlock Style="{StaticResource Text.Caption}" Text="Calculated over the selected chart window." TextWrapping="Wrap" Margin="0,3,0,0" />
                 </StackPanel>
               </CheckBox>
-              <TextBlock Style="{StaticResource Text.Caption}" Text="Show, hide and reorder what the Overview shows." Margin="0,4,0,6" />
+              <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,8"
+                         Text="Show, hide and reorder what the Overview shows. On the dashboard you can also drag a card to move it, drag its bottom-right corner to resize it, or right-click it for sizes." />
               <ItemsControl ItemsSource="{Binding Customize.Cards}" ItemTemplate="{StaticResource DashboardCardRow}" Focusable="False" />
             </StackPanel>
           </ScrollViewer>
@@ -327,7 +424,7 @@
           <Border Grid.Row="2" BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,1,0,0" Padding="22,12">
             <Grid>
               <Button Style="{StaticResource Button.Secondary}" Content="Reset layout" HorizontalAlignment="Left"
-                      Command="{Binding Customize.ResetLayoutCommand}" ToolTip="Show every card and panel in the default order" />
+                      Command="{Binding Customize.ResetLayoutCommand}" ToolTip="Show every card and panel in the default order and size" />
               <Button Style="{StaticResource Button.Primary}" Content="Done" HorizontalAlignment="Right" MinWidth="80"
                       Command="{Binding Customize.CloseCommand}" />
             </Grid>

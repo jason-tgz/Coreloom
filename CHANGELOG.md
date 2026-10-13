@@ -7,6 +7,29 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.2.7] - 2026-10-13
+
+Arrange the Overview your way: move and resize its cards right on the dashboard.
+
+### Highlights
+
+- **Drag cards into place.** Drag any card or panel on the Overview to move it. The others make room as you go, and it snaps into the nearest spot when you let go.
+- **Resize cards.** Drag a card's bottom-right corner to make it wider or taller, one grid step at a time. Make a chart full width, a summary card twice as wide or the storage list taller.
+- **A scroll bar you can grab.** The page scroll bar is wider and sits clear of the window's edge, so you no longer get the resize arrow. It widens further when you point at it and slims down again when you use the mouse wheel.
+- **Hide the PC picture.** A new switch in *Customize* shows or hides the PC picture in the header. It's on by default.
+
+### In detail
+
+- Summary cards and panels now share one grid, so you can mix them: put the CPU temperature card next to the temperatures chart, for example. The header with your PC stays at the top.
+- Right-click a card to make it wider, narrower, taller or shorter, reset its size or hide it.
+- Esc cancels a move or resize. Hold a card near the top or bottom of the page to scroll while you drag.
+- In a narrower window the grid has 4, 2 or 1 columns and wide cards fit the width; your sizes come back when the window is wide again.
+- *Customize › Reset layout* now resets sizes too. With the picture hidden, its lighting colors are greyed out.
+
+### Feedback
+
+Found a bug or a sensor that reads wrong? [Open an issue](https://github.com/jerryubah/Coreloom/issues) and attach a CoreloomDiag report.
+
 ## [1.2.6] - 2026-10-13
 
 Customizing the Overview now happens right on the Overview.

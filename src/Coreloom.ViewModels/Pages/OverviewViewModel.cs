@@ -215,11 +215,15 @@ public sealed class NetworkPanelViewModel : DashboardPanelViewModel
     }
 }
 
-/// <summary>The Overview dashboard: summary cards and larger panels, ordered and filtered by user settings.</summary>
+/// <summary>
+/// The Overview dashboard: the header (this PC) and a grid of summary cards and larger panels, ordered, sized and filtered
+/// by user settings.
+/// </summary>
 public sealed class OverviewViewModel : PageViewModel
 {
     private readonly Dictionary<string, SummaryCardViewModel> _cards = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DashboardPanelViewModel> _panels = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, DashboardTileViewModel> _tiles = new(StringComparer.Ordinal);
     private readonly ChartViewModel _loadChart;
     private readonly ChartViewModel _temperatureChart;
     private readonly ChartViewModel _powerChart;
@@ -281,8 +285,27 @@ public sealed class OverviewViewModel : PageViewModel
         _panels[DashboardCatalog.StorageDonut] = _storage;
         _panels[DashboardCatalog.Network] = _network;
 
+        foreach (var (id, _, summary) in DashboardCatalog.All)
+        {
+            _tiles[id] = new DashboardTileViewModel(this, id, summary ? _cards[id] : _panels[id]);
+        }
+
         Customize = new DashboardEditorViewModel(Settings, Specs);
         CustomizeCommand = Customize.OpenCommand;
+        MoveTileCommand = new RelayCommand<DashboardTileMove>(m =>
+        {
+            if (m is not null)
+            {
+                MoveTile(m.Tile, m.Index);
+            }
+        });
+        ResizeTileCommand = new RelayCommand<DashboardTileResize>(r =>
+        {
+            if (r is not null)
+            {
+                ResizeTile(r.Tile, r.Columns, r.Rows);
+            }
+        });
         ApplyLayout();
 
         Specs.LoadGlow(Settings.Current.Dashboard.PcGlow);
@@ -293,6 +316,21 @@ public sealed class OverviewViewModel : PageViewModel
     public ObservableCollection<SummaryCardViewModel> SummaryCards { get; } = [];
 
     public ObservableCollection<DashboardPanelViewModel> Panels { get; } = [];
+
+    /// <summary>
+    /// The dashboard grid: every visible card and panel. The grid places them by <see cref="DashboardTileViewModel.Order"/>;
+    /// this collection only gains and loses cards, so moving one never rebuilds the others.
+    /// </summary>
+    public ObservableCollection<DashboardTileViewModel> Tiles { get; } = [];
+
+    /// <summary>A card dragged to a new place (parameter: <see cref="DashboardTileMove"/>).</summary>
+    public IRelayCommand<DashboardTileMove> MoveTileCommand { get; }
+
+    /// <summary>A card resized by dragging its corner (parameter: <see cref="DashboardTileResize"/>).</summary>
+    public IRelayCommand<DashboardTileResize> ResizeTileCommand { get; }
+
+    /// <summary>The picture of the PC on the left of the header (Customize).</summary>
+    public bool ShowPcPicture => Settings.Current.Dashboard.ShowPcPicture;
 
     /// <summary>Opens the Customize card on the Overview.</summary>
     public IRelayCommand CustomizeCommand { get; }
@@ -318,6 +356,7 @@ public sealed class OverviewViewModel : PageViewModel
             _cards[DashboardCatalog.GpuTemperature].Metric.Thresholds = gpuTemp;
             ApplyLayout();
             OnPropertyChanged(nameof(ShowStatisticsOnCards));
+            OnPropertyChanged(nameof(ShowPcPicture));
         }
 
         if (section == "All")
@@ -343,6 +382,93 @@ public sealed class OverviewViewModel : PageViewModel
         var panels = layout.Where(c => c.Visible && _panels.ContainsKey(c.Id)).Select(c => _panels[c.Id]).ToList();
         Sync(SummaryCards, summary);
         Sync(Panels, panels);
+
+        var visible = layout.Where(c => c.Visible && _tiles.ContainsKey(c.Id)).ToList();
+        for (int i = 0; i < visible.Count; i++)
+        {
+            var tile = _tiles[visible[i].Id];
+            var (columns, rows) = DashboardCatalog.SizeOf(visible[i]);
+            tile.Order = i;
+            tile.ColumnSpan = columns;
+            tile.RowSpan = rows;
+        }
+
+        // Only add and remove: the grid orders cards itself, and keeping the rest in place keeps their charts running.
+        var shown = visible.Select(c => _tiles[c.Id]).ToHashSet();
+        for (int i = Tiles.Count - 1; i >= 0; i--)
+        {
+            if (!shown.Contains(Tiles[i]))
+            {
+                Tiles.RemoveAt(i);
+            }
+        }
+
+        foreach (var tile in visible.Select(c => _tiles[c.Id]))
+        {
+            if (!Tiles.Contains(tile))
+            {
+                Tiles.Add(tile);
+            }
+        }
+    }
+
+    /// <summary>Moves a card to a place among the visible cards; hidden cards keep their place in the full order.</summary>
+    internal void MoveTile(DashboardTileViewModel tile, int index)
+    {
+        var cards = Settings.Current.Dashboard.Cards;
+        var visible = cards.Where(c => c.Visible && _tiles.ContainsKey(c.Id)).ToList();
+        var moving = visible.FirstOrDefault(c => c.Id == tile.Id);
+        if (moving is null || visible.Count < 2)
+        {
+            return;
+        }
+
+        index = Math.Clamp(index, 0, visible.Count - 1);
+        if (visible.IndexOf(moving) == index)
+        {
+            return;
+        }
+
+        Settings.Update("Dashboard", s =>
+        {
+            var list = s.Dashboard.Cards;
+            visible.Remove(moving);
+            list.Remove(moving);
+            int at = index < visible.Count ? list.IndexOf(visible[index]) : list.IndexOf(visible[^1]) + 1;
+            list.Insert(at, moving);
+        });
+    }
+
+    /// <summary>Sets a card's size in grid columns and rows (kept within its limits).</summary>
+    internal void ResizeTile(DashboardTileViewModel tile, int columns, int rows)
+    {
+        var card = Settings.Current.Dashboard.Cards.FirstOrDefault(c => c.Id == tile.Id);
+        if (card is null)
+        {
+            return;
+        }
+
+        var (storedColumns, storedRows) = DashboardCatalog.Stored(tile.Id, columns, rows);
+        if (card.Columns == storedColumns && card.Rows == storedRows)
+        {
+            return;
+        }
+
+        Settings.Update("Dashboard", _ =>
+        {
+            card.Columns = storedColumns;
+            card.Rows = storedRows;
+        });
+    }
+
+    /// <summary>Hides a card (its right-click menu); Customize shows it again.</summary>
+    internal void HideTile(DashboardTileViewModel tile)
+    {
+        var card = Settings.Current.Dashboard.Cards.FirstOrDefault(c => c.Id == tile.Id);
+        if (card is { Visible: true })
+        {
+            Settings.Update("Dashboard", _ => card.Visible = false);
+        }
     }
 
     private static void Sync<T>(ObservableCollection<T> target, IReadOnlyList<T> desired)

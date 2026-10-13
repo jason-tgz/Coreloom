@@ -148,8 +148,27 @@ Work through each area and tick what works.
 - [ ] The six cards show live values with gauges and sparklines.
 - [ ] The numbers match the NVIDIA overlay and Task Manager within the usual tolerances.
 - [ ] *Customize*: hiding and reordering cards and the min/max/avg switch update the dashboard behind the card right
-      away and persist after a restart. *Reset layout* brings back every card in the default order. *Settings* no
-      longer has a *Dashboard* section.
+      away and persist after a restart. *Reset layout* brings back every card in the default order and size.
+      *Settings* no longer has a *Dashboard* section.
+- [ ] *Customize › Show the PC picture* off: the picture goes, the text moves left and the lighting colors grey out.
+      On again: it's back with its lighting and fans. The choice is kept after a restart.
+- [ ] Default layout in a wide window: six summary cards in a row, then rows of three panels, as before.
+- [ ] Hover a card: a grip appears at the top and a corner mark at the bottom right. Drag a card (from the grip or
+      anywhere that isn't a control): it follows the mouse with a shadow, a dashed outline shows where it will land,
+      the other cards glide out of the way, and on release it snaps into place. The order is kept after a restart.
+- [ ] Drag a summary card among the panels and a panel among the summary cards: both work.
+- [ ] Drag a card's corner: the card grows and shrinks in whole grid steps, with a dashed outline following the
+      mouse, and the cards around it reflow. Make a chart full width and a card taller; the chart and the sparkline
+      grow with them, and the storage list shows more drives when its card is taller.
+- [ ] Esc during a drag or resize puts everything back. Holding a card near the top or bottom of the page scrolls it.
+- [ ] Right-click a card: *Wider*, *Narrower*, *Taller*, *Shorter*, *Reset size* and *Hide card* work, and the ones
+      that can't apply are greyed out.
+- [ ] Clicking the chart legend, scrolling the storage list and hovering charts still work and don't start a drag.
+- [ ] Narrow the window: the grid goes to 4, then 2, then 1 column, without overlaps; widen it again and your sizes
+      come back.
+- [ ] The page scroll bar (Overview, GPU, CPU, Memory, Storage, Network) can be grabbed without the resize arrow
+      appearing, also when maximized. Pointing at it widens it; using the mouse wheel over it slims it again until the
+      mouse moves. Dragging the window's right edge still resizes the window.
 
 **Detail pages**
 

@@ -133,7 +133,37 @@ Reduce motion on); otherwise they are removed and the blades keep their angle, s
 color, the min/max/avg switch, and which cards and panels show in what order. Every change goes through
 `SettingsService.Update("Dashboard", …)`, so the shell's settings fan-out re-lays out the dashboard behind the card
 immediately. It closes with its X, *Done*, Esc or a click on the scrim (`Brush.Scrim`). Settings no longer has a
-Dashboard section.
+Dashboard section. It also holds `Dashboard.ShowPcPicture` (on by default), which hides the header's picture.
+
+## Dashboard grid
+
+The Overview's summary cards and panels share one grid. `OverviewViewModel.Tiles` holds a `DashboardTileViewModel`
+per visible card (its content, `Order`, `ColumnSpan`, `RowSpan` and limits); the collection only gains and loses
+cards, and the panel orders them by `Order`, so moving a card never rebuilds the others' templates (their charts keep
+running). Sizes are saved per card in `Dashboard.Cards[].Columns`/`Rows`, only when they differ from the default
+(`DashboardCatalog.SizeOf`: cards 1 × 2, panels 2 × 3, at most 6 × 8).
+
+`DashboardLayout` (Core, unit-tested) is the math:
+
+- the column count for a width (6, 4, 2 or 1: even counts keep two-column panels side by side);
+- placement in order, left to right and top to bottom, each card after the one before it;
+- the row height (the smallest that fits every card at its minimum rows, so about half a summary card);
+- where a dragged card lands: the place in the order whose position is nearest its top-left corner, with
+  hysteresis so it doesn't flicker;
+- snapping a resize to whole cells.
+
+`DashboardGrid` (App) measures each card at its width to set the row height, then at its final size; this is why
+the storage list sits in a `HeightCap`. It arranges the cards and glides them to new places with a translate
+animation (none with Reduce motion or when only the window size changed). Dragging starts after the system drag
+distance from anywhere in a card that isn't a control (buttons, toggles and scroll bars keep working), or from the
+grip (`DashboardGrid.Handle="Move"`); the corner (`Handle="Resize"`) resizes. During a drag the panel holds the
+mouse capture, draws a dashed outline of the target (`OnRender`), auto-scrolls the page near its edges and cancels on
+Esc or lost capture. On release it calls `MoveTileCommand` or `ResizeTileCommand`; the bound order and sizes then
+match the preview, so nothing jumps. Each card's right-click menu runs the same resize commands one step at a time.
+
+Pages that scroll at the window's right edge use `ScrollViewer.Window`: a 24 px bar laid over the page's right
+margin whose right 6 px stay clear of the window's resize border (`ResizeBorderThickness`). `ScrollBarHover` widens
+its thumb from 8 to 14 px while the pointer is on the bar and narrows it again when the wheel is used.
 
 ## Sensor columns and nested scrolling
 

@@ -4,7 +4,7 @@
              xmlns:c="clr-namespace:Coreloom.App.Controls"
              xmlns:b="clr-namespace:Coreloom.App.Behaviors">
 
-  <ScrollViewer Style="{StaticResource ScrollViewer.Page}">
+  <ScrollViewer Style="{StaticResource ScrollViewer.Window}">
     <StackPanel Margin="32,14,28,32" b:Motion.Entrance="True">
 
       <!-- Device header: vendor mark, GPU name, GPU picker -->

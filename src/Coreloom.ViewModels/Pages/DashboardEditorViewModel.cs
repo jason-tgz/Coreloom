@@ -47,9 +47,9 @@ public sealed class DashboardCardSettingViewModel : ObservableObject
 }
 
 /// <summary>
-/// The Overview's Customize card: the PC picture's lighting color, which cards and panels the dashboard shows and in
-/// what order, and whether cards show min/max/avg. Every change is saved and applied right away, so the dashboard
-/// behind the card updates as you edit.
+/// The Overview's Customize card: whether the header shows the PC picture and its lighting color, which cards and panels
+/// the dashboard shows and in what order, and whether cards show min/max/avg. Every change is saved and applied right
+/// away, so the dashboard behind the card updates as you edit. (Cards are also moved and resized on the dashboard itself.)
 /// </summary>
 public sealed class DashboardEditorViewModel : ObservableObject
 {
@@ -77,6 +77,20 @@ public sealed class DashboardEditorViewModel : ObservableObject
 
     public ObservableCollection<DashboardCardSettingViewModel> Cards { get; } = [];
 
+    /// <summary>The picture of the PC on the left of the header; on by default.</summary>
+    public bool ShowPcPicture
+    {
+        get => _settings.Current.Dashboard.ShowPcPicture;
+        set
+        {
+            if (value != _settings.Current.Dashboard.ShowPcPicture)
+            {
+                _settings.Update("Dashboard", s => s.Dashboard.ShowPcPicture = value);
+                OnPropertyChanged();
+            }
+        }
+    }
+
     /// <summary>Minimum, maximum and average on the summary cards.</summary>
     public bool ShowStatistics
     {
@@ -102,6 +116,7 @@ public sealed class DashboardEditorViewModel : ObservableObject
     {
         LoadCards();
         OnPropertyChanged(nameof(ShowStatistics));
+        OnPropertyChanged(nameof(ShowPcPicture));
     }
 
     internal void MoveCard(DashboardCardSettingViewModel card, int delta)
@@ -117,8 +132,19 @@ public sealed class DashboardEditorViewModel : ObservableObject
         SaveCards();
     }
 
+    /// <summary>Saves visibility and order; sizes (set on the dashboard) stay as they are.</summary>
     internal void SaveCards() =>
-        _settings.Update("Dashboard", s => s.Dashboard.Cards = Cards.Select(c => new DashboardCardSetting { Id = c.Id, Visible = c.IsVisible }).ToList());
+        _settings.Update("Dashboard", s =>
+        {
+            var sizes = s.Dashboard.Cards.ToDictionary(c => c.Id, StringComparer.Ordinal);
+            s.Dashboard.Cards = Cards.Select(c => new DashboardCardSetting
+            {
+                Id = c.Id,
+                Visible = c.IsVisible,
+                Columns = sizes.GetValueOrDefault(c.Id)?.Columns,
+                Rows = sizes.GetValueOrDefault(c.Id)?.Rows,
+            }).ToList();
+        });
 
     private void Open()
     {

@@ -147,6 +147,27 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.2.7: moving and resizing dashboard cards, the page scroll bar and the picture switch
+
+- **Core tests: 295 passed** (25 new: column counts for widths, placement of the default dashboard at six and four
+  columns, narrowing cards wider than the grid, keeping the order rather than back-filling gaps, tall cards with
+  others beside them, where a dragged card lands and the hysteresis that keeps it from flickering, resize snapping,
+  row height, card size limits and defaults, and sizes and the picture switch in the settings JSON).
+- **View-model tests: 74 passed** (7 new: tiles for every visible card in order and size, moving a card saves the
+  order without rebuilding the others, hidden cards keep their place, resizing within limits and storing nothing for
+  the default, the right-click menu's one-step commands and when they're greyed out, Customize keeping sizes and
+  *Reset layout* clearing them, and the picture switch).
+- **`Coreloom.App` compiles** against the WPF reference assembly (0 errors, 0 warnings). **XAML checks passed** (16
+  files, 157 keys, 488 bindings); the checker now knows theme brushes looked up from code and `VerticalOffset` in a
+  scroll viewer template.
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| One grid for cards and panels, moved and resized | Layout, drop target and snapping unit-tested in Core; saving and commands in the view model | The drag itself on Windows: mouse capture, the glide animation, the dashed outline, auto-scroll, Esc, and that clicks in cards (legend toggles, the storage list) still work |
+| Row height from the cards' contents | Rule unit-tested | The real heights: that the default looks as before (cards about 200 px, panels about 300 px) |
+| Wider page scroll bar clear of the resize border | Styles compile and pass the XAML checks | That the pointer no longer turns into the resize arrow, the hover widening and wheel narrowing, and maximized windows |
+| *Show the PC picture* switch | View-model test | The header without the picture |
+
 ### 1.2.6: Customize as a card on the Overview
 
 - **View-model tests: 67 passed** (2 new: the card opens and closes on the Overview and shares the lighting colors;
