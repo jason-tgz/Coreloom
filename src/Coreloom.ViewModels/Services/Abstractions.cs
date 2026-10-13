@@ -77,7 +77,11 @@ public interface IUpdateInstaller
     /// <summary>True when Coreloom was installed with the installer (portable copies cannot self-update).</summary>
     bool CanInstallUpdates { get; }
 
-    void LaunchInstallerAndExit(string installerPath);
+    /// <summary>
+    /// Starts the installer (still held open by <paramref name="installer"/>, so it can't change before it runs) with
+    /// the arguments for <paramref name="options"/>, then exits Coreloom. Returns false when it could not be started.
+    /// </summary>
+    bool LaunchInstallerAndExit(Coreloom.Core.Updates.VerifiedInstaller installer, Coreloom.Core.Updates.UpdateInstallOptions options);
 }
 
 /// <summary>Application lifetime operations.</summary>

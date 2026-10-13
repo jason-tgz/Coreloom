@@ -77,6 +77,13 @@ Run `CoreloomDiag.exe --compare` for an automatic NVML vs `nvidia-smi` compariso
 - *"Checksum mismatch"*: the download was corrupted or altered. It's discarded and nothing is installed.
   Try again later.
 - Portable copies don't update in place. Download the new zip and replace the folder.
+- *"Coreloom couldn't finish installing it automatically"*: the installer rolled back (often because a file was in
+  use) and started the old version again. Coreloom won't retry that version on its own; use *Restart to update*
+  in *Settings → Updates*, or download the installer from GitHub and run it after exiting Coreloom from the tray.
+- An update downloaded but never installs: automatic installs happen when Coreloom starts or while the PC is idle
+  with Coreloom in the tray. *Restart to update* installs it right away. Check that *Update automatically* is on.
+- *"The downloaded update was missing or damaged"*: the file in `%LOCALAPPDATA%\Coreloom\Updates` changed after it
+  was verified, so it was deleted rather than run. *Check for updates* downloads it again.
 - Corporate proxies are honored through the Windows system proxy settings.
 
 ## Reset everything

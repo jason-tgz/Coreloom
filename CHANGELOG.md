@@ -7,6 +7,24 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+Coreloom now keeps itself up to date and tells you what changed.
+
+### Added
+- **Automatic updates.** Coreloom downloads new versions in the background, checks them against the release's SHA-256 checksums and installs them the next time it starts, while your PC is idle, or right away with *Restart to update*. You can turn this off in *Settings › Updates*.
+- **What's new.** Every update comes with a short summary of the release: in *Settings › Updates*, in the notification, and in a banner after Coreloom has updated.
+- **Update badge.** The sidebar, the *Updates* section in Settings and the tray menu show when a new version is available, downloading or ready to install.
+- **Redesigned Settings › Updates** with *Check for updates*, download progress, *Restart to update*, *Skip this version* and the update preferences in one place.
+
+### Security
+- **Safer installs.** A downloaded installer only runs if its SHA-256 matches a hash that only administrators can change, it stays locked from that check until it starts, and downloads never write through links placed in the updates folder.
+
+### Changed
+- After a background update, Coreloom returns to the notification area and says it was updated. If an update can't finish, the installer rolls back and starts the previous version again, and Coreloom stops retrying that version on its own.
+- Portable copies are told about new versions and link to the release page; they're never changed in place.
+
+### Fixed
+- The release workflow adds its installer, portable zip and checksums to a release that already exists (for example one created on GitHub's website) instead of failing, and can be re-run for an existing tag from the Actions tab.
+
 ## [1.0.0] - 2026-10-13
 
 **The first release of Coreloom**: a native Windows 11 hardware monitor with a calm, modern dashboard for your GPU, CPU, memory, storage and network.

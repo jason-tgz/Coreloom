@@ -220,18 +220,56 @@ Then check the following:
       *Coreloom startup* task) and keeps your settings.
 - [ ] Unzipping the portable build elsewhere and running it creates a `Data` folder next to `Coreloom.exe`.
 
-## 6. Update flow (after publishing two releases)
+## 6. Automatic updates (after publishing two releases)
 
-1. Push the repository to GitHub and tag `v1.0.0-beta.1`, following [RELEASING.md](RELEASING.md).
-2. Install that build, then turn on *Settings → Updates → Include pre-release versions*.
-3. Tag `v1.0.0-beta.2`, then choose *Check now* in Coreloom.
+Automatic updates need an **installed** copy (from `Coreloom-<version>-win-x64-Setup.exe`, not the CI artifact or the
+portable zip) and a newer release for it to find. First check that each release has its files: the release page
+should list `…-Setup.exe`, `…-Portable.zip` and `SHA256SUMS.txt`. If a release only shows "Source code", open
+*Actions → Release → Run workflow*, enter its tag (e.g. `v1.0.0`) and run it; the files are added to the release.
+
+**From 1.0.0 (the old updater) to the first version with automatic updates.** 1.0.0 only offers updates; it
+doesn't install them by itself.
+
+1. Install `Coreloom-1.0.0-win-x64-Setup.exe`.
+2. Release the next version (e.g. tag `v1.1.0` with a `## [1.1.0]` section in `CHANGELOG.md`).
+3. In 1.0.0: *Settings → Updates → Check now → Download and install*.
 
 **Expect:**
 
-- The update is offered with its release notes.
-- *Download and install* shows progress and verifies the SHA-256.
-- Coreloom closes, the installer runs silently, and the new version starts.
-- *Settings → About* shows the new version.
+- [ ] Coreloom closes, a small Setup window appears, and the new version opens by itself.
+- [ ] The window shows *Coreloom was updated to 1.1.0*; *See what's new* opens a short summary of the release.
+
+**Automatic updates in action.** Use pre-releases so nobody else sees the test versions (only copies with
+*Include pre-release versions* on do), and delete them afterwards.
+
+1. In the new version, open *Settings → Updates*. **Expect:** *You're up to date*, *Update automatically* on.
+2. Turn on *Include pre-release versions*.
+3. Add a `## [1.1.1-test.1]` section to `CHANGELOG.md` with a sentence and a few bullets (see RELEASING.md),
+   commit, then tag and push `v1.1.1-test.1`. Wait for the Release workflow to finish.
+4. Click *Check for updates*.
+
+**Expect:**
+
+- [ ] The card shows *Downloading Coreloom 1.1.1-test.1* with a progress bar, then *…is ready to install*.
+- [ ] The sidebar shows the badge (*Restart to update*), the *Updates* section in Settings has a dot, and the
+      tray menu has *Restart to update to 1.1.1-test.1*.
+- [ ] *What's new in 1.1.1-test.1* shows your sentence and bullets, short and readable, with New/Improved/Fixed
+      tags when you used those headings.
+- [ ] *Restart to update*: Coreloom closes, a small Setup progress window appears, and Coreloom reopens by itself
+      with the *Coreloom was updated to 1.1.1-test.1* banner. *Settings → About* shows the new version.
+
+Then the automatic paths (publish another pre-release, e.g. `v1.1.1-test.2`, for each):
+
+- [ ] **At the next start:** let it download, then exit Coreloom from the tray and start it again. It installs
+      before the dashboard opens and comes back on its own.
+- [ ] **While idle:** let it download, close the window to the tray and leave the PC alone for about 20 minutes
+      (no games or renders running). Coreloom updates and returns to the tray; a notification says it was updated.
+- [ ] With *Update automatically* off, a new version only shows the badge and a notification; nothing downloads
+      until you click *Download update*.
+- [ ] *Skip this version* hides the badge, and the skipped version isn't offered again by automatic checks.
+
+When you're done, delete the test pre-releases (and their tags) on GitHub and turn *Include pre-release versions*
+off again.
 
 ## 7. What to send back
 

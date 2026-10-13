@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using Coreloom.Core;
 using Coreloom.Core.Diagnostics;
+using Coreloom.Core.Updates;
 using Coreloom.ViewModels.Services;
 
 namespace Coreloom.App.Services;
@@ -158,6 +159,8 @@ public sealed class LifetimeService : IAppLifetime, IElevationService
 /// <summary>Hands the verified installer to Windows and exits so the installer can replace files.</summary>
 public sealed class UpdateInstaller : IUpdateInstaller
 {
+    private const int ErrorSharingViolation = 32;
+
     private readonly AppPaths _paths;
     private readonly Action _exit;
 
@@ -169,23 +172,40 @@ public sealed class UpdateInstaller : IUpdateInstaller
 
     public bool CanInstallUpdates => _paths.IsInstalled && !_paths.IsPortable;
 
-    public void LaunchInstallerAndExit(string installerPath)
+    public bool LaunchInstallerAndExit(VerifiedInstaller installer, UpdateInstallOptions options)
     {
-        // /SILENT shows a progress window without questions. Coreloom exits right after starting the installer;
-        // /CLOSEAPPLICATIONS lets the installer wait for/close any Coreloom process still holding files, and
-        // /UPDATE=1 relaunches Coreloom when finished (see installer/Coreloom.iss). Files are only ever replaced by
-        // the installer, never by the running app.
-        var info = new ProcessStartInfo(installerPath, "/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /UPDATE=1")
+        // The arguments come from UpdateInstallOptions (see installer/Coreloom.iss): /SILENT shows a small progress
+        // window, /VERYSILENT nothing; /CLOSEAPPLICATIONS lets the installer close a Coreloom that is still exiting;
+        // /UPDATE=1 relaunches Coreloom when finished (or the old version with --update-failed if it couldn't finish).
+        // Files are only ever replaced by the installer, never by the running app. The installer stays open in
+        // `installer` while it starts, so it can't be swapped between the hash check and this call.
+        var info = new ProcessStartInfo(installer.Path, options.ToInstallerArguments())
         {
             UseShellExecute = true,
-            WorkingDirectory = Path.GetDirectoryName(installerPath) ?? AppContext.BaseDirectory,
+            WorkingDirectory = Path.GetDirectoryName(installer.Path) ?? AppContext.BaseDirectory,
         };
 
-        using var process = Process.Start(info);
-        if (process is not null)
+        Process? process;
+        try
         {
-            _exit();
+            process = Process.Start(info);
         }
+        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == ErrorSharingViolation)
+        {
+            // Not expected (the file is only open for reading), but don't let the safety check block the update.
+            Log.Warn("Updates", "Windows couldn't start the installer while it was held open; retrying without the hold.", ex);
+            installer.Release();
+            process = Process.Start(info);
+        }
+
+        if (process is null)
+        {
+            return false;
+        }
+
+        process.Dispose();
+        _exit();
+        return true;
     }
 }
 

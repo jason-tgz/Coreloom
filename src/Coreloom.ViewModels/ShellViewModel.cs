@@ -113,11 +113,16 @@ public sealed class ShellViewModel : ObservableObject
             Settings.SelectedSection = "Updates";
             Navigate(Settings);
         });
+        ShowWhatsNewCommand = new RelayCommand(() =>
+        {
+            OpenUpdatesCommand.Execute(null);
+            deps.Updates.DismissUpdatedBannerCommand.Execute(null);
+        });
 
         deps.Settings.Changed += OnSettingsChanged;
         deps.Updates.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(UpdatesViewModel.IsUpdateAvailable))
+            if (e.PropertyName == nameof(UpdatesViewModel.ShowBadge))
             {
                 OnPropertyChanged(nameof(IsUpdateAvailable));
             }
@@ -171,6 +176,9 @@ public sealed class ShellViewModel : ObservableObject
     public IRelayCommand DismissBannerCommand { get; }
 
     public IRelayCommand OpenUpdatesCommand { get; }
+
+    /// <summary>"What's new" on the "Updated to …" banner: opens Settings › Updates and dismisses the banner.</summary>
+    public IRelayCommand ShowWhatsNewCommand { get; }
 
     public IReadOnlyList<Option<HistoryWindow>> WindowOptions { get; } =
         Enum.GetValues<HistoryWindow>().Select(w => new Option<HistoryWindow>(w, w.ToLabel())).ToArray();
@@ -258,7 +266,8 @@ public sealed class ShellViewModel : ObservableObject
         ? "CPU temperature, package power and motherboard sensors need administrator rights, which this session doesn't have."
         : "CPU temperature, package power and motherboard sensors need the PawnIO driver, which isn't installed.";
 
-    public bool IsUpdateAvailable => _deps.Updates.IsUpdateAvailable;
+    /// <summary>A newer version is available, downloading or ready (the sidebar badge).</summary>
+    public bool IsUpdateAvailable => _deps.Updates.ShowBadge;
 
     /// <summary>"Coreloom · 0.4% CPU · 92 MB" shown at the bottom of the sidebar.</summary>
     public string OverheadText

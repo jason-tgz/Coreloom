@@ -16,6 +16,7 @@ using Coreloom.Core.Diagnostics;
 using Coreloom.Core.Settings;
 using Coreloom.Core.Startup;
 using Coreloom.Core.Telemetry;
+using Coreloom.Core.Updates;
 using Coreloom.Hardware;
 using Coreloom.Hardware.Providers;
 using Coreloom.ViewModels;
@@ -33,6 +34,10 @@ public partial class App : Application
 {
     private static readonly TimeSpan UpdateCheckDelay = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan UpdateCheckPeriod = TimeSpan.FromHours(6);
+    private static readonly TimeSpan BackgroundInstallCheckInterval = TimeSpan.FromMinutes(1);
+
+    /// <summary>GPU load metrics checked to tell an idle PC from a busy one (frames carry up to a few GPUs).</summary>
+    private static readonly string[] GpuLoadIds = [MetricIds.GpuLoad(0), MetricIds.GpuLoad(1), MetricIds.GpuLoad(2), MetricIds.GpuLoad(3)];
     private const string StartupFailedSplashMessage = "Coreloom couldn't start. The details are in the message window and in the log.";
 
     private SingleInstance? _instance;
@@ -45,7 +50,10 @@ public partial class App : Application
     private MainWindow? _window;
     private TrayIconService? _tray;
     private HttpClient? _http;
+    private UpdatesViewModel? _updates;
     private DispatcherTimer? _updateTimer;
+    private DispatcherTimer? _installTimer;
+    private long _lastBusyTick = Environment.TickCount64;
     private int _framePending;
     private volatile bool _exiting;
     private bool _windowClosed;
@@ -148,7 +156,8 @@ public partial class App : Application
         // ---- Settings & theme ---------------------------------------------------------------------
         var store = new SettingsStore(paths.SettingsFile);
         var settings = store.Load();
-        _settings = new SettingsService(store, settings);
+        var settingsService = new SettingsService(store, settings);
+        _settings = settingsService;
         Log.MinimumLevel = settings.Diagnostics.VerboseLogging ? LogLevel.Debug : LogLevel.Info;
 
         // ---- Startup splash -----------------------------------------------------------------------
@@ -160,6 +169,32 @@ public partial class App : Application
         if (!startHidden)
         {
             _splash = SplashScreenHost.TryStart(reducedMotion);
+        }
+
+        // ---- Updates ------------------------------------------------------------------------------
+        // Before anything else is built: pick up what the last session downloaded and, when automatic updates are on,
+        // install it now (Coreloom exits and the installer starts the new version). A launch that follows an update
+        // records it here, so the window can say what's new.
+        var shellService = new ShellService();
+        var installer = new UpdateInstaller(paths, () => Dispatcher.InvokeAsync(ExitApplication));
+        _http = new HttpClient(new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(15), AutomaticDecompression = System.Net.DecompressionMethods.All })
+        {
+            // Applies until response headers arrive; downloads stream afterwards and are cancellable by the user.
+            Timeout = TimeSpan.FromSeconds(60),
+        };
+        IUpdateTrustStore trust = installer.CanInstallUpdates ? new RegistryUpdateTrustStore() : new InMemoryUpdateTrustStore();
+        var updates = new UpdatesViewModel(app, settingsService, installer, shellService, _http, new PendingUpdateStore(paths.DownloadDirectory), trust);
+        _updates = updates;
+        updates.InitializeFromDisk(launchedAfterFailedUpdate: args.UpdateFailed);
+        if (updates.WillInstallAtStartup)
+        {
+            _splash?.SetStatus($"Installing Coreloom {updates.UpdateVersion}");
+        }
+
+        if (updates.TryInstallAtStartup(startHidden))
+        {
+            Log.Info("App", "Exiting so the installer can update Coreloom; it starts the new version when it's done.");
+            return;
         }
 
         // Vendor logos are optional files the user supplies (see assets/vendors/README.md); none are bundled.
@@ -205,22 +240,12 @@ public partial class App : Application
         };
 
         var alerts = new AlertEngine(TimeSpan.FromMinutes(settings.Alerts.CooldownMinutes));
-        var settingsService = _settings;
         _alerts = alerts;
 
         // ---- Services ---------------------------------------------------------------------------
-        var shellService = new ShellService();
         var lifetime = new LifetimeService(() => Dispatcher.InvokeAsync(ExitApplication));
-        var installer = new UpdateInstaller(paths, () => Dispatcher.InvokeAsync(ExitApplication));
         var diagnostics = new DiagnosticsService(paths.LogDirectory, memoryLog);
         var startup = new StartupService();
-
-        _http = new HttpClient(new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(15), AutomaticDecompression = System.Net.DecompressionMethods.All })
-        {
-            // Applies until response headers arrive; downloads stream afterwards and are cancellable by the user.
-            Timeout = TimeSpan.FromSeconds(60),
-        };
-        var updates = new UpdatesViewModel(app, settingsService, installer, shellService, _http, paths.DownloadDirectory);
 
         _splash?.SetStatus("Opening dashboard");
         var shell = new ShellViewModel(new ShellDependencies
@@ -272,6 +297,7 @@ public partial class App : Application
                 OpenUpdates();
                 _ = updates.CheckAsync(userInitiated: true);
             },
+            installUpdate: () => updates.InstallNowCommand.Execute(null),
             exit: ExitApplication);
         _tray = tray;
 
@@ -283,8 +309,36 @@ public partial class App : Application
             }
         };
 
-        updates.UpdateFound += release => Dispatcher.InvokeAsync(() =>
-            _tray?.Notify("Coreloom update available", $"Version {release.Version} is ready to install.", onClick: OpenUpdates));
+        // ---- Update notifications -------------------------------------------------------------------
+        updates.NotificationRequested += note => Dispatcher.InvokeAsync(() =>
+        {
+            if (note.UserInitiated && _window is { IsVisible: true, IsActive: true })
+            {
+                return; // the user is looking at Settings › Updates already
+            }
+
+            _tray?.Notify(note.Title, note.Message, onClick: OpenUpdates);
+        });
+
+        void SyncTrayUpdateItem() => _tray?.SetUpdateItem(updates.IsReady ? $"Restart to update to {updates.UpdateVersion}" : null);
+        updates.PropertyChanged += (_, pe) =>
+        {
+            if (pe.PropertyName is nameof(UpdatesViewModel.IsReady) or nameof(UpdatesViewModel.UpdateVersion))
+            {
+                SyncTrayUpdateItem();
+            }
+        };
+        SyncTrayUpdateItem();
+
+        if (startHidden && updates.UpdatedNotification is { } updated)
+        {
+            // Updated in the background and back in the tray: say so once (the window shows a banner instead).
+            Dispatcher.InvokeAsync(() => _tray?.Notify(updated.Title, updated.Message, onClick: () =>
+            {
+                shell.ShowWhatsNewCommand.Execute(null);
+                ShowMainWindow();
+            }), DispatcherPriority.ApplicationIdle);
+        }
 
         // ---- Frame pump & alerts ----------------------------------------------------------------
         alerts.AlertRaised += OnAlertRaised;
@@ -309,6 +363,7 @@ public partial class App : Application
         // ---- Background housekeeping ------------------------------------------------------------
         _ = shell.Settings.ApplyStartupAsync();  // we are elevated, so refreshing the sign-in task never prompts
         ScheduleUpdateChecks(updates, isStartup: true);
+        _ = updates.LoadInstalledNotesIfMissingAsync();  // "What's new" after an update that left no notes behind
     }
 
     protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
@@ -332,6 +387,22 @@ public partial class App : Application
         catch (Exception ex)
         {
             Log.WarnThrottled("alerts", TimeSpan.FromMinutes(5), "Alerts", "Evaluating alert rules failed.", ex);
+        }
+
+        // Remember when the PC was last busy: a downloaded update is only installed in the background after the CPU
+        // and GPU have been quiet for a while (see UpdateInstallPolicy).
+        double? gpuLoad = null;
+        foreach (string id in GpuLoadIds)
+        {
+            if (frame.TryGetValue(id, out double load) && (gpuLoad is null || load > gpuLoad))
+            {
+                gpuLoad = load;
+            }
+        }
+
+        if (UpdateInstallPolicy.IsSystemBusy(frame.GetValue(MetricIds.CpuLoad), gpuLoad))
+        {
+            Interlocked.Exchange(ref _lastBusyTick, Environment.TickCount64);
         }
 
         if (Interlocked.Exchange(ref _framePending, 1) == 1)
@@ -433,6 +504,36 @@ public partial class App : Application
         _updateTimer = new DispatcherTimer { Interval = UpdateCheckPeriod };
         _updateTimer.Tick += async (_, _) => await SafeCheckAsync(updates, isStartup: false);
         _updateTimer.Start();
+
+        // A downloaded update also installs while Coreloom sits in the tray and nobody is using the PC.
+        _installTimer = new DispatcherTimer { Interval = BackgroundInstallCheckInterval };
+        _installTimer.Tick += (_, _) => TryBackgroundInstall(updates);
+        _installTimer.Start();
+    }
+
+    private void TryBackgroundInstall(UpdatesViewModel updates)
+    {
+        if (_exiting || !updates.IsReady || _shell is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var window = _window;
+            var signals = new BackgroundInstallSignals
+            {
+                WindowInUse = window is { IsVisible: true } && window.WindowState != WindowState.Minimized,
+                UserIdle = UserIdle.SinceLastInput(),
+                SystemQuiet = TimeSpan.FromMilliseconds(Math.Max(0, Environment.TickCount64 - Interlocked.Read(ref _lastBusyTick))),
+                MonitoringPaused = _shell.IsMonitoringPaused,
+            };
+            updates.TryInstallInBackground(signals);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("Updates", "Checking whether to install the downloaded update failed.", ex);
+        }
     }
 
     private static async Task SafeCheckAsync(UpdatesViewModel updates, bool isStartup)
@@ -457,6 +558,9 @@ public partial class App : Application
         // Drivers (NVML in particular) can need a moment after resume. Re-initialize providers afterwards.
         Log.Info("App", "System resumed from sleep; re-initializing sensor providers shortly.");
         _ = ReinitializeAfterResumeAsync();
+
+        // Sleep isn't "idle": restart the quiet clock so a downloaded update never installs right as the PC wakes.
+        Interlocked.Exchange(ref _lastBusyTick, Environment.TickCount64);
     }
 
     private async Task ReinitializeAfterResumeAsync()
@@ -486,6 +590,8 @@ public partial class App : Application
         {
             SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             _updateTimer?.Stop();
+            _installTimer?.Stop();
+            _updates?.Shutdown();  // a download in progress resumes next time
 
             if (_window is not null && _settings is not null)
             {
@@ -615,14 +721,18 @@ public partial class App : Application
     }
 }
 
-/// <summary>Command-line options: --minimized, --startup, --wait-for &lt;pid&gt;, --remove-startup-task.</summary>
-internal sealed record CommandLine(bool Minimized, bool FromStartup, int? WaitForProcessId, bool RemoveStartupTask = false)
+/// <summary>
+/// Command-line options: --minimized, --startup, --wait-for &lt;pid&gt;, --remove-startup-task, and from the installer
+/// after an in-app update --updated (informational) or --update-failed (the update was rolled back).
+/// </summary>
+internal sealed record CommandLine(bool Minimized, bool FromStartup, int? WaitForProcessId, bool RemoveStartupTask = false, bool UpdateFailed = false)
 {
     public static CommandLine Parse(IReadOnlyList<string> args)
     {
         bool minimized = false;
         bool startup = false;
         bool removeTask = false;
+        bool updateFailed = false;
         int? waitFor = null;
         for (int i = 0; i < args.Count; i++)
         {
@@ -637,6 +747,9 @@ internal sealed record CommandLine(bool Minimized, bool FromStartup, int? WaitFo
                 case "--remove-startup-task":
                     removeTask = true;
                     break;
+                case "--update-failed":
+                    updateFailed = true;
+                    break;
                 case "--wait-for" when i + 1 < args.Count && int.TryParse(args[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int pid):
                     waitFor = pid;
                     i++;
@@ -644,6 +757,6 @@ internal sealed record CommandLine(bool Minimized, bool FromStartup, int? WaitFo
             }
         }
 
-        return new CommandLine(minimized, startup, waitFor, removeTask);
+        return new CommandLine(minimized, startup, waitFor, removeTask, updateFailed);
     }
 }

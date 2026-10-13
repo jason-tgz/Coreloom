@@ -7,8 +7,8 @@ using Coreloom.Core.Diagnostics;
 namespace Coreloom.App.Services;
 
 /// <summary>
-/// Notification-area icon with a themed WPF context menu (Open, Pause/Resume, Settings, Check for updates,
-/// Exit) and balloon notifications (shown as toasts on Windows 10/11). Uses WinForms' NotifyIcon, which
+/// Notification-area icon with a themed WPF context menu (Restart to update when an update is ready, Open,
+/// Pause/Resume, Settings, Check for updates, Exit) and balloon notifications (shown as toasts on Windows 10/11). Uses WinForms' NotifyIcon, which
 /// handles Explorer restarts and DPI changes reliably.
 /// </summary>
 public sealed partial class TrayIconService : IDisposable
@@ -16,6 +16,8 @@ public sealed partial class TrayIconService : IDisposable
     private readonly System.Windows.Forms.NotifyIcon _icon;
     private readonly ContextMenu _menu;
     private readonly MenuItem _pauseItem;
+    private readonly MenuItem _updateItem;
+    private readonly Separator _updateSeparator;
     private Action? _balloonAction;
 
     /// <summary>Sizes of the supplied Coreloom PNGs that suit the notification area (16 px at 100 % scaling).</summary>
@@ -29,7 +31,7 @@ public sealed partial class TrayIconService : IDisposable
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool DestroyIcon(IntPtr handle);
 
-    public TrayIconService(Action open, Action togglePause, Action openSettings, Action checkUpdates, Action exit)
+    public TrayIconService(Action open, Action togglePause, Action openSettings, Action checkUpdates, Action installUpdate, Action exit)
     {
         _icon = new System.Windows.Forms.NotifyIcon
         {
@@ -39,6 +41,11 @@ public sealed partial class TrayIconService : IDisposable
         };
 
         _menu = new ContextMenu();
+        _updateItem = CreateItem("Restart to update", installUpdate, bold: true);
+        _updateItem.Visibility = Visibility.Collapsed;
+        _updateSeparator = new Separator { Visibility = Visibility.Collapsed };
+        _menu.Items.Add(_updateItem);
+        _menu.Items.Add(_updateSeparator);
         _menu.Items.Add(CreateItem("Open dashboard", open, bold: true));
         _pauseItem = CreateItem("Pause monitoring", togglePause);
         _menu.Items.Add(_pauseItem);
@@ -73,6 +80,15 @@ public sealed partial class TrayIconService : IDisposable
     }
 
     public void SetPaused(bool paused) => _pauseItem.Header = paused ? "Resume monitoring" : "Pause monitoring";
+
+    /// <summary>Shows "Restart to update" at the top of the menu (e.g. "Restart to update to 1.2.0"), or hides it when null.</summary>
+    public void SetUpdateItem(string? header)
+    {
+        var visibility = header is null ? Visibility.Collapsed : Visibility.Visible;
+        _updateItem.Header = header ?? "Restart to update";
+        _updateItem.Visibility = visibility;
+        _updateSeparator.Visibility = visibility;
+    }
 
     public void Notify(string title, string message, bool warning = false, Action? onClick = null)
     {

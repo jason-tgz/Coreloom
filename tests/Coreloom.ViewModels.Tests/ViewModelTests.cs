@@ -295,7 +295,7 @@ public class ShellViewModelTests
         public void SetVerboseLogging(bool enabled) { }
         public IReadOnlyList<LogEntry> RecentLog() => [];
         public bool CanInstallUpdates => false;
-        public void LaunchInstallerAndExit(string installerPath) { }
+        public bool LaunchInstallerAndExit(VerifiedInstaller installer, UpdateInstallOptions options) => false;
     }
 
     private static (ShellViewModel Shell, MonitorContext Monitor, SettingsService Settings, Stubs Stubs) Create()

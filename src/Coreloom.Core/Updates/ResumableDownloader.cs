@@ -32,9 +32,23 @@ public sealed class ResumableDownloader
         ArgumentNullException.ThrowIfNull(url);
         ArgumentException.ThrowIfNullOrWhiteSpace(destination);
         string partial = destination + ".partial";
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(destination))!);
+        string directory = Path.GetDirectoryName(Path.GetFullPath(destination))!;
+        Directory.CreateDirectory(directory);
 
-        if (File.Exists(destination))
+        // Coreloom runs as administrator but downloads into a folder the user can write to. Never write through a
+        // link someone placed there (it could point at a system file): the folder must be a real folder, and a
+        // link in place of the download or its partial file is removed (File.Delete removes the link, not its target).
+        if (IsReparsePoint(directory, isDirectory: true))
+        {
+            throw new UpdateException("The updates folder is a link to another location, so Coreloom won't download into it.");
+        }
+
+        if (IsReparsePoint(partial, isDirectory: false))
+        {
+            File.Delete(partial);
+        }
+
+        if (File.Exists(destination) || IsReparsePoint(destination, isDirectory: false))
         {
             File.Delete(destination);
         }
@@ -100,8 +114,13 @@ public sealed class ResumableDownloader
             total = response.Content.Headers.ContentLength is long length ? length + existing : null;
         }
 
+        if (!resumed)
+        {
+            File.Delete(partial); // start over in a brand-new file (CreateNew never opens an existing file or link)
+        }
+
         await using var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        await using var target = new FileStream(partial, resumed ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16, useAsync: true);
+        await using var target = new FileStream(partial, resumed ? FileMode.Append : FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 16, useAsync: true);
         byte[] buffer = new byte[1 << 16];
         long received = existing;
         long lastReport = 0;
@@ -123,6 +142,25 @@ public sealed class ResumableDownloader
         if (total is > 0 && received != total)
         {
             throw new IOException($"Download incomplete ({received} of {total} bytes).");
+        }
+    }
+
+    internal static bool IsReparsePoint(string path, bool isDirectory)
+    {
+        try
+        {
+            FileSystemInfo info = isDirectory ? new DirectoryInfo(path) : new FileInfo(path);
+            info.Refresh();
+            if (info.LinkTarget is not null)
+            {
+                return true;
+            }
+
+            return info.Exists && info.Attributes.HasFlag(FileAttributes.ReparsePoint);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 

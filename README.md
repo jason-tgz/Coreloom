@@ -49,9 +49,13 @@ installs drivers or services, and never sends your data anywhere.
     sign-in), minimize/close to tray, and single instance.
 - **Alerts.** Per-metric rules with a sustain time, hysteresis and a cooldown, delivered as Windows
   notifications.
-- **Updates.** Updates come from GitHub Releases with no token needed.
-  - Downloads can resume and are SHA-256 verified before anything runs.
-  - The installer replaces files only after Coreloom has exited.
+- **Automatic updates.** New versions come from GitHub Releases with no token needed.
+  - Installed copies download updates in the background and install them the next time Coreloom starts, while
+    the PC is idle, or right away with *Restart to update*. *Settings → Updates* has *Check for updates*, the
+    on/off switch and a short *What's new* summary of each release.
+  - A badge in the sidebar and a notification say when a new version is available or ready.
+  - Downloads can resume and are SHA-256 verified before anything runs; the installer replaces files only after
+    Coreloom has exited.
 - **Low overhead.** Coreloom polls on a dedicated thread and does no UI work while minimized. It measures its
   own CPU and memory use and shows them in the sidebar.
 
@@ -164,8 +168,8 @@ LibreHardwareMonitor's own report. See [docs/TESTING-ON-YOUR-PC.md](docs/TESTING
 ## Privacy and safety
 
 - **Read-only.** No writes to hardware, the BIOS or drivers, and no overclocking or fan-control features.
-- **No telemetry.** The only network request Coreloom makes is the optional update check to `api.github.com`
-  and the download from GitHub when you choose to install an update. No hardware data is included.
+- **No telemetry.** The only network requests Coreloom makes are the update check to `api.github.com` and the
+  update download from GitHub (both can be turned off in *Settings → Updates*). No hardware data is included.
 - **Always elevated, still read-only.** Coreloom runs as administrator so the sensor driver can be read, but it
   never writes to hardware, never installs drivers or services, and has no remote access of any kind.
 - **Alert thresholds are reminders, not safety limits.** Check your hardware vendor's specifications;

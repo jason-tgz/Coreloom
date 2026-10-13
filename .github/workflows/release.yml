@@ -1,10 +1,17 @@
 name: Release
 
 # Push a tag like v1.2.0 (or v1.3.0-beta.1 for a pre-release) to build, test, package and publish a
-# GitHub release with the installer, the portable zip and SHA256SUMS.txt.
+# GitHub release with the installer, the portable zip and SHA256SUMS.txt. If a release for the tag already
+# exists (e.g. it was created on GitHub's website), the files are added to it and its title and text are kept.
+# "Run workflow" on the Actions tab re-publishes the files for an existing tag.
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build and publish, e.g. v1.0.0'
+        required: true
 
 permissions:
   contents: write   # create the release and upload assets
@@ -19,6 +26,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -28,9 +37,10 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $tag = '${{ github.ref_name }}'
+          $tag = '${{ inputs.tag || github.ref_name }}'
           if ($tag -notmatch '^v(\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?)$') { throw "Tag '$tag' is not a version tag like v1.2.3" }
           $version = $Matches[1]
+          "tag=$tag" >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
           "prerelease=$(if ($version.Contains('-')) { 'true' } else { 'false' })" >> $env:GITHUB_OUTPUT
 
@@ -61,12 +71,29 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $ghArgs = @('release', 'create', '${{ github.ref_name }}', '--title', 'Coreloom ${{ steps.version.outputs.version }}',
-                      '--notes-file', 'artifacts/release-notes.md', '--verify-tag')
-          if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $ghArgs += '--prerelease' }
-          $ghArgs += (Get-ChildItem artifacts/release -File | ForEach-Object { $_.FullName })
-          gh @ghArgs
-          if ($LASTEXITCODE -ne 0) { throw "gh release create failed ($LASTEXITCODE)" }
+          $tag = '${{ steps.version.outputs.tag }}'
+          $assets = @(Get-ChildItem artifacts/release -File | ForEach-Object { $_.FullName })
+          $existing = @(gh release list --limit 100 --json tagName --jq '.[].tagName')
+          if ($LASTEXITCODE -ne 0) { throw "gh release list failed ($LASTEXITCODE)" }
+          if ($existing -contains $tag) {
+            # Created by hand (or an earlier run): add or replace the files, keep the title and text.
+            Write-Host "Release $tag already exists; uploading its files."
+            gh release upload $tag @assets --clobber
+            if ($LASTEXITCODE -ne 0) { throw "gh release upload failed ($LASTEXITCODE)" }
+            $body = gh release view $tag --json body --jq '.body'
+            if ([string]::IsNullOrWhiteSpace(($body -join "`n"))) {
+              # Coreloom's "What's new" summary is built from the release text, so don't leave it empty.
+              gh release edit $tag --notes-file artifacts/release-notes.md
+              if ($LASTEXITCODE -ne 0) { throw "gh release edit failed ($LASTEXITCODE)" }
+            }
+          }
+          else {
+            $ghArgs = @('release', 'create', $tag, '--title', 'Coreloom ${{ steps.version.outputs.version }}',
+                        '--notes-file', 'artifacts/release-notes.md', '--verify-tag')
+            if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $ghArgs += '--prerelease' }
+            gh @ghArgs @assets
+            if ($LASTEXITCODE -ne 0) { throw "gh release create failed ($LASTEXITCODE)" }
+          }
 
       - name: Upload build outputs
         if: always()

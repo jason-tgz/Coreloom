@@ -48,27 +48,53 @@ public sealed class GitHubReleaseClient
     /// </summary>
     public async Task<ReleaseInfo?> GetLatestAsync(bool includePreReleases, CancellationToken cancellationToken = default)
     {
-        var uri = new Uri(ApiBase, $"repos/{_repository}/releases?per_page=20");
-        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        request.Headers.UserAgent.ParseAdd(UserAgent);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-        request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
-
+        using var request = CreateRequest($"repos/{_repository}/releases?per_page=20");
         using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
             throw new UpdateException($"Repository '{_repository}' was not found or is private.");
         }
 
-        if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
-        {
-            throw new UpdateException("GitHub rate limit reached. Try again later.");
-        }
-
+        ThrowIfRateLimited(response);
         response.EnsureSuccessStatusCode();
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
         return SelectLatest(ParseReleases(document.RootElement), includePreReleases);
+    }
+
+    /// <summary>The published release for a tag (e.g. "v1.1.0"), or null when there is none. Used for "What's new".</summary>
+    public async Task<ReleaseInfo?> GetByTagAsync(string tag, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+        using var request = CreateRequest($"repos/{_repository}/releases/tags/{Uri.EscapeDataString(tag)}");
+        using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        ThrowIfRateLimited(response);
+        response.EnsureSuccessStatusCode();
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        return ParseRelease(document.RootElement);
+    }
+
+    private HttpRequestMessage CreateRequest(string relativeUri)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, new Uri(ApiBase, relativeUri));
+        request.Headers.UserAgent.ParseAdd(UserAgent);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
+        return request;
+    }
+
+    private static void ThrowIfRateLimited(HttpResponseMessage response)
+    {
+        if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
+        {
+            throw new UpdateException("GitHub rate limit reached. Try again later.");
+        }
     }
 
     public static ReleaseInfo? SelectLatest(IEnumerable<ReleaseInfo> releases, bool includePreReleases) =>

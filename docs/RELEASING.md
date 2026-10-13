@@ -21,7 +21,8 @@ Releases are built entirely by GitHub Actions from a version tag. Nothing is upl
 ## Cutting a release
 
 1. Add a section for the version in `CHANGELOG.md`, for example `## [1.0.0]`, and commit it. The release
-   notes are taken from that section.
+   notes are taken from that section, and Coreloom builds its in-app *What's new* summary from them (see
+   [Writing release notes](#writing-release-notes-for-the-whats-new-summary) below).
 2. Tag and push:
 
    ```powershell
@@ -41,11 +42,53 @@ Releases are built entirely by GitHub Actions from a version tag. Nothing is upl
      - `Coreloom-<version>-win-x64-Setup.exe`
      - `Coreloom-<version>-win-x64-Portable.zip`
      - `SHA256SUMS.txt`
-4. The build embeds `GITHUB_REPOSITORY` as the update source. Installed copies of earlier versions see the
-   new release at their next check, at the frequency set in *Settings → Updates*, or right away with
-   *Check now*.
+4. The build embeds `GITHUB_REPOSITORY` as the update source. Installed copies of earlier versions find the
+   new release at their next check (20 seconds after they start, then as often as *Settings → Updates* says;
+   daily by default) or right away with *Check for updates*. With *Update automatically* on (the default), they
+   download and verify it in the background, show a badge and a notification, and install it the next time
+   Coreloom starts, while the PC is idle, or when the user clicks *Restart to update*. Portable copies only show
+   the badge and link to the release.
 
-Keep the asset names unchanged: the updater looks for `*-win-x64-Setup.exe` and `SHA256SUMS.txt`.
+If you create the release yourself on GitHub's website (for example to write its text there), the workflow adds
+the files to that release and keeps your title and text; it only fills in the text when you left it empty. If a
+release ever ends up without its files, open *Actions → Release → Run workflow* and enter the tag: it builds that
+tag again and uploads the files.
+
+Keep the asset names unchanged: the updater looks for `*-win-x64-Setup.exe` and `SHA256SUMS.txt`. Never replace
+the assets of a published release: copies that already downloaded it would see a different checksum. Publish
+a new version instead.
+
+## Writing release notes for the "What's new" summary
+
+Coreloom shows a short summary of each release in *Settings → Updates*, in the update notification and after
+updating. It's built from the release notes like this:
+
+- The **first sentence** before any heading becomes the intro, so start with one plain sentence that says what
+  the release is about.
+- Up to **five bullets** are shown. If there's a `### Highlights` (or `### What's new` / `### Summary`) section,
+  its bullets are used. Otherwise the Keep a Changelog sections are used, in this order: `### Security`,
+  `### Added` (tagged *New*), `### Changed` (*Improved*), `### Fixed` (*Fixed*), `### Removed`, `### Deprecated`.
+  Anything beyond five becomes "…and N more changes in the full release notes."
+- Each bullet is cut to its **bold lead** and **first sentence**: `- **Faster charts.** Scrolling now keeps up
+  with 240 Hz displays. More details…` shows *Faster charts* with "Scrolling now keeps up with 240 Hz displays."
+  Put the most important words first; keep the first sentence under about 140 characters.
+- Sub-bullets, code blocks, tables and everything after a `---` line (the download footer the workflow adds) are
+  left out.
+
+Example:
+
+```markdown
+## [1.1.0] - 2026-11-03
+
+Coreloom now keeps itself up to date.
+
+### Added
+- **Automatic updates.** New versions download in the background and install when Coreloom restarts.
+- **What's new.** A short summary of every release, right in Settings.
+
+### Fixed
+- **Tray icon.** It no longer disappears after Explorer restarts.
+```
 
 ## Verifying a release
 
@@ -56,8 +99,9 @@ Keep the asset names unchanged: the updater looks for `*-win-x64-Setup.exe` and 
   ```
 
   The hash must match the line in `SHA256SUMS.txt`.
-- Install the previous version, then use *Check now*. The update should download, verify, install silently
-  and relaunch.
+- Install the previous version, then use *Check for updates*. The update should download, verify, show
+  *Restart to update*, then install and relaunch. The full checklist, including the automatic paths, is in
+  [TESTING-ON-YOUR-PC.md](TESTING-ON-YOUR-PC.md#6-automatic-updates-after-publishing-two-releases).
 
 ## Code signing (recommended before wide distribution)
 

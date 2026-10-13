@@ -77,6 +77,37 @@ ran the app, including the GPU tuning panel. The owner then asked for the tuning
 | Failure and exit paths | Error state plus the existing dialogs (a splash not yet on screen is cancelled so it can't cover the dialog); every exit path closes the splash; background thread; 10 s watchdog for a window that never paints | Behaviour of a real failed start |
 | Independent read-through | A separate review pass over the splash code looked for compile errors, cross-thread access and lifecycle bugs. It found no compile or threading problems; its lifecycle findings (late splash over the error dialog, minimum time counted before the splash appeared, a blocking cross-thread call, watchdog priority, double close, live-region announcements) were fixed | Still not a substitute for compiling and running on Windows |
 
+### Automatic updates
+
+How this change was checked in the Linux container (no Windows, no nuget.org):
+
+- **Core tests: 199 passed** (160 before, plus 39 new for the release-notes summary, the pending-update store,
+  installer verification and link refusal, clean-up of old installers, the install policy and installer arguments, launch tracking and the
+  downloader's link hardening, and reading one release by tag), through the stand-in xUnit runner.
+- **View-model tests: 44 passed** (23 before, plus 21 new for the update state machine against a fake GitHub:
+  automatic download → verify → ready → install, automatic updates off, portable copies, checksum mismatch,
+  restoring a download after a restart, startup install and its attempt cap, `--update-failed`, untrusted or
+  changed installers, idle-time installs, the "Updated to" banner, skip, a newer release replacing a download,
+  failed checks, the shell badge, and What's new after updating from 1.0.0, which left no notes behind).
+- **`Coreloom.App` compiles against the real WPF API surface.** WPF's reference-assembly sources (dotnet/wpf
+  `src/*/ref/*.cs`) were compiled into a reference assembly and the whole app (`App.xaml.cs`, services, views'
+  code-behind, the new trust store and idle detection, the source-generated P/Invokes) was compiled against it,
+  with the XAML compiler's generated members (`InitializeComponent`, `x:Name` fields) produced from the XAML.
+  Only the WinForms `NotifyIcon`, a few `System.Drawing` members and `SystemEvents` were stubbed. 0 errors,
+  0 warnings, and a probe with wrong member names on WPF and Coreloom types was rejected as expected. This is
+  stronger than the earlier Roslyn-without-WPF check, but the XAML itself is still only checked by
+  `check-xaml.py` (passed: 15 files, 151 resource keys, 435 bindings; a mutation test caught typos in the new
+  bindings).
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Background download + verification | Unit tests against a fake GitHub (listing, `SHA256SUMS.txt`, installer bytes) | Real downloads from GitHub, proxies, a 70 MB installer |
+| Install at next start / while idle / *Restart to update* | Policy and state machine unit-tested; idle detection uses `GetLastInputInfo` and the CPU/GPU load already measured | That the installer runs, closes Coreloom and relaunches it (`/UPDATE=1`, `/MINIMIZED=1`) |
+| Installer rollback relaunch (`--update-failed`) | Pascal code reviewed; the arguments the app passes are tested against the script's parameter names | Inno Setup compiling the new `[Code]` and the rollback path on a real failure |
+| HKLM trust store | Code review; the view model's trust logic is tested with an in-memory store | Writing/reading `HKLM\SOFTWARE\Coreloom\Updates` on Windows |
+| Settings › Updates, badge, banner, tray item | XAML checks; bindings resolve; app compiles | How it all looks and behaves on screen |
+| Release workflow: existing release, re-run by tag | YAML parses; PowerShell reviewed | A real run. (The likely reason `v1.0.0` was published without its files: its release already existed when the workflow tried to create it, and that step failed.) |
+
 ## Not verified yet (needs Windows and the real hardware)
 
 None of the following has been confirmed by the author. Don't treat any of it as working until the checklist in
@@ -98,7 +129,8 @@ None of the following has been confirmed by the author. Don't treat any of it as
 - **The installer script (including the new `shellexec` launch and uninstall task removal), `build.ps1` and the
   release workflow have never been run.**
 - **The update flow has not been exercised end to end** against real GitHub releases. Its logic
-  (version selection, checksums, resume) is unit-tested.
+  (version selection, checksums, resume, automatic download and install, the what's-new summary) is
+  unit-tested; section 6 of TESTING-ON-YOUR-PC.md walks through it with two releases.
 - **No comparison with established tools** (HWiNFO64, the NVIDIA app, Task Manager) has been made.
 
 ## Highest-risk areas
@@ -121,7 +153,8 @@ These are the places most likely to need fixes on the first Windows build, in ro
    `NtQuerySystemInformation` for processes.
 6. **Tray context menu.** It is a WPF `ContextMenu` opened from WinForms' `NotifyIcon`, using the
    foreground-window workaround.
-7. **Inno Setup script.** Preprocessor expressions and the `/UPDATE=1` relaunch.
+7. **Inno Setup script.** Preprocessor expressions, the `/UPDATE=1` relaunch with `--updated`/`--minimized`, and
+   the new `[Code]` that restarts the old version after a failed update.
 
 ## How to re-run the checks that can run anywhere
 

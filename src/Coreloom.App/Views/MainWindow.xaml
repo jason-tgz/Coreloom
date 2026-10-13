@@ -94,11 +94,20 @@
 
           <!-- Footer -->
           <StackPanel Grid.Row="2">
-            <Button Style="{StaticResource Button.Subtle}" HorizontalContentAlignment="Left" Padding="10,8" Margin="0,0,0,6"
-                    Command="{Binding OpenUpdatesCommand}" Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVisibility}}">
+            <!-- Update badge: a newer version is available, downloading or ready to install. -->
+            <Button Style="{StaticResource Button.Subtle}" HorizontalContentAlignment="Left" Padding="12,8" Margin="0,0,0,6"
+                    Background="{DynamicResource Brush.AccentSoft}" BorderBrush="Transparent"
+                    Command="{Binding OpenUpdatesCommand}" ToolTip="{Binding Updates.BadgeToolTip}"
+                    AutomationProperties.Name="{Binding Updates.BadgeToolTip}"
+                    Visibility="{Binding Updates.ShowBadge, Converter={StaticResource BoolToVisibility}}">
               <StackPanel Orientation="Horizontal">
-                <Ellipse Width="8" Height="8" Fill="{DynamicResource Brush.Success}" VerticalAlignment="Center" />
-                <TextBlock Text="Update available" Margin="10,0,0,0" FontSize="12.5" Foreground="{DynamicResource Brush.Success}"
+                <Grid Width="16" Height="16" VerticalAlignment="Center">
+                  <Path Style="{StaticResource IconPath}" Width="15" Height="15" Data="{StaticResource Icon.Download}" Stroke="{DynamicResource Brush.Accent}" />
+                  <Ellipse Width="7" Height="7" Fill="{DynamicResource Brush.Accent}" Stroke="{DynamicResource Brush.Sidebar}" StrokeThickness="1.5"
+                           HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-3,0" />
+                </Grid>
+                <TextBlock Text="{Binding Updates.BadgeText}" Margin="10,0,0,0" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Accent}"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                            Visibility="{Binding IsCompactSidebar, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
               </StackPanel>
             </Button>
@@ -178,29 +187,54 @@
           </StackPanel>
         </Grid>
 
-        <!-- Limited-mode banner -->
-        <Border Grid.Row="2" Margin="32,16,28,0" Padding="14,10" CornerRadius="10"
-                Background="{DynamicResource Brush.BannerBackground}" BorderBrush="{DynamicResource Brush.BannerBorder}" BorderThickness="1"
-                Visibility="{Binding ShowLimitedModeBanner, Converter={StaticResource BoolToVisibility}}">
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <Path Style="{StaticResource IconPath}" Width="16" Height="16" Data="{StaticResource Icon.Shield}" Stroke="{DynamicResource Brush.Elevated}" />
-            <TextBlock Grid.Column="1" Margin="12,0" VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12.5">
-              <Run Text="{Binding LimitedModeText, Mode=OneWay}" />
-              <Run Text=" Everything else is fully available." Foreground="{DynamicResource Brush.TextSecondary}" />
-            </TextBlock>
-            <Button Grid.Column="2" Style="{StaticResource Button.Secondary}" Content="About PawnIO" Padding="12,5"
-                    Command="{Binding OpenPawnIoCommand}" ToolTip="Opens pawnio.eu in your browser. Coreloom never installs drivers." />
-            <Button Grid.Column="3" Style="{StaticResource Button.Icon}" Width="28" Height="28" Margin="6,0,0,0" Command="{Binding DismissBannerCommand}" ToolTip="Dismiss">
-              <Path Style="{StaticResource IconPath}" Width="11" Height="11" Data="{StaticResource Icon.Close}" />
-            </Button>
-          </Grid>
-        </Border>
+        <StackPanel Grid.Row="2">
+          <!-- "Updated to …" banner (first launches after an update, until dismissed) -->
+          <Border Margin="32,16,28,0" Padding="14,10" CornerRadius="10"
+                  Background="{DynamicResource Brush.AccentSoft}" BorderBrush="{DynamicResource Brush.CardBorder}" BorderThickness="1"
+                  Visibility="{Binding Updates.ShowUpdatedBanner, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Path Style="{StaticResource IconPath}" Width="16" Height="16" Data="{StaticResource Icon.Sparkle}" Stroke="{DynamicResource Brush.Accent}" />
+              <TextBlock Grid.Column="1" Margin="12,0" VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12.5" FontWeight="SemiBold"
+                         Text="{Binding Updates.UpdatedBannerText}" />
+              <Button Grid.Column="2" Style="{StaticResource Button.Secondary}" Content="See what's new" Padding="12,5"
+                      Command="{Binding ShowWhatsNewCommand}" />
+              <Button Grid.Column="3" Style="{StaticResource Button.Icon}" Width="28" Height="28" Margin="6,0,0,0"
+                      Command="{Binding Updates.DismissUpdatedBannerCommand}" ToolTip="Dismiss" AutomationProperties.Name="Dismiss">
+                <Path Style="{StaticResource IconPath}" Width="11" Height="11" Data="{StaticResource Icon.Close}" />
+              </Button>
+            </Grid>
+          </Border>
+
+          <!-- Limited-mode banner -->
+          <Border Margin="32,16,28,0" Padding="14,10" CornerRadius="10"
+                  Background="{DynamicResource Brush.BannerBackground}" BorderBrush="{DynamicResource Brush.BannerBorder}" BorderThickness="1"
+                  Visibility="{Binding ShowLimitedModeBanner, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Path Style="{StaticResource IconPath}" Width="16" Height="16" Data="{StaticResource Icon.Shield}" Stroke="{DynamicResource Brush.Elevated}" />
+              <TextBlock Grid.Column="1" Margin="12,0" VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12.5">
+                <Run Text="{Binding LimitedModeText, Mode=OneWay}" />
+                <Run Text=" Everything else is fully available." Foreground="{DynamicResource Brush.TextSecondary}" />
+              </TextBlock>
+              <Button Grid.Column="2" Style="{StaticResource Button.Secondary}" Content="About PawnIO" Padding="12,5"
+                      Command="{Binding OpenPawnIoCommand}" ToolTip="Opens pawnio.eu in your browser. Coreloom never installs drivers." />
+              <Button Grid.Column="3" Style="{StaticResource Button.Icon}" Width="28" Height="28" Margin="6,0,0,0" Command="{Binding DismissBannerCommand}" ToolTip="Dismiss">
+                <Path Style="{StaticResource IconPath}" Width="11" Height="11" Data="{StaticResource Icon.Close}" />
+              </Button>
+            </Grid>
+          </Border>
+        </StackPanel>
 
         <!-- Page -->
         <c:PageHost Grid.Row="3" Page="{Binding CurrentPage}" Margin="0,8,0,0" />

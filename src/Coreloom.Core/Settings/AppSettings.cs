@@ -211,6 +211,12 @@ public sealed class UpdateSettings
 {
     public UpdateCheckFrequency Frequency { get; set; } = UpdateCheckFrequency.Daily;
 
+    /// <summary>
+    /// Download new versions in the background and install them when Coreloom starts or while the PC is idle
+    /// (installed copies only; see <see cref="Updates.UpdateInstallPolicy"/>).
+    /// </summary>
+    public bool AutoInstall { get; set; } = true;
+
     public bool IncludePrereleases { get; set; }
 
     public string? SkippedVersion { get; set; }
@@ -219,6 +225,38 @@ public sealed class UpdateSettings
 
     /// <summary>Overrides the repository compiled into the build ("owner/name").</summary>
     public string? RepositoryOverride { get; set; }
+
+    /// <summary>The version that ran last time; a higher running version means Coreloom was just updated.</summary>
+    public string? LastRunVersion { get; set; }
+
+    /// <summary>Set to the new version after an update until its "Updated to …" banner is dismissed.</summary>
+    public string? WhatsNewVersion { get; set; }
+
+    /// <summary>
+    /// Records that <paramref name="current"/> is running. Returns true when it is newer than the version that ran
+    /// before (the first launch after an update), in which case <see cref="WhatsNewVersion"/> is set so the app can
+    /// show what changed. The very first launch, and launching an older build, return false.
+    /// </summary>
+    /// <param name="ranBefore">
+    /// Coreloom ran here before (e.g. it has checked for updates) even though no version was recorded: versions up to
+    /// 1.0.0 didn't record themselves, so their first launch after an update counts as an update.
+    /// </param>
+    public bool RecordLaunch(Updates.SemanticVersion current, bool ranBefore = false)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        bool upgraded = Updates.SemanticVersion.TryParse(LastRunVersion, out var previous) ? current > previous : ranBefore;
+        LastRunVersion = current.ToString();
+        if (upgraded)
+        {
+            WhatsNewVersion = current.ToString();
+        }
+        else if (WhatsNewVersion is not null && (!Updates.SemanticVersion.TryParse(WhatsNewVersion, out var announced) || !announced.Equals(current)))
+        {
+            WhatsNewVersion = null; // a banner for some other version is no longer relevant
+        }
+
+        return upgraded;
+    }
 
     public bool IsCheckDue(DateTime utcNow, bool isStartup)
     {

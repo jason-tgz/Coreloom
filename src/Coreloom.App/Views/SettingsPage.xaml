@@ -34,6 +34,81 @@
     <Style x:Key="Group.Label" TargetType="TextBlock" BasedOn="{StaticResource Text.Label}">
       <Setter Property="Margin" Value="0,20,0,6" />
     </Style>
+    <!-- Update status icon: tinted by UpdatesViewModel.StatusTone. -->
+    <Style x:Key="UpdateStatus.Circle" TargetType="Border">
+      <Setter Property="Width" Value="40" />
+      <Setter Property="Height" Value="40" />
+      <Setter Property="CornerRadius" Value="20" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="Background" Value="{DynamicResource Brush.Surface}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding StatusTone}" Value="Accent">
+          <Setter Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="UpdateStatus.Icon" TargetType="Path" BasedOn="{StaticResource IconPath}">
+      <Setter Property="Width" Value="18" />
+      <Setter Property="Height" Value="18" />
+      <Setter Property="Stroke" Value="{DynamicResource Brush.TextSecondary}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding StatusTone}" Value="Success">
+          <Setter Property="Stroke" Value="{DynamicResource Brush.Success}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding StatusTone}" Value="Accent">
+          <Setter Property="Stroke" Value="{DynamicResource Brush.Accent}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding StatusTone}" Value="Critical">
+          <Setter Property="Stroke" Value="{DynamicResource Brush.Critical}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <!-- Body of a "What's new" card (a ReleaseSummaryViewModel): intro, a short list with category chips, "and N more". -->
+    <DataTemplate x:Key="WhatsNewBody">
+      <StackPanel>
+        <TextBlock Text="{Binding Intro}" TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource Brush.Text}" Margin="0,0,0,12"
+                   Visibility="{Binding HasIntro, Converter={StaticResource BoolToVisibility}}" />
+        <ItemsControl ItemsSource="{Binding Items}" Focusable="False" Grid.IsSharedSizeScope="True"
+                      Visibility="{Binding HasItems, Converter={StaticResource BoolToVisibility}}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" SharedSizeGroup="WhatsNewChip" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Border Style="{StaticResource Badge}" Background="{DynamicResource Brush.AccentSoft}" Padding="7,1" Margin="0,1,10,0"
+                        VerticalAlignment="Top" HorizontalAlignment="Left"
+                        Visibility="{Binding HasCategory, Converter={StaticResource BoolToVisibility}}">
+                  <TextBlock Text="{Binding Category}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Accent}" />
+                </Border>
+                <Ellipse Width="5" Height="5" Fill="{DynamicResource Brush.Accent}" Margin="2,7,12,0" VerticalAlignment="Top" HorizontalAlignment="Left"
+                         Visibility="{Binding HasCategory, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
+                <TextBlock x:Name="Lead" Grid.Column="1" Text="{Binding Lead}" TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource Brush.Text}" />
+                <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding Detail}" TextWrapping="Wrap" FontSize="12.5" Margin="0,2,0,0"
+                           Foreground="{DynamicResource Brush.TextSecondary}"
+                           Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
+              </Grid>
+              <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding HasTitle}" Value="True">
+                  <Setter TargetName="Lead" Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+              </DataTemplate.Triggers>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding MoreText}" Margin="0,0,0,2"
+                   Visibility="{Binding MoreText, Converter={StaticResource HasValueToVisibility}}" />
+        <TextBlock Style="{StaticResource Text.Secondary}" Text="This release has no summary. Its full notes are on GitHub." TextWrapping="Wrap"
+                   Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
+      </StackPanel>
+    </DataTemplate>
+
     <Style x:Key="Combo.Setting" TargetType="ComboBox" BasedOn="{StaticResource ComboBox.Default}">
       <Setter Property="MinWidth" Value="240" />
       <Setter Property="VerticalAlignment" Value="Center" />
@@ -55,7 +130,25 @@
              AutomationProperties.Name="Settings sections">
       <ListBox.ItemTemplate>
         <DataTemplate>
-          <TextBlock Text="{Binding}" Margin="16,0,10,0" VerticalAlignment="Center" />
+          <Grid Margin="16,0,10,0" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{Binding}" VerticalAlignment="Center" />
+            <!-- Update badge on the "Updates" section -->
+            <Ellipse x:Name="UpdateDot" Grid.Column="1" Width="7" Height="7" Margin="8,1,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                     Fill="{DynamicResource Brush.Accent}" Visibility="Collapsed" />
+          </Grid>
+          <DataTemplate.Triggers>
+            <MultiDataTrigger>
+              <MultiDataTrigger.Conditions>
+                <Condition Binding="{Binding}" Value="Updates" />
+                <Condition Binding="{Binding DataContext.Updates.ShowBadge, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True" />
+              </MultiDataTrigger.Conditions>
+              <Setter TargetName="UpdateDot" Property="Visibility" Value="Visible" />
+            </MultiDataTrigger>
+          </DataTemplate.Triggers>
         </DataTemplate>
       </ListBox.ItemTemplate>
     </ListBox>
@@ -520,90 +613,144 @@
         <!-- ======================================================================= -->
         <StackPanel b:Motion.Entrance="True" Visibility="{Binding SelectedSection, Converter={StaticResource EqualsToVisibility}, ConverterParameter=Updates}">
           <TextBlock Style="{StaticResource Panel.Header}" Text="Updates" />
-          <TextBlock Style="{StaticResource Panel.Intro}" Text="Coreloom checks GitHub Releases for new versions. Only api.github.com is contacted and no hardware data is sent." />
+          <TextBlock Style="{StaticResource Panel.Intro}" Text="Coreloom gets new versions from its GitHub Releases page. Every download is checked against the release's SHA-256 checksums before it runs. Only GitHub is contacted, and no hardware data is sent." />
 
-          <Border Style="{StaticResource Card}" DataContext="{Binding Updates}">
-            <StackPanel>
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <StackPanel>
-                  <TextBlock Style="{StaticResource Text.CardTitle}">
-                    <Run Text="Installed version " /><Run Text="{Binding CurrentVersion, Mode=OneWay}" />
-                  </TextBlock>
-                  <TextBlock Style="{StaticResource Text.Secondary}" Text="{Binding StatusText}" TextWrapping="Wrap" Margin="0,4,0,0" />
-                </StackPanel>
-                <Button Grid.Column="1" Style="{StaticResource Button.Secondary}" Command="{Binding CheckCommand}" VerticalAlignment="Top">
-                  <StackPanel Orientation="Horizontal">
-                    <Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Refresh}" />
-                    <TextBlock Text="Check now" Margin="6,0,0,0" />
+          <StackPanel DataContext="{Binding Updates}">
+            <!-- Status: check for updates, download, restart to update -->
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <Border Style="{StaticResource UpdateStatus.Circle}">
+                    <Path Style="{StaticResource UpdateStatus.Icon}" Data="{Binding StatusIcon, Converter={StaticResource IconKeyToGeometry}}" />
+                  </Border>
+                  <StackPanel Grid.Column="1" Margin="14,0,16,0" VerticalAlignment="Center">
+                    <TextBlock Style="{StaticResource Text.CardTitle}" Text="{Binding HeadlineText}" TextWrapping="Wrap" />
+                    <TextBlock Style="{StaticResource Text.Secondary}" Text="{Binding DetailText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                   </StackPanel>
-                </Button>
-              </Grid>
-              <ProgressBar Style="{StaticResource ProgressBar.Thin}" IsIndeterminate="True" Margin="0,12,0,0"
-                           Visibility="{Binding IsChecking, Converter={StaticResource BoolToVisibility}}" />
-              <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,10,0,0"
-                         Text="This build has no GitHub repository embedded, so it cannot look for updates. Official release builds set this automatically."
-                         Visibility="{Binding IsConfigured, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource Button.Secondary}" Command="{Binding CheckCommand}"
+                            Visibility="{Binding ShowCheckButton, Converter={StaticResource BoolToVisibility}}">
+                      <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Refresh}" />
+                        <TextBlock Text="Check for updates" Margin="6,0,0,0" />
+                      </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Button.Primary}" Command="{Binding DownloadCommand}"
+                            Visibility="{Binding ShowDownloadButton, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="Downloads the installer and checks its SHA-256 checksum. Nothing is installed until Coreloom restarts.">
+                      <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Download}" Stroke="{DynamicResource Brush.OnAccent}" />
+                        <TextBlock Text="Download update" Margin="6,0,0,0" />
+                      </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Button.Primary}" Command="{Binding DownloadCommand}"
+                            Visibility="{Binding ShowGetFromGitHubButton, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="Opens the release page in your browser.">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Download from GitHub" />
+                        <Path Style="{StaticResource IconPath}" Width="11" Height="11" Data="{StaticResource Icon.External}" Stroke="{DynamicResource Brush.OnAccent}" Margin="6,0,0,0" />
+                      </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Button.Primary}" Command="{Binding InstallNowCommand}"
+                            Visibility="{Binding ShowRestartButton, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="Closes Coreloom, installs the update and opens Coreloom again.">
+                      <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Refresh}" Stroke="{DynamicResource Brush.OnAccent}" />
+                        <TextBlock Text="Restart to update" Margin="6,0,0,0" />
+                      </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Button.Secondary}" Content="Cancel" Command="{Binding CancelDownloadCommand}"
+                            Visibility="{Binding ShowCancelButton, Converter={StaticResource BoolToVisibility}}" />
+                  </StackPanel>
+                </Grid>
+                <ProgressBar Style="{StaticResource ProgressBar.Thin}" Margin="54,14,0,0"
+                             Value="{Binding Progress, Mode=OneWay, Converter={StaticResource FractionToPercent}}"
+                             Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibility}}" />
+                <ProgressBar Style="{StaticResource ProgressBar.Thin}" Margin="54,14,0,0" IsIndeterminate="True"
+                             Visibility="{Binding IsChecking, Converter={StaticResource BoolToVisibility}}" />
+              </StackPanel>
+            </Border>
 
-              <!-- Available release -->
-              <StackPanel Margin="0,16,0,0" Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVisibility}}">
-                <Border Style="{StaticResource Divider}" Margin="0,0,0,14" />
-                <StackPanel Orientation="Horizontal">
-                  <Ellipse Width="8" Height="8" Fill="{DynamicResource Brush.Success}" VerticalAlignment="Center" />
-                  <TextBlock Margin="8,0,0,0" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}">
-                    <Run Text="Coreloom " /><Run Text="{Binding AvailableVersion, Mode=OneWay}" /><Run Text=" is available" />
-                  </TextBlock>
-                </StackPanel>
-                <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding PublishedText}" Margin="16,3,0,0" />
-                <Border Style="{StaticResource Card.Inset}" Margin="0,12,0,0">
-                  <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <TextBlock Text="{Binding ReleaseNotes}" TextWrapping="Wrap" FontSize="12.5" Foreground="{DynamicResource Brush.Text}" />
-                  </ScrollViewer>
-                </Border>
-
-                <StackPanel Margin="0,12,0,0" Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibility}}">
-                  <ProgressBar Style="{StaticResource ProgressBar.Thin}" Value="{Binding Progress, Mode=OneWay, Converter={StaticResource FractionToPercent}}" />
-                  <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding DownloadText}" Margin="0,6,0,0" />
-                </StackPanel>
-
-                <WrapPanel Margin="0,14,0,0">
-                  <Button Style="{StaticResource Button.Primary}" Command="{Binding InstallCommand}" Margin="0,0,8,0"
-                          Visibility="{Binding CanInstall, Converter={StaticResource BoolToVisibility}}"
-                          ToolTip="Downloads the installer, verifies its SHA-256 checksum, then closes Coreloom and runs the installer.">
-                    <StackPanel Orientation="Horizontal">
-                      <Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Download}" Stroke="{DynamicResource Brush.OnAccent}" />
-                      <TextBlock Text="Download and install" Margin="6,0,0,0" />
-                    </StackPanel>
-                  </Button>
-                  <Button Style="{StaticResource Button.Secondary}" Content="Cancel download" Command="{Binding CancelDownloadCommand}" Margin="0,0,8,0"
-                          Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibility}}" />
+            <!-- What's new in the version that is available / downloading / ready -->
+            <Border Style="{StaticResource Card}" Margin="0,12,0,0" Visibility="{Binding ShowUpdateSummary, Converter={StaticResource BoolToVisibility}}">
+              <StackPanel>
+                <Grid Margin="0,0,0,12">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+                  <Path Style="{StaticResource IconPath}" Width="16" Height="16" Data="{StaticResource Icon.Sparkle}" Stroke="{DynamicResource Brush.Accent}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                  <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                    <TextBlock Style="{StaticResource Text.CardTitle}" Text="{Binding UpdateSummary.Heading}" />
+                    <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding UpdateSummary.PublishedText}" Margin="0,2,0,0"
+                               Visibility="{Binding UpdateSummary.PublishedText, Converter={StaticResource HasValueToVisibility}}" />
+                  </StackPanel>
+                </Grid>
+                <ContentControl Content="{Binding UpdateSummary}" ContentTemplate="{StaticResource WhatsNewBody}" Focusable="False" />
+                <WrapPanel Margin="0,10,0,0">
                   <Button Style="{StaticResource Button.Secondary}" Command="{Binding OpenReleaseCommand}" Margin="0,0,8,0">
                     <StackPanel Orientation="Horizontal">
-                      <TextBlock Text="View on GitHub" />
+                      <TextBlock Text="Full release notes" />
                       <Path Style="{StaticResource IconPath}" Width="11" Height="11" Data="{StaticResource Icon.External}" Margin="6,0,0,0" />
                     </StackPanel>
                   </Button>
-                  <Button Style="{StaticResource Button.Subtle}" Content="Skip this version" Command="{Binding SkipCommand}" />
+                  <Button Style="{StaticResource Button.Subtle}" Content="Skip this version" Command="{Binding SkipCommand}"
+                          ToolTip="Don't install this version. You'll hear about the next one." />
                 </WrapPanel>
-                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,10,0,0"
-                           Text="This is a portable copy, so it is not updated in place. Download the new portable zip from GitHub and replace this folder."
-                           Visibility="{Binding CanInstall, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
               </StackPanel>
-            </StackPanel>
-          </Border>
+            </Border>
 
+            <!-- What's new in the running version (after Coreloom updated itself) -->
+            <Border Style="{StaticResource Card}" Margin="0,12,0,0" Visibility="{Binding ShowInstalledSummary, Converter={StaticResource BoolToVisibility}}">
+              <StackPanel>
+                <Grid Margin="0,0,0,12">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+                  <Path Style="{StaticResource IconPath}" Width="16" Height="16" Data="{StaticResource Icon.Sparkle}" Stroke="{DynamicResource Brush.Accent}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                  <TextBlock Grid.Column="1" Margin="10,0,0,0" Style="{StaticResource Text.CardTitle}" Text="{Binding InstalledHeading}" />
+                </Grid>
+                <ContentControl Content="{Binding InstalledSummary}" ContentTemplate="{StaticResource WhatsNewBody}" Focusable="False"
+                                Visibility="{Binding InstalledSummary, Converter={StaticResource HasValueToVisibility}}" />
+                <TextBlock Style="{StaticResource Text.Secondary}" Text="{Binding InstalledSummaryFallback}" TextWrapping="Wrap"
+                           Visibility="{Binding InstalledSummary, Converter={StaticResource HasValueToVisibility}, ConverterParameter=Invert}" />
+                <Button Style="{StaticResource Button.Secondary}" Command="{Binding OpenInstalledReleaseCommand}" Margin="0,10,0,0" HorizontalAlignment="Left">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Release notes on GitHub" />
+                    <Path Style="{StaticResource IconPath}" Width="11" Height="11" Data="{StaticResource Icon.External}" Margin="6,0,0,0" />
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- Preferences -->
           <Border Style="{StaticResource Card}" Padding="20,4,20,10" Margin="0,12,0,0">
             <StackPanel>
+              <Border Style="{StaticResource Row}">
+                <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Updates.AutoInstall}" IsEnabled="{Binding Updates.CanInstall}">
+                  <StackPanel>
+                    <TextBlock Style="{StaticResource Row.Title}" Text="Update automatically" />
+                    <TextBlock Style="{StaticResource Row.Description}" Text="{Binding Updates.AutoInstallDescription}" />
+                  </StackPanel>
+                </CheckBox>
+              </Border>
               <Border Style="{StaticResource Row}">
                 <Grid>
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <TextBlock Style="{StaticResource Row.Title}" Text="Check for updates" VerticalAlignment="Center" />
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock Style="{StaticResource Row.Title}" Text="Check for updates" />
+                    <TextBlock Style="{StaticResource Row.Description}" Text="How often Coreloom looks for a new version on its own." />
+                  </StackPanel>
                   <ComboBox Style="{StaticResource Combo.Setting}" ItemsSource="{Binding UpdateFrequencyOptions}" SelectedValue="{Binding UpdateFrequency}" />
                 </Grid>
               </Border>

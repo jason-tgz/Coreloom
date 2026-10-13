@@ -178,18 +178,36 @@ recreated in native XAML; no browser or web view is involved.
 ## Updates
 
 `GitHubReleaseClient` lists releases from `api.github.com`. This is anonymous: the 60 requests per hour
-limit is far above Coreloom's check frequency.
+limit is far above Coreloom's check frequency. `UpdatesViewModel` runs the whole flow as a small state machine
+(`Idle → Checking → UpToDate | Available → Downloading → Ready → Installing`, plus `Failed` and `NotConfigured`).
 
-1. It picks the newest non-draft release, skipping pre-releases unless the user opted in.
-2. It downloads the `-Setup.exe` asset with HTTP range resume.
-3. It verifies the SHA-256 against `SHA256SUMS.txt` from the same release, using a constant-time
-   comparison.
-4. It starts the installer with `/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /UPDATE=1`, then
-   exits. Inno Setup replaces the files once Coreloom has exited, then relaunches it.
+1. **Check** (20 s after start, then every 6 h when the chosen frequency says a check is due, or on *Check for
+   updates*): pick the newest non-draft release, skipping pre-releases unless the user opted in and skipping a
+   version the user chose to skip.
+2. **Download** (automatic when *Update automatically* is on and the copy was installed with the installer):
+   the `-Setup.exe` asset with HTTP range resume, into `%LOCALAPPDATA%\Coreloom\Updates`.
+3. **Verify:** SHA-256 against `SHA256SUMS.txt` from the same release (constant-time comparison). The verified
+   release is saved as `pending-update.json` next to the installer, and its hash is recorded under
+   `HKLM\SOFTWARE\Coreloom\Updates` (`IUpdateTrustStore`). The downloads folder is writable by the user, so
+   after a restart only the HKLM hash, which needs administrator rights to change, makes the file trustworthy.
+4. **Install** when the user clicks *Restart to update*, when Coreloom next starts, or while it sits in the tray
+   and the PC is idle (no input for 15 minutes, CPU and GPU quiet for 10; see `UpdateInstallPolicy`). Right
+   before running it, the installer is hashed again and held open read-only (`VerifiedInstaller`), so the file
+   that was checked is the file that runs. Coreloom starts it with `UpdateInstallOptions` (`/SILENT` or
+   `/VERYSILENT`, `/SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /UPDATE=1`, and `/MINIMIZED=1` for a
+   background install), then exits. Inno Setup replaces the files and relaunches Coreloom with `--updated`
+   (and `--minimized`). If Setup can't finish, it rolls back and starts the old version with `--update-failed`,
+   which stops automatic attempts for that version; automatic attempts are also capped at two.
+5. **After the update:** `UpdateSettings.RecordLaunch` notices the newer version, the window shows an
+   *Updated to …* banner, and *Settings → Updates* shows *What's new in this version* from the saved notes. When
+   the update left no notes behind (installed by 1.0.0's updater, which predates all this, or by hand), they are
+   fetched once from the release for the running version's tag. Installers of finished versions are deleted.
 
-Portable copies are never modified in place; they link to the release page instead. The repository is
-embedded at build time as `AssemblyMetadata("UpdateRepository")`. A build without it simply has no
-update checks.
+`ReleaseNotesSummary` turns a release's Markdown notes into that short summary: the opening sentence plus up to
+five bullets (from a *Highlights* section, else the Keep a Changelog sections, tagged New/Improved/Fixed),
+each cut to its bold lead and first sentence. Portable copies are never modified in place; they are told about
+new versions and link to the release page. The repository is embedded at build time as
+`AssemblyMetadata("UpdateRepository")`. A build without it simply has no update checks.
 
 ## Extending
 
