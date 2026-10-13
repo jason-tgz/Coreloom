@@ -7,6 +7,8 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-13
+
 Coreloom now keeps itself up to date and tells you what changed.
 
 ### Added
@@ -71,7 +73,7 @@ Coreloom only *reads* sensors. It never changes clocks, voltages, fan curves or 
 
 ### Feedback
 
-Found a bug or a sensor that reads wrong? [Open an issue](https://github.com/jerryubah/Vigil/issues) and attach a CoreloomDiag report. It's the fastest way to get it fixed:
+Found a bug or a sensor that reads wrong? [Open an issue](https://github.com/jerryubah/Coreloom/issues) and attach a CoreloomDiag report. It's the fastest way to get it fixed:
 
 ```powershell
 CoreloomDiag.exe --samples 30 --out coreloom-report.md

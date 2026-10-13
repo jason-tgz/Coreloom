@@ -127,7 +127,7 @@ Coreloom still only reads sensors and never writes to hardware.
 ## Build from source
 
 ```powershell
-git clone https://github.com/<owner>/Coreloom.git
+git clone https://github.com/jerryubah/Coreloom.git
 cd Coreloom
 ./build/build.ps1                     # restore, build (Debug), run unit tests
 dotnet run --project src/Coreloom.App    # start the app
