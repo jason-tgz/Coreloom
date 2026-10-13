@@ -128,6 +128,14 @@ Work through each area and tick what works.
 
 **Overview**
 
+- [ ] The header shows your motherboard name as the title (for example *ASRock X870E Nova WiFi*), the graphics card
+      underneath, and the specs: processor, cores, memory (size, type and speed, modules), storage, graphics memory,
+      driver, Windows version and BIOS. Values match *Settings → Diagnostics* and Task Manager.
+- [ ] The drawn PC shows a large card labelled with your GPU model, the right number of memory sticks, lights in
+      your accent color (change the accent and watch it follow) and the CPU temperature on the pump screen.
+- [ ] (Optional) Save a render of your build as `pc.png` in `%AppData%\Coreloom`, restart, and check it replaces the
+      drawing and looks sharp; delete it to get the drawing back.
+- [ ] Narrow the window: the two spec columns stack into one and nothing overlaps.
 - [ ] The six cards show live values with gauges and sparklines.
 - [ ] The numbers match the NVIDIA overlay and Task Manager within the usual tolerances.
 - [ ] *Customize* (or *Settings → Dashboard*): hiding and reordering cards persists after a restart.
@@ -136,6 +144,11 @@ Work through each area and tick what works.
 
 - [ ] The GPU, CPU, Memory, Storage and Network pages are populated, and *Raw sensors* lists
       LibreHardwareMonitor's sensors.
+- [ ] *GPU*: the Specifications card sits next to *VRAM usage* with the same height; its list scrolls inside the card,
+      and once it reaches the end the wheel scrolls the page.
+- [ ] *GPU* and *Processor*: long sensor lists show as two columns of similar height (a split group continues as
+      "…, continued"); in a narrow window they stack. The *Raw sensors* switch still works.
+- [ ] Nothing is shown under *Settings* at the bottom of the sidebar.
 - [ ] Hovering a chart shows the crosshair and tooltip, and the 60s/5m/15m/1h selector and pause work.
 - [ ] *Performance History*: picking metrics stacks the charts, hover is synchronized, and *Export CSV*
       writes a file.
@@ -172,7 +185,7 @@ Work through each area and tick what works.
 - [ ] Open *Settings → Diagnostics* and note the working set, managed heap and handle count. Click through every
       page twice, then leave Coreloom open for an hour: the managed heap should settle and the handle count
       should stay flat. Steady growth is a leak: export a diagnostic report and send it.
-- [ ] CPU use shown in the sidebar stays around 1 % or less at a 1 s interval; it should drop to about zero
+- [ ] Coreloom's CPU use in *Settings › Diagnostics* stays around 1 % or less at a 1 s interval; it should drop to about zero
       while the window is minimized to the tray.
 - [ ] Page switches feel instant and charts keep scrolling smoothly. The log's first lines show the animation
       rate in use (for example "animation 240 fps").
@@ -196,7 +209,7 @@ Work through each area and tick what works.
 
 **Overhead**
 
-- [ ] With the dashboard open, Coreloom's own usage at the bottom of the sidebar stays low (note the numbers).
+- [ ] With the dashboard open, Coreloom's own usage in *Settings › Diagnostics* stays low (note the numbers).
 - [ ] When minimized, Task Manager shows Coreloom's CPU close to zero.
 
 ## 5. Installer and portable build

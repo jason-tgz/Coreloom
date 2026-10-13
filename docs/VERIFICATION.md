@@ -108,6 +108,26 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | Settings › Updates, badge, banner, tray item | XAML checks; bindings resolve; app compiles | How it all looks and behaves on screen |
 | Release workflow: existing release, re-run by tag | YAML parses; PowerShell reviewed | A real run. (The likely reason `v1.0.0` was published without its files: its release already existed when the workflow tried to create it, and that step failed.) |
 
+### Overview header and page layout (after 1.1.0)
+
+- **Core tests: 241 passed** (199 before, plus 42 for `SystemDescriptions`: board vendor names and placeholder
+  values, GPU badges and card sizes for NVIDIA/AMD/Intel names, memory, cores and Windows lines).
+- **View-model tests: 50 passed** (44 before, plus 6: the Overview header from the fixture's summary and GPU list,
+  the header following the selected GPU, and the two-column sensor split).
+- **`Coreloom.App` compiles** against the WPF reference assembly as above, including `PcIllustration`, `PcImages`,
+  `ScrollChain` and the new `AdaptiveGrid.RowSpacing`: 0 errors, 0 warnings.
+- **XAML checks passed** (16 files, 153 resource keys, 456 bindings). A mutation test caught a misspelt header
+  binding, a misspelt illustration binding and an undefined style. The checker now also resolves `Resource` items
+  whose `Link` uses `%(Filename)%(Extension)`.
+- `build/pc-illustration.py` regenerates `PcIllustration.xaml` byte-for-byte, and its SVG output was rendered in
+  Chromium for two hardware variants and accents to check the drawing.
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Overview header and PC drawing | Unit tests for the text; bindings checked; SVG renders of the same shapes | How the XAML drawing renders in WPF (gradients, the accent mask, sharpness at your scaling) |
+| Optional `pc.png` | Code review; loader decodes once, size-capped, errors fall back to the drawing | Loading a real file on Windows |
+| GPU specifications beside VRAM, sensors in two columns | Split logic unit-tested; XAML checks | The final look at your window size, and the wheel hand-off from the inner list to the page |
+
 ## Not verified yet (needs Windows and the real hardware)
 
 None of the following has been confirmed by the author. Don't treat any of it as working until the checklist in

@@ -17,8 +17,10 @@ installs drivers or services, and never sends your data anywhere.
 
 ## Features
 
-- **Overview dashboard.** Six summary cards (GPU utilization, GPU temperature, CPU utilization, CPU
-  temperature, RAM, GPU power), each with a radial gauge, a sparkline, threshold colors and min/max/avg.
+- **Overview dashboard.** A header for your PC (motherboard, graphics card and key specs next to a drawing of the
+  build in your accent color, or a render of your own build). Six summary cards (GPU utilization, GPU
+  temperature, CPU utilization, CPU temperature, RAM, GPU power), each with a radial gauge, a sparkline,
+  threshold colors and min/max/avg.
   Below them are large charts and memory, storage and network panels. Cards can be hidden and reordered,
   and the layout is saved.
 - **Detail pages** for the GPU, CPU, memory, storage and network:
@@ -57,7 +59,7 @@ installs drivers or services, and never sends your data anywhere.
   - Downloads can resume and are SHA-256 verified before anything runs; the installer replaces files only after
     Coreloom has exited.
 - **Low overhead.** Coreloom polls on a dedicated thread and does no UI work while minimized. It measures its
-  own CPU and memory use and shows them in the sidebar.
+  own CPU and memory use and shows them in *Settings › Diagnostics*.
 
 ## What Coreloom reads, and from where
 

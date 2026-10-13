@@ -56,7 +56,7 @@ Run `CoreloomDiag.exe --compare` for an automatic NVML vs `nvidia-smi` compariso
 
 ## High CPU or memory use
 
-- The sidebar shows Coreloom's own usage; it's measured, not estimated.
+- *Settings › Diagnostics* shows Coreloom's own usage; it's measured, not estimated.
 - Try a 2 s polling interval (*Settings → Monitoring*). Turn off per-thread graphs or smooth scrolling.
 - *Scan USB fan and pump controllers* can make LibreHardwareMonitor slower on some systems. It's off by
   default.

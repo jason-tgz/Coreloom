@@ -181,7 +181,7 @@ public class OverviewViewModelTests
     }
 
     [Fact]
-    public void Update_FillsCardsAndSystemLine()
+    public void Update_FillsCardsAndHeader()
     {
         var (monitor, settings, _) = Fixture.Create();
         var overview = new OverviewViewModel(Fixture.Context(monitor, settings));
@@ -192,7 +192,9 @@ public class OverviewViewModelTests
         Assert.Equal("95", gpuPower.Number);
         Assert.Equal(575, gpuPower.GaugeMaximum);
         Assert.Contains("575", gpuPower.Detail);
-        Assert.Equal("AMD Ryzen 9 9950X3D  ·  GeForce RTX 5090  ·  64 GB", overview.SystemLine);
+        Assert.Equal("ASRock X870E Nova WiFi", overview.Specs.Title);
+        Assert.Equal("NVIDIA GeForce RTX 5090", overview.Specs.Subtitle);
+        Assert.Null(overview.Subtitle);
         var cpuTemp = overview.SummaryCards.First(c => c.Id == DashboardCatalog.CpuTemperature).Metric;
         Assert.False(cpuTemp.HasValue);
         settings.Dispose();

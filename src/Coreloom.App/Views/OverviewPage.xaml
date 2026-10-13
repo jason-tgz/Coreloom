@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="clr-namespace:Coreloom.App.Controls"
              xmlns:b="clr-namespace:Coreloom.App.Behaviors"
+             xmlns:views="clr-namespace:Coreloom.App.Views"
              xmlns:pages="clr-namespace:Coreloom.ViewModels.Pages;assembly=Coreloom.ViewModels">
 
   <UserControl.Resources>
@@ -60,7 +61,7 @@
               <TextBlock Text="{Binding Write.Unit}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
             </StackPanel>
           </Grid>
-          <ScrollViewer Grid.Row="1" Margin="0,10,0,0" Style="{StaticResource ScrollViewer.Page}" MaxHeight="250">
+          <ScrollViewer Grid.Row="1" Margin="0,10,0,0" Style="{StaticResource ScrollViewer.Page}" MaxHeight="250" b:ScrollChain.Enabled="True">
             <ItemsControl ItemsSource="{Binding Volumes}" ItemTemplate="{StaticResource VolumeRow}" Focusable="False" />
           </ScrollViewer>
         </Grid>
@@ -114,16 +115,44 @@
 
   <ScrollViewer Style="{StaticResource ScrollViewer.Page}">
     <StackPanel Margin="32,14,28,32" b:Motion.Entrance="True">
-      <Grid Margin="0,0,0,16">
-        <TextBlock Text="{Binding SystemLine}" Style="{StaticResource Text.Secondary}" FontSize="13" VerticalAlignment="Center" />
-        <Button Style="{StaticResource Button.Subtle}" HorizontalAlignment="Right" Command="{Binding CustomizeCommand}" Padding="10,5"
-                ToolTip="Show, hide and reorder dashboard cards">
-          <StackPanel Orientation="Horizontal">
-            <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Edit}" />
-            <TextBlock Text="Customize" Margin="8,0,0,0" Foreground="{DynamicResource Brush.TextSecondary}" />
-          </StackPanel>
-        </Button>
-      </Grid>
+      <!-- This PC: illustration (or a render of the build), board name, graphics card and key specs -->
+      <Border Style="{StaticResource Card}" Padding="14,14,22,14" Margin="0,0,0,16">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <views:PcIllustration Width="210" Height="210" VerticalAlignment="Center" DataContext="{Binding Specs}" />
+
+          <Grid Grid.Column="1" Margin="22,6,0,6" VerticalAlignment="Center">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{Binding Specs.Title}" ToolTip="{Binding Specs.Title}" FontSize="22" FontWeight="SemiBold"
+                       Foreground="{DynamicResource Brush.Text}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Grid.Row="1" Text="{Binding Specs.Subtitle}" Style="{StaticResource Text.Secondary}" FontSize="14" Margin="0,3,0,0"
+                       TextTrimming="CharacterEllipsis" />
+            <Button Grid.Column="1" Grid.RowSpan="2" Style="{StaticResource Button.Subtle}" VerticalAlignment="Top" Margin="16,0,0,0"
+                    Command="{Binding CustomizeCommand}" Padding="10,5" ToolTip="Show, hide and reorder dashboard cards">
+              <StackPanel Orientation="Horizontal">
+                <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Edit}" />
+                <TextBlock Text="Customize" Margin="8,0,0,0" Foreground="{DynamicResource Brush.TextSecondary}" />
+              </StackPanel>
+            </Button>
+
+            <c:AdaptiveGrid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,16,0,0" MinColumnWidth="250" MaxColumns="2" Spacing="40" RowSpacing="0">
+              <ItemsControl ItemsSource="{Binding Specs.LeftSpecs}" ItemTemplate="{StaticResource KeyValueRow}" Focusable="False" Grid.IsSharedSizeScope="True" />
+              <ItemsControl ItemsSource="{Binding Specs.RightSpecs}" ItemTemplate="{StaticResource KeyValueRow}" Focusable="False" Grid.IsSharedSizeScope="True" />
+            </c:AdaptiveGrid>
+          </Grid>
+        </Grid>
+      </Border>
 
       <ItemsControl ItemsSource="{Binding SummaryCards}" ItemTemplate="{StaticResource SummaryCard}" Focusable="False">
         <ItemsControl.ItemsPanel>

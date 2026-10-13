@@ -124,16 +124,16 @@
         </StackPanel>
       </Border>
 
-      <!-- Processes + specs -->
+      <!-- Processes + specs (each card as tall as its own content) -->
       <c:AdaptiveGrid MinColumnWidth="460" MaxColumns="2" Spacing="16" Margin="0,16,0,0">
-        <Border Style="{StaticResource Card}">
+        <Border Style="{StaticResource Card}" VerticalAlignment="Top">
           <StackPanel>
             <TextBlock Style="{StaticResource Text.CardTitle}" Text="Top processes by CPU" />
             <TextBlock Style="{StaticResource Text.Caption}" Text="Grouped by application · refreshed every 2 seconds" Margin="0,2,0,10" />
             <ContentPresenter Content="{Binding Processes}" ContentTemplate="{StaticResource ProcessList}" />
           </StackPanel>
         </Border>
-        <Border Style="{StaticResource Card}">
+        <Border Style="{StaticResource Card}" VerticalAlignment="Top">
           <StackPanel>
             <TextBlock Style="{StaticResource Text.CardTitle}" Text="Specifications" Margin="0,0,0,10" />
             <ItemsControl ItemsSource="{Binding Specifications}" ItemTemplate="{StaticResource KeyValueRow}" Focusable="False" Grid.IsSharedSizeScope="True" />
@@ -141,27 +141,26 @@
         </Border>
       </c:AdaptiveGrid>
 
-      <!-- Motherboard + all sensors -->
-      <c:AdaptiveGrid MinColumnWidth="460" MaxColumns="2" Spacing="16" Margin="0,16,0,0">
-        <Border Style="{StaticResource Card}">
-          <StackPanel>
-            <TextBlock Style="{StaticResource Text.CardTitle}" Text="Motherboard fans &amp; temperatures" />
-            <TextBlock Style="{StaticResource Text.Caption}" Text="Super I/O sensors (requires administrator rights and PawnIO)" Margin="0,2,0,8" />
-            <ContentPresenter Content="{Binding BoardSensors}" ContentTemplate="{StaticResource SensorTable}" />
-          </StackPanel>
-        </Border>
-        <Border Style="{StaticResource Card}">
-          <StackPanel>
-            <Grid Margin="0,0,0,8">
-              <TextBlock Style="{StaticResource Text.CardTitle}" Text="All processor sensors" />
-              <CheckBox Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" IsChecked="{Binding Sensors.ShowRaw}">
-                <TextBlock Text="Raw sensors" Style="{StaticResource Text.Secondary}" />
-              </CheckBox>
-            </Grid>
-            <ContentPresenter Content="{Binding Sensors}" ContentTemplate="{StaticResource SensorTable}" />
-          </StackPanel>
-        </Border>
-      </c:AdaptiveGrid>
+      <!-- Motherboard sensors, two cards side by side -->
+      <StackPanel Orientation="Horizontal" Margin="0,24,0,10">
+        <TextBlock Style="{StaticResource Text.Section}" Text="Motherboard fans &amp; temperatures" VerticalAlignment="Center" />
+        <TextBlock Style="{StaticResource Text.Caption}" Text="Super I/O sensors (requires administrator rights and PawnIO)" Margin="10,2,0,0" VerticalAlignment="Center" />
+      </StackPanel>
+      <ContentPresenter Content="{Binding BoardSensors}" ContentTemplate="{StaticResource SensorColumns}" />
+
+      <!-- All processor sensors, two cards side by side -->
+      <Grid Margin="0,24,0,10">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Style="{StaticResource Text.Section}" Text="All processor sensors" VerticalAlignment="Center" />
+          <TextBlock Style="{StaticResource Text.Caption}" Margin="10,2,0,0" VerticalAlignment="Center">
+            <Run Text="{Binding Sensors.Count, Mode=OneWay}" /><Run Text=" readings" />
+          </TextBlock>
+        </StackPanel>
+        <CheckBox Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" IsChecked="{Binding Sensors.ShowRaw}">
+          <TextBlock Text="Raw sensors" Style="{StaticResource Text.Secondary}" />
+        </CheckBox>
+      </Grid>
+      <ContentPresenter Content="{Binding Sensors}" ContentTemplate="{StaticResource SensorColumns}" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

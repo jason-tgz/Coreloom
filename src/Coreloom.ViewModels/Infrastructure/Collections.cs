@@ -157,6 +157,13 @@ public sealed class SensorTableViewModel : ObservableObject
     /// <summary>Rows grouped by <see cref="SensorRowViewModel.Group"/>, canonical metrics first.</summary>
     public ObservableCollection<SensorGroupViewModel> Groups { get; } = [];
 
+    /// <summary>The groups split into two columns of similar height (see <see cref="SensorColumns"/>).</summary>
+    public ObservableCollection<SensorGroupViewModel> FirstColumn { get; } = [];
+
+    public ObservableCollection<SensorGroupViewModel> SecondColumn { get; } = [];
+
+    public bool HasSecondColumn => SecondColumn.Count > 0;
+
     public bool IsEmpty => Rows.Count == 0;
 
     public bool ShowRaw
@@ -201,8 +208,22 @@ public sealed class SensorTableViewModel : ObservableObject
                     Groups.Add(new SensorGroupViewModel(group.Key, group.ToArray()));
                 }
 
+                var (first, second) = SensorColumns.Split(Groups);
+                FirstColumn.Clear();
+                SecondColumn.Clear();
+                foreach (var group in first)
+                {
+                    FirstColumn.Add(group);
+                }
+
+                foreach (var group in second)
+                {
+                    SecondColumn.Add(group);
+                }
+
                 OnPropertyChanged(nameof(Count));
                 OnPropertyChanged(nameof(IsEmpty));
+                OnPropertyChanged(nameof(HasSecondColumn));
             }
         }
 
@@ -339,4 +360,88 @@ public sealed class ProcessListViewModel : ObservableObject
     }
 
     private static string TrimExe(string name) => name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? name[..^4] : name;
+}
+
+/// <summary>
+/// Splits sensor groups into two columns of similar height so long sensor lists sit side by side instead of making
+/// one very tall card. Groups keep their order (the first column gets the first groups); a long group may continue
+/// at the top of the second column ("Load, continued") when that balances the columns much better than moving the
+/// whole group. Short lists stay in one column.
+/// </summary>
+public static class SensorColumns
+{
+    /// <summary>A group's title counts as this many rows of height.</summary>
+    public const double HeaderWeight = 1.6;
+
+    /// <summary>Lists with at most this many rows stay in one column.</summary>
+    public const int SingleColumnMaxRows = 8;
+
+    /// <summary>Both parts of a split group keep at least this many rows.</summary>
+    public const int MinRowsPerPart = 3;
+
+    public static (IReadOnlyList<SensorGroupViewModel> First, IReadOnlyList<SensorGroupViewModel> Second) Split(IReadOnlyList<SensorGroupViewModel> groups)
+    {
+        int totalRows = groups.Sum(g => g.Rows.Count);
+        if (groups.Count == 0 || totalRows <= SingleColumnMaxRows)
+        {
+            return (groups.ToArray(), []);
+        }
+
+        double total = groups.Sum(Weight);
+
+        // Best split between whole groups.
+        int bestBoundary = -1;
+        double bestBoundaryGap = double.MaxValue;
+        double prefix = 0;
+        for (int k = 1; k < groups.Count; k++)
+        {
+            prefix += Weight(groups[k - 1]);
+            double gap = Math.Abs(prefix - (total - prefix));
+            if (gap < bestBoundaryGap)
+            {
+                bestBoundaryGap = gap;
+                bestBoundary = k;
+            }
+        }
+
+        // Best split inside a group (the continued part gets its own title).
+        int bestGroup = -1;
+        int bestRow = 0;
+        double bestInnerGap = double.MaxValue;
+        prefix = 0;
+        for (int g = 0; g < groups.Count; g++)
+        {
+            int rows = groups[g].Rows.Count;
+            for (int r = MinRowsPerPart; r <= rows - MinRowsPerPart; r++)
+            {
+                double left = prefix + HeaderWeight + r;
+                double right = total - left + HeaderWeight;
+                double gap = Math.Abs(left - right);
+                if (gap < bestInnerGap)
+                {
+                    bestInnerGap = gap;
+                    bestGroup = g;
+                    bestRow = r;
+                }
+            }
+
+            prefix += Weight(groups[g]);
+        }
+
+        // Moving whole groups reads better; only split a group when that is clearly more even.
+        if (bestGroup >= 0 && bestInnerGap + 4 < bestBoundaryGap)
+        {
+            var group = groups[bestGroup];
+            var first = groups.Take(bestGroup).Append(new SensorGroupViewModel(group.Name, group.Rows.Take(bestRow).ToArray())).ToArray();
+            var second = new[] { new SensorGroupViewModel($"{group.Name}, continued", group.Rows.Skip(bestRow).ToArray()) }
+                .Concat(groups.Skip(bestGroup + 1)).ToArray();
+            return (first, second);
+        }
+
+        return bestBoundary > 0
+            ? (groups.Take(bestBoundary).ToArray(), groups.Skip(bestBoundary).ToArray())
+            : (groups.ToArray(), []);
+    }
+
+    private static double Weight(SensorGroupViewModel group) => HeaderWeight + group.Rows.Count;
 }

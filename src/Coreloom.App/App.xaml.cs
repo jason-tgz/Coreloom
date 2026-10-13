@@ -200,6 +200,9 @@ public partial class App : Application
         // Vendor logos are optional files the user supplies (see assets/vendors/README.md); none are bundled.
         BrandLogos.Configure(paths.VendorLogoDirectory);
 
+        // Optional render of the user's PC for the Overview header (see assets/pc/README.md).
+        PcImages.Configure(paths.SettingsDirectory);
+
         var theme = new ThemeService(Resources);
         theme.Initialize(settings.Appearance);
 

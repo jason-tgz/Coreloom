@@ -51,35 +51,41 @@
         </ItemsControl.ItemsPanel>
       </ItemsControl>
 
-      <!-- Charts -->
+      <!-- Charts, with Specifications in the last slot (same height as the charts; its list scrolls) -->
       <c:AdaptiveGrid MinColumnWidth="460" MaxColumns="2" Spacing="16" Margin="0,16,0,0">
         <ContentPresenter Content="{Binding UsageChart}" ContentTemplate="{StaticResource ChartCard}" Height="280" />
         <ContentPresenter Content="{Binding TemperatureChart}" ContentTemplate="{StaticResource ChartCard}" Height="280" />
         <ContentPresenter Content="{Binding PowerChart}" ContentTemplate="{StaticResource ChartCard}" Height="280" />
         <ContentPresenter Content="{Binding ClockChart}" ContentTemplate="{StaticResource ChartCard}" Height="280" />
         <ContentPresenter Content="{Binding MemoryChart}" ContentTemplate="{StaticResource ChartCard}" Height="280" />
+        <Border Style="{StaticResource Card}" Height="280" Padding="18,14,8,10">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock Style="{StaticResource Text.CardTitle}" Text="Specifications" Margin="0,0,10,8" />
+            <ScrollViewer Grid.Row="1" Style="{StaticResource ScrollViewer.Page}" b:ScrollChain.Enabled="True">
+              <ItemsControl ItemsSource="{Binding Specifications}" ItemTemplate="{StaticResource KeyValueRow}" Focusable="False"
+                            Grid.IsSharedSizeScope="True" Margin="0,0,10,0" />
+            </ScrollViewer>
+          </Grid>
+        </Border>
       </c:AdaptiveGrid>
 
-      <!-- Specifications + sensors -->
-      <c:AdaptiveGrid MinColumnWidth="460" MaxColumns="2" Spacing="16" Margin="0,16,0,0">
-        <Border Style="{StaticResource Card}">
-          <StackPanel>
-            <TextBlock Style="{StaticResource Text.CardTitle}" Text="Specifications" Margin="0,0,0,10" />
-            <ItemsControl ItemsSource="{Binding Specifications}" ItemTemplate="{StaticResource KeyValueRow}" Focusable="False" Grid.IsSharedSizeScope="True" />
-          </StackPanel>
-        </Border>
-        <Border Style="{StaticResource Card}">
-          <StackPanel>
-            <Grid Margin="0,0,0,8">
-              <TextBlock Style="{StaticResource Text.CardTitle}" Text="All sensors" />
-              <CheckBox Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" IsChecked="{Binding Sensors.ShowRaw}">
-                <TextBlock Text="Raw sensors" Style="{StaticResource Text.Secondary}" />
-              </CheckBox>
-            </Grid>
-            <ContentPresenter Content="{Binding Sensors}" ContentTemplate="{StaticResource SensorTable}" />
-          </StackPanel>
-        </Border>
-      </c:AdaptiveGrid>
+      <!-- All sensors, split into two cards that sit side by side -->
+      <Grid Margin="0,24,0,10">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Style="{StaticResource Text.Section}" Text="All sensors" VerticalAlignment="Center" />
+          <TextBlock Style="{StaticResource Text.Caption}" Margin="10,2,0,0" VerticalAlignment="Center">
+            <Run Text="{Binding Sensors.Count, Mode=OneWay}" /><Run Text=" readings" />
+          </TextBlock>
+        </StackPanel>
+        <CheckBox Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" IsChecked="{Binding Sensors.ShowRaw}">
+          <TextBlock Text="Raw sensors" Style="{StaticResource Text.Secondary}" />
+        </CheckBox>
+      </Grid>
+      <ContentPresenter Content="{Binding Sensors}" ContentTemplate="{StaticResource SensorColumns}" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

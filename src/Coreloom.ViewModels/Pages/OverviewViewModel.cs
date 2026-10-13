@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Coreloom.Core.Formatting;
+using Coreloom.Core.Hardware;
 using Coreloom.Core.Settings;
 using Coreloom.Core.Telemetry;
 using Coreloom.ViewModels.Infrastructure;
@@ -234,7 +235,9 @@ public sealed class OverviewViewModel : PageViewModel
     private readonly MetricViewModel _ccd2;
     private int _gpuSlot = -1;
     private int _deviceVersion = -1;
-    private string _systemLine = string.Empty;
+    private IReadOnlyList<KeyValueItem> _leftSpecs = [];
+    private IReadOnlyList<KeyValueItem> _rightSpecs = [];
+    private int _driveCount;
 
     public OverviewViewModel(PageContext context)
         : base("overview", "Overview", "Icon.Overview", context)
@@ -290,15 +293,12 @@ public sealed class OverviewViewModel : PageViewModel
 
     public bool ShowStatisticsOnCards => ShowStatistics;
 
-    /// <summary>"AMD Ryzen 9 9950X3D · GeForce RTX 5090 · 64 GB".</summary>
-    public string SystemLine
-    {
-        get => _systemLine;
-        private set => SetProperty(ref _systemLine, value);
-    }
+    /// <summary>The header at the top of the page: board, graphics card, key specs and the PC illustration.</summary>
+    public SystemSummaryViewModel Specs { get; } = new();
 
     public override void OnSettingsChanged(string section)
     {
+        _deviceVersion = -1; // header text follows unit settings (GB vs GiB)
         if (section is "Dashboard" or "Alerts" or "All")
         {
             var cpuTemp = AlertThresholds("cpu-temp", Thresholds.CpuTemperature, 10);
@@ -346,6 +346,7 @@ public sealed class OverviewViewModel : PageViewModel
     private void Retarget(int slot)
     {
         _gpuSlot = slot;
+        _deviceVersion = -1; // the header names the selected graphics card
         _cards[DashboardCatalog.GpuLoad].Metric.Retarget(MetricIds.GpuLoad(slot));
         _cards[DashboardCatalog.GpuTemperature].Metric.Retarget(MetricIds.GpuTemperature(slot));
         _cards[DashboardCatalog.GpuPower].Metric.Retarget(MetricIds.GpuPower(slot));
@@ -383,6 +384,7 @@ public sealed class OverviewViewModel : PageViewModel
         }
 
         UpdateMetrics(frame, false, _hotSpot, _maxThread, _memoryUsed, _memoryTotal, _powerLimit, _ccd1, _ccd2);
+        UpdateSpecs(frame, f);
 
         // Secondary lines.
         _cards[DashboardCatalog.GpuTemperature].Metric.Detail = _hotSpot.HasValue ? $"Hot spot {_hotSpot.Number}{_hotSpot.Unit}" : null;
@@ -469,20 +471,35 @@ public sealed class OverviewViewModel : PageViewModel
 
     private void RefreshStaticInfo()
     {
-        var parts = new List<string> { ShortCpuName(Monitor.Summary.CpuName) };
+        var summary = Monitor.Summary;
+        var cpu = Devices.Get(MetricIds.CpuDeviceId);
+        string cpuName = ShortCpuName(cpu?.Name ?? summary.CpuName);
         var gpu = Monitor.Gpus().FirstOrDefault(g => g.Slot == _gpuSlot);
-        if (!string.IsNullOrEmpty(gpu.Name))
-        {
-            parts.Add(ShortGpuName(gpu.Name));
-        }
+        var gpuDevice = Devices.Get(MetricIds.GpuDeviceId(_gpuSlot));
+        string? gpuName = Clean(gpuDevice?.Name ?? gpu.Name);
+        bool integrated = gpuDevice?.IsIntegrated ?? gpu.IsIntegrated;
 
-        if (Monitor.Summary.InstalledMemoryBytes > 0)
-        {
-            parts.Add(Formatter.Bytes(Monitor.Summary.InstalledMemoryBytes, 0).ToString());
-        }
+        Specs.SetIdentity(
+            SystemDescriptions.BoardName(summary.Motherboard) ?? summary.ComputerName,
+            gpuName ?? cpuName,
+            SystemDescriptions.HasFourMemorySticks(summary.MemoryModules),
+            SystemDescriptions.GpuSizeFor(gpuName, integrated),
+            SystemDescriptions.GpuBadge(gpuName));
 
-        SystemLine = string.Join("  ·  ", parts);
-        Subtitle = Monitor.Summary.Motherboard is { } board ? $"{Monitor.Summary.OperatingSystem} · {board}" : Monitor.Summary.OperatingSystem;
+        _leftSpecs = Rows(
+            ("Processor", cpuName),
+            ("Cores", summary.LogicalProcessors > 0 ? SystemDescriptions.CoresLine(summary.PhysicalCores, summary.LogicalProcessors) : null),
+            ("Memory", SystemDescriptions.MemoryLine(summary.InstalledMemoryBytes, summary.MemoryModules, Formatter)));
+        _rightSpecs = Rows(
+            ("Graphics memory", gpuDevice?.GetProperty("VRAM")),
+            ("Driver", gpuDevice?.GetProperty("Driver")),
+            ("System", SystemDescriptions.WindowsLine(summary.OperatingSystem, summary.OsVersion)),
+            ("BIOS", summary.Bios));
+        _driveCount = Devices.GetByCategory(MetricCategory.Storage)
+            .Count(d => d.Id.StartsWith("disk/", StringComparison.Ordinal) && !string.Equals(d.GetProperty("Removable"), "Yes", StringComparison.OrdinalIgnoreCase));
+
+        // The header carries the board and the operating system now.
+        Subtitle = null;
 
         // Volumes for the storage panel (system drive first).
         string systemLetter = Path.GetPathRoot(Environment.SystemDirectory)?.TrimEnd('\\', ':', '/') is { Length: 1 } l ? l.ToUpperInvariant() : "C";
@@ -501,4 +518,55 @@ public sealed class OverviewViewModel : PageViewModel
             }
         }
     }
+
+    /// <summary>The live parts of the header: storage total (volumes report their size with the first frame) and the pump screen.</summary>
+    private void UpdateSpecs(TelemetryFrame frame, UnitFormatter f)
+    {
+        double total = 0;
+        foreach (var volume in _storage.Volumes)
+        {
+            if (frame.TryGetValue(MetricIds.VolumeTotal(volume.Letter), out double size) && size > 0)
+            {
+                total += size;
+            }
+        }
+
+        string? storage = (_driveCount, total) switch
+        {
+            (0, <= 0) => null,
+            (0, _) => f.Bytes(total, 1).ToString(),
+            (_, <= 0) => DriveCount(_driveCount),
+            _ => $"{DriveCount(_driveCount)} · {f.Bytes(total, 1)}",
+        };
+        IReadOnlyList<KeyValueItem> left = storage is null ? _leftSpecs : [.. _leftSpecs, new KeyValueItem("Storage", storage)];
+        Specs.SetSpecs(left, _rightSpecs);
+
+        if (frame.TryGetValue(MetricIds.CpuTemperature, out double cpuTemp))
+        {
+            Specs.SetScreen(f.Temperature(cpuTemp).Number + "°", "CPU");
+        }
+        else if (frame.TryGetValue(MetricIds.GpuTemperature(_gpuSlot), out double gpuTemp))
+        {
+            Specs.SetScreen(f.Temperature(gpuTemp).Number + "°", "GPU");
+        }
+        else if (frame.TryGetValue(MetricIds.CpuLoad, out double load))
+        {
+            Specs.SetScreen(f.Percent(load).Number + "%", "CPU");
+        }
+        else
+        {
+            Specs.SetScreen("—", "CPU");
+        }
+    }
+
+    private static string DriveCount(int count) => count == 1 ? "1 drive" : $"{count} drives";
+
+    private static KeyValueItem[] Rows(params (string Key, string? Value)[] rows) =>
+        rows.Where(r => !string.IsNullOrWhiteSpace(r.Value) && r.Value != "—").Select(r => new KeyValueItem(r.Key, r.Value!.Trim())).ToArray();
+
+    private static string? Clean(string? name) =>
+        string.IsNullOrWhiteSpace(name)
+            ? null
+            : string.Join(' ', name.Replace("(R)", string.Empty, StringComparison.OrdinalIgnoreCase).Replace("(TM)", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries));
 }

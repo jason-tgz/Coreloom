@@ -48,7 +48,6 @@ public sealed class ShellViewModel : ObservableObject
     private bool _isLive;
     private bool _isWindowVisible = true;
     private bool _bannerDismissed;
-    private string _overheadText = string.Empty;
     private string _trayText = "Coreloom";
     private long _lastFrameSequence;
 
@@ -269,13 +268,6 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>A newer version is available, downloading or ready (the sidebar badge).</summary>
     public bool IsUpdateAvailable => _deps.Updates.ShowBadge;
 
-    /// <summary>"Coreloom · 0.4% CPU · 92 MB" shown at the bottom of the sidebar.</summary>
-    public string OverheadText
-    {
-        get => _overheadText;
-        private set => SetProperty(ref _overheadText, value);
-    }
-
     /// <summary>Short live summary for the tray icon tooltip.</summary>
     public string TrayText
     {
@@ -339,11 +331,6 @@ public sealed class ShellViewModel : ObservableObject
 
         Timeline.Advance(frame);
         _currentPage.Update(frame);
-
-        var f = _deps.Settings.Formatter;
-        string cpu = frame.TryGetValue(MetricIds.AppCpu, out double c) ? f.Percent(c, 1).ToString() : "—";
-        string mem = frame.TryGetValue(MetricIds.AppWorkingSet, out double m) ? f.Bytes(m, 0).ToString() : "—";
-        OverheadText = $"Coreloom uses {cpu} CPU · {mem}";
     }
 
     private void UpdateTrayText(TelemetryFrame frame)

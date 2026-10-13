@@ -371,7 +371,9 @@ def main() -> int:
     # <Resource Include="source" [Link="published path"] />: the pack URI path is the Link when there is one.
     resources: list[tuple[str, str]] = []
     for m in re.finditer(r'<Resource\s+Include="([^"]+)"(?:\s+Link="([^"]+)")?', csproj):
-        resources.append((m.group(2) or m.group(1), m.group(1)))
+        # Wildcard includes publish under a Link built from item metadata ("Assets\PC\%(Filename)%(Extension)").
+        link = re.sub(r"%\((RecursiveDir|Filename|Extension)\)", "*", m.group(2) or "") or m.group(1)
+        resources.append((re.sub(r"\*+", "*", link), m.group(1)))
 
     def published(rel: str):
         """The (published pattern, source pattern) entry that embeds this pack path, or None."""

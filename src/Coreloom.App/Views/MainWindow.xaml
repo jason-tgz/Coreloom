@@ -113,9 +113,6 @@
             </Button>
             <ListBox x:Name="SettingsNav" Style="{StaticResource NavList}" ItemContainerStyle="{StaticResource NavItemBound}"
                      ItemTemplate="{StaticResource NavItemTemplate}" SelectionChanged="OnNavigationSelectionChanged" />
-            <TextBlock Text="{Binding OverheadText}" Style="{StaticResource Text.Caption}" Margin="14,10,0,0" FontSize="11"
-                       ToolTip="Coreloom's own CPU and memory use (measured live)."
-                       Visibility="{Binding IsCompactSidebar, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
           </StackPanel>
         </Grid>
       </Border>

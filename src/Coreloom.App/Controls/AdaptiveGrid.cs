@@ -22,6 +22,10 @@ public sealed class AdaptiveGrid : Panel
         nameof(Spacing), typeof(double), typeof(AdaptiveGrid),
         new FrameworkPropertyMetadata(16.0, FrameworkPropertyMetadataOptions.AffectsMeasure));
 
+    public static readonly DependencyProperty RowSpacingProperty = DependencyProperty.Register(
+        nameof(RowSpacing), typeof(double), typeof(AdaptiveGrid),
+        new FrameworkPropertyMetadata(double.NaN, FrameworkPropertyMetadataOptions.AffectsMeasure));
+
     public static readonly DependencyProperty UniformRowHeightProperty = DependencyProperty.Register(
         nameof(UniformRowHeight), typeof(bool), typeof(AdaptiveGrid),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsMeasure));
@@ -47,6 +51,15 @@ public sealed class AdaptiveGrid : Panel
         get => (double)GetValue(SpacingProperty);
         set => SetValue(SpacingProperty, value);
     }
+
+    /// <summary>Gap between rows; when not set, <see cref="Spacing"/> is used both ways.</summary>
+    public double RowSpacing
+    {
+        get => (double)GetValue(RowSpacingProperty);
+        set => SetValue(RowSpacingProperty, value);
+    }
+
+    private double EffectiveRowSpacing => double.IsNaN(RowSpacing) ? Spacing : RowSpacing;
 
     /// <summary>When true every row uses the height of the tallest item overall.</summary>
     public bool UniformRowHeight
@@ -90,13 +103,14 @@ public sealed class AdaptiveGrid : Panel
             Array.Fill(_rowHeights, max);
         }
 
-        double height = _rowHeights.Sum() + (spacing * Math.Max(0, rows - 1));
+        double height = _rowHeights.Sum() + (EffectiveRowSpacing * Math.Max(0, rows - 1));
         return new Size(width, height);
     }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
         double spacing = Spacing;
+        double rowSpacing = EffectiveRowSpacing;
         double columnWidth = Math.Max(0, (finalSize.Width - (spacing * (_columns - 1))) / _columns);
         double y = 0;
         int index = 0;
@@ -112,7 +126,7 @@ public sealed class AdaptiveGrid : Panel
             int column = index % _columns;
             if (column == 0 && row > 0)
             {
-                y += _rowHeights[row - 1] + spacing;
+                y += _rowHeights[row - 1] + rowSpacing;
             }
 
             double height = row < _rowHeights.Length ? _rowHeights[row] : child.DesiredSize.Height;

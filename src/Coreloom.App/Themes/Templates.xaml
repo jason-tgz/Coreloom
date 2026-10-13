@@ -279,21 +279,40 @@
     </DataTemplate.Triggers>
   </DataTemplate>
 
+  <DataTemplate x:Key="SensorGroup" DataType="{x:Type inf:SensorGroupViewModel}">
+    <StackPanel Margin="0,0,0,10">
+      <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Label}" Margin="8,6,0,4" />
+      <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource SensorRow}" Focusable="False" />
+    </StackPanel>
+  </DataTemplate>
+
+  <!-- One card's worth of sensors (all groups in one column). -->
   <DataTemplate x:Key="SensorTable" DataType="{x:Type inf:SensorTableViewModel}">
     <StackPanel>
       <TextBlock Style="{StaticResource Text.Secondary}" Text="No sensors reported." Margin="8,4"
                  Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
-      <ItemsControl ItemsSource="{Binding Groups}" Focusable="False">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate DataType="{x:Type inf:SensorGroupViewModel}">
-            <StackPanel Margin="0,0,0,10">
-              <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Label}" Margin="8,6,0,4" />
-              <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource SensorRow}" Focusable="False" />
-            </StackPanel>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
+      <ItemsControl ItemsSource="{Binding Groups}" ItemTemplate="{StaticResource SensorGroup}" Focusable="False" />
     </StackPanel>
+  </DataTemplate>
+
+  <!-- A long sensor list as two cards side by side (stacked in narrow windows). Each card is only as tall as its own
+       content, and the groups are balanced between the two (see SensorColumns). -->
+  <DataTemplate x:Key="SensorColumns" DataType="{x:Type inf:SensorTableViewModel}">
+    <Grid>
+      <Border Style="{StaticResource Card}" Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}">
+        <TextBlock Style="{StaticResource Text.Secondary}" Text="No sensors reported." />
+      </Border>
+      <c:AdaptiveGrid MinColumnWidth="460" MaxColumns="2" Spacing="16"
+                      Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
+        <Border Style="{StaticResource Card}" VerticalAlignment="Top" Padding="10,8,10,2">
+          <ItemsControl ItemsSource="{Binding FirstColumn}" ItemTemplate="{StaticResource SensorGroup}" Focusable="False" />
+        </Border>
+        <Border Style="{StaticResource Card}" VerticalAlignment="Top" Padding="10,8,10,2"
+                Visibility="{Binding HasSecondColumn, Converter={StaticResource BoolToVisibility}}">
+          <ItemsControl ItemsSource="{Binding SecondColumn}" ItemTemplate="{StaticResource SensorGroup}" Focusable="False" />
+        </Border>
+      </c:AdaptiveGrid>
+    </Grid>
   </DataTemplate>
 
   <!-- ================================================================================= -->
