@@ -44,6 +44,7 @@ public sealed class ShellDependencies
 public sealed class ShellViewModel : ObservableObject
 {
     private readonly ShellDependencies _deps;
+    private readonly PageContext _pageContext;
     private PageViewModel _currentPage;
     private bool _isLive;
     private bool _isWindowVisible = true;
@@ -57,6 +58,7 @@ public sealed class ShellViewModel : ObservableObject
         _deps = deps;
         Timeline = new TimelineViewModel(deps.Monitor.Engine.History);
         var context = new PageContext { Monitor = deps.Monitor, Settings = deps.Settings, Timeline = Timeline };
+        _pageContext = context;
 
         Overview = new OverviewViewModel(context);
         Gpu = new GpuViewModel(context);
@@ -321,6 +323,9 @@ public sealed class ShellViewModel : ObservableObject
             IsLive = true;
             OnPropertyChanged(nameof(StatusText));
         }
+
+        // Recorded on every frame, even while the window is hidden, so the GPU tuning viewer reflects gaming sessions too.
+        _pageContext.VoltageFrequency.Record(frame, _pageContext.GpuSlot);
 
         UpdateTrayText(frame);
         if (!_isWindowVisible)

@@ -368,4 +368,175 @@
       </StackPanel>
     </Grid>
   </DataTemplate>
+
+  <!-- ================================================================================= -->
+  <!-- GPU tuning: indicator badge, read-only range bars and the viewer                   -->
+  <!-- ================================================================================= -->
+  <Style x:Key="Text.TuningValue" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Tone}" Value="Raised">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Elevated}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Tone}" Value="Mixed">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Elevated}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Tone}" Value="Lowered">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Info}" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <!-- Pill shown next to the GPU name when an overclock / reduced limit is detected. -->
+  <DataTemplate x:Key="TuningBadge" DataType="{x:Type pages:GpuTuningViewModel}">
+    <Border Margin="12,0,0,0" VerticalAlignment="Center" CornerRadius="7" Padding="8,3" BorderThickness="1"
+            Visibility="{Binding HasBadge, Converter={StaticResource BoolToVisibility}}"
+            ToolTip="{Binding BadgeToolTip}" ToolTipService.InitialShowDelay="300">
+      <Border.Style>
+        <Style TargetType="Border">
+          <Setter Property="Background" Value="{DynamicResource Brush.BannerBackground}" />
+          <Setter Property="BorderBrush" Value="{DynamicResource Brush.BannerBorder}" />
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding BadgeTone}" Value="Lowered">
+              <Setter Property="Background" Value="{DynamicResource Brush.InfoSoft}" />
+              <Setter Property="BorderBrush" Value="{DynamicResource Brush.InfoBorder}" />
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Border.Style>
+      <StackPanel Orientation="Horizontal">
+        <Path Width="13" Height="13" Data="{StaticResource Icon.Gauge}" StrokeThickness="1.8">
+          <Path.Style>
+            <Style TargetType="Path" BasedOn="{StaticResource IconPath}">
+              <Setter Property="Stroke" Value="{DynamicResource Brush.Elevated}" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding BadgeTone}" Value="Lowered">
+                  <Setter Property="Stroke" Value="{DynamicResource Brush.Info}" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Path.Style>
+        </Path>
+        <TextBlock Text="{Binding BadgeText}" Margin="6,0,0,0" FontSize="12" FontWeight="SemiBold"
+                   Foreground="{DynamicResource Brush.Text}" VerticalAlignment="Center" />
+      </StackPanel>
+    </Border>
+  </DataTemplate>
+
+  <!-- One read-only setting: label, value, range bar with a stock tick, and allowed range. -->
+  <DataTemplate x:Key="TuningMeterRow" DataType="{x:Type pages:TuningMeterViewModel}">
+    <Grid Margin="0,10">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" MinWidth="170" />
+        <ColumnDefinition Width="1.5*" />
+      </Grid.ColumnDefinitions>
+      <StackPanel Margin="0,0,24,0">
+        <TextBlock Text="{Binding Title}" Style="{StaticResource Text.CardTitle}" />
+        <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,3,0,0" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Visibility="{Binding HasValue, Converter={StaticResource BoolToVisibility}}">
+        <Grid>
+          <TextBlock Text="{Binding ValueText}" Style="{StaticResource Text.TuningValue}" />
+          <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Secondary}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+        </Grid>
+        <c:RangeMeter Height="22" Margin="0,6,0,0" Value="{Binding Value}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}"
+                      Reference="{Binding Reference}" HasRange="{Binding HasRange}" HasValue="{Binding HasValue}" Tone="{Binding Tone}" />
+        <Grid Margin="0,2,0,0">
+          <TextBlock Text="{Binding RangeText}" Style="{StaticResource Text.Caption}" />
+          <TextBlock Text="{Binding ReferenceText}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Right" />
+        </Grid>
+      </StackPanel>
+      <TextBlock Grid.Column="1" Text="{Binding UnavailableText}" Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" VerticalAlignment="Center"
+                 Visibility="{Binding HasValue, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
+    </Grid>
+  </DataTemplate>
+
+  <!-- The read-only tuning viewer shown under the GPU header when "Tuning" is toggled on. -->
+  <DataTemplate x:Key="TuningViewer" DataType="{x:Type pages:GpuTuningViewModel}">
+    <Border Style="{StaticResource Card}">
+      <StackPanel>
+        <Grid>
+          <StackPanel Orientation="Horizontal">
+            <Path Style="{StaticResource IconPath}" Width="16" Height="16" Data="{StaticResource Icon.Eye}" Stroke="{DynamicResource Series.Gpu.Brush}" />
+            <TextBlock Text="Overclock and power-limit settings" Style="{StaticResource Text.CardTitle}" Margin="10,0,0,0" VerticalAlignment="Center" />
+          </StackPanel>
+          <Border Style="{StaticResource Badge}" HorizontalAlignment="Right" Padding="8,3"
+                  ToolTip="Coreloom only reads these values. It never writes a clock, voltage, fan or power setting to your GPU.">
+            <StackPanel Orientation="Horizontal">
+              <Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Lock}" StrokeThickness="1.8" />
+              <TextBlock Text="View only" Margin="6,0,0,0" FontSize="11.5" Foreground="{DynamicResource Brush.TextSecondary}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </Grid>
+        <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap"
+                   Text="What the NVIDIA driver reports right now. Change these in your tuning tool (for example MSI Afterburner); Coreloom just shows them." />
+
+        <!-- Verdict -->
+        <Border Style="{StaticResource Card.Inset}" Margin="0,14,0,0">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Info}" />
+              <TextBlock Text="{Binding Headline}" FontWeight="SemiBold" FontSize="13" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource Brush.Text}" />
+            </StackPanel>
+            <ItemsControl ItemsSource="{Binding FindingLines}" Margin="22,6,0,0" Focusable="False"
+                          Visibility="{Binding FindingLines, Converter={StaticResource HasValueToVisibility}}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding}" Style="{StaticResource Text.Secondary}" Margin="0,1" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="{Binding UnavailableMessage}" Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="22,6,0,0"
+                       Visibility="{Binding UnavailableMessage, Converter={StaticResource HasValueToVisibility}}" />
+          </StackPanel>
+        </Border>
+
+        <!-- Range bars -->
+        <StackPanel Margin="0,8,0,0">
+          <ContentPresenter Content="{Binding CoreOffset}" ContentTemplate="{StaticResource TuningMeterRow}" />
+          <Border Style="{StaticResource Divider}" Margin="0" />
+          <ContentPresenter Content="{Binding MemoryOffset}" ContentTemplate="{StaticResource TuningMeterRow}" />
+          <Border Style="{StaticResource Divider}" Margin="0" />
+          <ContentPresenter Content="{Binding PowerLimit}" ContentTemplate="{StaticResource TuningMeterRow}" />
+        </StackPanel>
+
+        <!-- Observed voltage / frequency -->
+        <Border Style="{StaticResource Divider}" Margin="0,8,0,14" />
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <StackPanel>
+            <TextBlock Text="Voltage the GPU actually used at each clock speed" Style="{StaticResource Text.CardTitle}" />
+            <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,3,12,0"
+                       Text="Measured while Coreloom was running, not the curve you set. An undervolt shows up as lower voltage at the same clock speed." />
+          </StackPanel>
+          <Button Grid.Column="1" Content="Clear" Style="{StaticResource Button.Secondary}" Padding="12,5" VerticalAlignment="Top"
+                  Command="{Binding ResetCurveCommand}" ToolTip="Clears Coreloom's own recorded readings (nothing on the GPU changes)." />
+        </Grid>
+        <Grid Height="250" Margin="0,10,0,0">
+          <c:VoltageFrequencyChart Points="{Binding CurvePoints}" CurrentClock="{Binding CurrentClockMhz}" CurrentVolts="{Binding CurrentVolts}" ColorKey="Gpu" />
+          <TextBlock Text="{Binding CurveMessage}" Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" TextAlignment="Center"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="460"
+                     Visibility="{Binding CurveMessage, Converter={StaticResource HasValueToVisibility}}" />
+        </Grid>
+        <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
+                   Visibility="{Binding HasCurve, Converter={StaticResource BoolToVisibility}}">
+          <Run Text="Shaded band: lowest to highest voltage seen · Line: average · Ring: now · " /><Run Text="{Binding CurveSummary, Mode=OneWay}" />
+        </TextBlock>
+
+        <Border Style="{StaticResource Card.Inset}" Margin="0,14,0,0">
+          <StackPanel Orientation="Horizontal">
+            <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Info}" VerticalAlignment="Top" Margin="0,1,0,0" />
+            <TextBlock Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="10,0,0,0" MaxWidth="900"
+                       Text="Not visible to Coreloom: a custom voltage/frequency curve (such as one drawn in MSI Afterburner's curve editor) is stored by the tool and isn't exposed by NVIDIA's public API, so an undervolt made that way is not flagged above. The measured chart still shows its effect. Memory offsets are in the driver's own units, which tuning tools may display on a different scale." />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </Border>
+  </DataTemplate>
 </ResourceDictionary>

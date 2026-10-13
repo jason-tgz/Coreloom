@@ -9,8 +9,10 @@
     <StackPanel Margin="32,14,28,32" b:Motion.Entrance="True">
 
       <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Cpu}" Stroke="{DynamicResource Series.Cpu.Brush}" />
-        <TextBlock Text="{Binding CpuName}" Style="{StaticResource Text.Section}" Margin="10,0,0,0" VerticalAlignment="Center" />
+        <c:BrandMark Vendor="{Binding VendorKey}" Margin="0,0,12,0" />
+        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Cpu}" Stroke="{DynamicResource Series.Cpu.Brush}" Margin="0,0,10,0" VerticalAlignment="Center"
+              Visibility="{Binding VendorKey, Converter={StaticResource HasValueToVisibility}, ConverterParameter=Invert}" />
+        <TextBlock Text="{Binding CpuName}" Style="{StaticResource Text.Section}" VerticalAlignment="Center" />
       </StackPanel>
 
       <!-- Why temperature/power may be missing -->

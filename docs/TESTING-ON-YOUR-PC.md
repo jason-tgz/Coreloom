@@ -93,6 +93,30 @@ dotnet run --project src/Coreloom.App -c Release
 
 Work through each area and tick what works.
 
+**Startup splash** (use the built `Coreloom.exe`, the installed copy and the portable zip at least once each)
+
+- [ ] Double-click `Coreloom.exe` and accept the UAC prompt: the dark Coreloom splash (icon, "Coreloom",
+      "SYSTEM PERFORMANCE", a thin moving blue line) appears centred on the monitor with your mouse pointer and
+      fades in gently. No white or black flash before it.
+- [ ] The splash fades into the dashboard; the dashboard never appears empty, white or half-drawn first.
+- [ ] While the splash is up, the taskbar shows no extra Coreloom button and Alt+Tab doesn't list the splash.
+      Afterwards there is exactly one Coreloom taskbar button, with the Coreloom icon.
+- [ ] Cold start (first launch after a reboot) and warm start (launch again right after exiting): the splash shows
+      in both, stays up at least a moment on the fast one, and doesn't hang around after the window is ready.
+      The log has two `Startup` lines with the timings; note them.
+- [ ] Display scaling 125 %, 150 % and 200 % (*Settings → System → Display → Scale*): the icon and text are sharp
+      and nothing is cut off.
+- [ ] Two monitors: start Coreloom with the mouse on each monitor; the splash follows the mouse. (If the dashboard
+      was last open on the other monitor, the handoff happens across monitors; that is expected.)
+- [ ] Windows *Settings → Accessibility → Visual effects → Animation effects* off, or Coreloom's *Reduce motion*
+      on: the splash appears without the fade/rise, the line is still (not moving) and the hand-off has no fade.
+- [ ] Windows in light mode and dark mode: the splash stays dark (brand design); the dashboard follows its theme.
+- [ ] With Coreloom already running, start it again: no splash; the running window comes to the front.
+- [ ] `Coreloom.exe --minimized`, and *Start with Windows* with *Start minimized*: no splash; Coreloom goes straight
+      to the notification area. Opening it from the tray shows the window without a splash.
+- [ ] After closing Coreloom (tray → Exit), Task Manager (Details) shows no Coreloom process left behind.
+- [ ] Start Menu and desktop shortcuts from the installer launch with the splash as well.
+
 **Window and appearance**
 
 - [ ] The window opens with dark Mica (or the solid dark background if Mica is off).
@@ -115,6 +139,28 @@ Work through each area and tick what works.
 - [ ] Hovering a chart shows the crosshair and tooltip, and the 60s/5m/15m/1h selector and pause work.
 - [ ] *Performance History*: picking metrics stacks the charts, hover is synchronized, and *Export CSV*
       writes a file.
+
+**Vendor marks, tuning indicator and tuning viewer**
+
+- [ ] The *Processor* page shows an *AMD* mark next to the CPU name, and the *GPU* page shows an *NVIDIA* mark next
+      to the GPU name. Without logo files these are plain-text badges; that is expected.
+- [ ] (Optional) Put `nvidia.png` and `amd.png` (official logos you downloaded, transparent PNG) in
+      `%AppData%\Coreloom\Vendors`, restart, and check they replace the badges and read well in dark and light
+      themes. Add `-on-dark` / `-on-light` versions if one theme is hard to read.
+- [ ] With the GPU at stock settings, the GPU header shows no tuning badge, and the *Tuning* panel says no overclock
+      or reduced limits were detected (and mentions that curve edits can't be seen).
+- [ ] Apply a core clock offset (for example +100 MHz) or raise/lower the power limit in your tuning tool. Within
+      a few seconds the GPU header shows *Overclock*, *Reduced limits* or *Custom tuning*, and *Tuning* lists the
+      matching line ("Core clock offset +100 MHz", "Power limit …"). Reset it and the badge goes away.
+- [ ] Open *Tuning*: the offset and power-limit meters show the allowed range, a tick at stock and a marker at the
+      current value. Nothing in the panel can be dragged or typed into; *Clear* only empties the voltage chart's recorded
+      readings.
+- [ ] Leave Coreloom running under a game or load for a few minutes: the voltage-per-clock chart fills in. If it
+      stays empty, the panel should say core voltage isn't available; send the CoreloomDiag report.
+- [ ] Note whether the memory offset number matches your tuning tool. A different scale is expected (the driver's
+      units); a wrong *sign* or an offset shown while your tool says 0 is not. Report it.
+- [ ] An undervolt made only by editing the voltage/frequency curve is **not** expected to raise the badge. The
+      voltage chart should show lower voltage at the same clock after you apply it.
 
 **Tray**
 

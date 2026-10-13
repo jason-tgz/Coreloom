@@ -39,7 +39,8 @@ files in a build is determined by NuGet; run `dotnet list package --include-tran
 
 ## Coreloom icon
 
-The application icon and logo files in `assets/branding` are Coreloom's own artwork and are used as supplied.
+The application icon, logo and startup splash files in `assets/branding` (including `assets/branding/splash`) are
+Coreloom's own artwork and are used as supplied.
 They are covered by the project's license unless the owner states otherwise.
 
 ## CommunityToolkit.Mvvm
@@ -70,8 +71,15 @@ The Windows installer is built with Inno Setup (© Jordan Russell and Martijn La
 https://jrsoftware.org/isinfo.php), under the Inno Setup License. Only the generated setup program is
 distributed.
 
+## Vendor logos
+
+Coreloom does **not** include NVIDIA, AMD or Intel logos. The GPU and CPU pages show a plain-text vendor badge
+unless the person running Coreloom adds logo files they obtained from the company's own brand page
+(`assets/vendors/` or `%AppData%\Coreloom\Vendors`). Anyone who adds a logo is responsible for following that
+company's usage rules.
+
 ---
 
-NVIDIA, GeForce and RTX are trademarks of NVIDIA Corporation. AMD and Ryzen are trademarks of Advanced
-Micro Devices, Inc. Windows is a trademark of Microsoft Corporation. Coreloom is an independent project, and
-it is not affiliated with or endorsed by these companies.
+NVIDIA, GeForce and RTX are trademarks of NVIDIA Corporation. AMD, Ryzen and Radeon are trademarks of Advanced
+Micro Devices, Inc. Intel is a trademark of Intel Corporation. Windows is a trademark of Microsoft Corporation.
+Coreloom is an independent project, and it is not affiliated with or endorsed by these companies.

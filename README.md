@@ -26,6 +26,14 @@ installs drivers or services, and never sends your data anywhere.
   - SMBIOS memory modules;
   - per-disk activity, temperature and volumes;
   - per-adapter traffic.
+- **GPU tuning indicator and viewer (read-only).** The GPU page shows a badge when an overclock or reduced
+  limit is detected (core or memory clock offset, or a power limit changed from stock). The *Tuning* button
+  opens a view-only panel with the detected offsets and power limit against their allowed ranges, plus a chart
+  of the voltage the GPU actually used at each core clock. Nothing in it can be edited. See
+  [what it can and can't see](#gpu-tuning-viewer-what-it-can-and-cant-see).
+- **Vendor marks.** The CPU and GPU names carry a vendor mark. Coreloom shows the official NVIDIA, AMD or Intel
+  logo if you add the files (see [assets/vendors/README.md](assets/vendors/README.md)) and a plain-text badge
+  until then.
 - **Performance History.** Compare up to six metrics on stacked, time-aligned charts with synchronized hover.
   Choose a 60 s, 5 min, 15 min or 1 h window and export to CSV.
 - **Honest data.** Every value is labelled *measured* or *derived*, along with its source (NVML, Windows
@@ -37,6 +45,8 @@ installs drivers or services, and never sends your data anywhere.
   - Monotone curves that don't overshoot.
   - Pause/freeze and a reduced-motion mode.
 - **Desktop integration.**
+  - A branded startup splash that fades into the dashboard as soon as the window has painted (skipped when
+    Coreloom starts in the tray; follows reduced-motion settings).
   - Dark and light themes with a custom accent color.
   - Mica, Snap Layouts and a collapsible sidebar.
   - A tray icon with a live tooltip, start with Windows (elevated through Task Scheduler, so no prompt at
@@ -54,6 +64,7 @@ installs drivers or services, and never sends your data anywhere.
 | Area | Source | Administrator needed? |
 |---|---|---|
 | NVIDIA GPU: utilization, temperature, clocks, VRAM, power and limit, fan %, P-state, clock-limit reasons, encoder/decoder, PCIe | **NVML** (ships with the NVIDIA driver) | No |
+| NVIDIA GPU tuning state: core and memory clock offsets (with their allowed ranges), stock and current power limit | **NVML** (read-only "get" calls) | No |
 | GPU hot spot, memory junction, fan RPM, voltage (not in NVML) | LibreHardwareMonitor (NvAPI) | No |
 | AMD / Intel GPUs | LibreHardwareMonitor | Usually no |
 | CPU total and per-thread utilization, effective clock | Windows performance counters (PDH) | No |
@@ -71,6 +82,24 @@ it**. If you want those sensors:
 2. Restart Coreloom. It always runs as administrator, so nothing else is needed.
 
 Without it, everything else still works and the affected cards explain what's missing.
+
+## GPU tuning viewer: what it can and can't see
+
+The indicator and the viewer are **read-only**; Coreloom has no code path that changes a clock, voltage, power
+limit or fan setting.
+
+- **Detected:** a core or memory clock offset of 1 MHz or more, and a power limit that differs from the card's
+  stock limit by more than 1 W or 0.5%. The badge reads *Overclock* (something raised), *Reduced limits*
+  (something lowered) or *Custom tuning* (a mix).
+- **Not detectable:** the per-point voltage/frequency curve that tools such as MSI Afterburner let you drag
+  (the usual way to undervolt an RTX card). The public NVIDIA interface does not expose it. If you undervolt
+  that way, the badge can read *No overclock or reduced limits detected* even though a curve edit is active, and
+  the page says so. The measured chart is how to see it: it plots the voltage the card really used at each core
+  clock while Coreloom was running, so a lowered curve shows up as lower voltage at the same clock.
+- **The measured chart fills in over time.** It needs core voltage from LibreHardwareMonitor and builds up
+  while Coreloom runs, including while the window is hidden. It is cleared when Coreloom restarts.
+- **Memory offsets** are shown in the driver's own units, which some tuning tools scale differently.
+- Anything the driver doesn't report is labelled unavailable with the reason, never shown as zero or "stock".
 
 ## Requirements
 
@@ -191,5 +220,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports with a CoreloomDiag report a
 [MIT](LICENSE) © 2026 Jerry Ubah. Third-party components and their licenses are listed in
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-NVIDIA, GeForce and RTX are trademarks of NVIDIA Corporation. AMD and Ryzen are trademarks of Advanced
-Micro Devices, Inc. Coreloom is not affiliated with or endorsed by either company.
+NVIDIA, GeForce and RTX are trademarks of NVIDIA Corporation. AMD, Ryzen and Radeon are trademarks of
+Advanced Micro Devices, Inc. Intel is a trademark of Intel Corporation. Coreloom is not affiliated with or
+endorsed by these companies, and it does not bundle their logos.

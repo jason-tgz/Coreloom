@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using Coreloom.App.Controls;
 using Coreloom.App.Interop;
 using Coreloom.App.Services;
 using Coreloom.App.Themes;
@@ -13,6 +14,7 @@ using Coreloom.Core;
 using Coreloom.Core.Alerts;
 using Coreloom.Core.Diagnostics;
 using Coreloom.Core.Settings;
+using Coreloom.Core.Startup;
 using Coreloom.Core.Telemetry;
 using Coreloom.Hardware;
 using Coreloom.Hardware.Providers;
@@ -31,8 +33,10 @@ public partial class App : Application
 {
     private static readonly TimeSpan UpdateCheckDelay = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan UpdateCheckPeriod = TimeSpan.FromHours(6);
+    private const string StartupFailedSplashMessage = "Coreloom couldn't start. The details are in the message window and in the log.";
 
     private SingleInstance? _instance;
+    private SplashScreenHost? _splash;
     private FileLogSink? _fileLog;
     private SettingsService? _settings;
     private MonitoringHost? _host;
@@ -72,6 +76,7 @@ public partial class App : Application
             // single-instance lock, so the next launch would silently exit).
             Log.Error("App", "Coreloom failed to start.", ex);
             Log.Flush();
+            _splash?.ShowError(StartupFailedSplashMessage);
             MessageBox.Show(
                 $"Coreloom could not start:\n\n{DescribeError(ex)}\n\nDetails were written to the log folder (%LOCALAPPDATA%\\Coreloom\\Logs).",
                 "Coreloom", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -146,10 +151,25 @@ public partial class App : Application
         _settings = new SettingsService(store, settings);
         Log.MinimumLevel = settings.Diagnostics.VerboseLogging ? LogLevel.Debug : LogLevel.Info;
 
+        // ---- Startup splash -----------------------------------------------------------------------
+        // Only for launches that open a window: not --minimized or "Start minimized" at sign-in (tray only), and
+        // never for a second launch or the uninstaller's task cleanup (both returned above). It runs on its own
+        // thread, so starting it costs the main thread nothing and it keeps moving while the dashboard is built.
+        bool startHidden = SplashPolicy.StartsHidden(args.Minimized, args.FromStartup, settings.Desktop.LaunchMinimized);
+        bool reducedMotion = SplashPolicy.UseReducedMotion(settings.Appearance.ReducedMotion, SystemParameters.ClientAreaAnimation);
+        if (!startHidden)
+        {
+            _splash = SplashScreenHost.TryStart(reducedMotion);
+        }
+
+        // Vendor logos are optional files the user supplies (see assets/vendors/README.md); none are bundled.
+        BrandLogos.Configure(paths.VendorLogoDirectory);
+
         var theme = new ThemeService(Resources);
         theme.Initialize(settings.Appearance);
 
         // ---- Monitoring back-end ------------------------------------------------------------------
+        _splash?.SetStatus("Reading system information");
         try
         {
             _host = MonitoringHost.Create(new HardwareOptions
@@ -164,6 +184,7 @@ public partial class App : Application
         {
             Log.Error("App", "Creating the monitoring host failed.", ex);
             Log.Flush();
+            _splash?.ShowError(StartupFailedSplashMessage);
             MessageBox.Show($"Coreloom could not start its monitoring engine:\n\n{DescribeError(ex)}\n\nDetails were written to {paths.LogDirectory}.",
                 "Coreloom", MessageBoxButton.OK, MessageBoxImage.Error);
             ReleaseAndShutdown(1);
@@ -201,6 +222,7 @@ public partial class App : Application
         };
         var updates = new UpdatesViewModel(app, settingsService, installer, shellService, _http, paths.DownloadDirectory);
 
+        _splash?.SetStatus("Opening dashboard");
         var shell = new ShellViewModel(new ShellDependencies
         {
             Monitor = monitor,
@@ -273,7 +295,6 @@ public partial class App : Application
 
         host.Engine.Start();
 
-        bool startHidden = args.Minimized || (args.FromStartup && settings.Desktop.LaunchMinimized);
         if (startHidden)
         {
             shell.SetWindowVisible(false);
@@ -281,7 +302,8 @@ public partial class App : Application
         }
         else
         {
-            window.Show();
+            // Shown off-screen first; the splash fades into it once its first frame has been drawn.
+            StartupHandoff.ShowMainWindow(window, _splash, reducedMotion);
         }
 
         // ---- Background housekeeping ------------------------------------------------------------
@@ -503,6 +525,8 @@ public partial class App : Application
 
     private void ReleaseAndShutdown(int exitCode)
     {
+        _splash?.Close();  // no-op once the handoff has finished
+        _splash = null;
         _instance?.Dispose();
         _instance = null;
         Log.Flush();

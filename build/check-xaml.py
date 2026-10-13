@@ -14,6 +14,7 @@ catch the common mistakes earlier and on any OS:
   * every {Binding} path segment exists as a public property somewhere in the view models / core models
     or is a known WPF property (catches typos, not type mismatches)
   * icon keys referenced from view models exist, and pack URIs point at files embedded as Resource
+  * windows that run on their own UI thread (the splash) never reference App.xaml resources
 
 Usage: python3 build/check-xaml.py            (exit code 1 when problems are found)
 """
@@ -32,6 +33,10 @@ X = "{http://schemas.microsoft.com/winfx/2006/xaml}"
 # Merge order of App.xaml; Templates.xaml merges Icons/Converters/Controls itself.
 GLOBAL_ORDER = ["Themes/Icons.xaml", "Themes/Converters.xaml", "Themes/Controls.xaml", "Themes/Templates.xaml"]
 VIEWS = sorted((APP / "Views").glob("*.xaml"))
+
+# Windows that run on their own UI thread (the startup splash). App.xaml's resources belong to the main thread, so
+# these must define every resource they use and block resource lookups past themselves in code.
+SELF_CONTAINED_VIEWS = {"SplashWindow.xaml"}
 
 EVENT_ATTRS = {
     "Click", "Loaded", "Unloaded", "KeyDown", "KeyUp", "PreviewKeyDown", "SelectionChanged", "MouseDown", "MouseUp",
@@ -221,6 +226,20 @@ def main() -> int:
         for key in markup_refs(text, "DynamicResource"):
             if key not in all_keys and key not in local_keys:
                 problems.add(path, f"DynamicResource '{key}' is not defined anywhere (and not created by ThemeService)")
+
+    # ---- windows on their own UI thread --------------------------------------------------------
+    for path in VIEWS:
+        if path.name not in SELF_CONTAINED_VIEWS:
+            continue
+        text = path.read_text(encoding="utf-8")
+        local_keys = set(keys_in_order(trees[path]))
+        for kind in ("StaticResource", "DynamicResource"):
+            for key in markup_refs(text, kind):
+                if key not in local_keys:
+                    problems.add(path, f"{kind} '{key}' would come from App.xaml, but this window runs on its own UI thread")
+        behind = path.with_name(path.name + ".cs")
+        if not behind.exists() or "InheritanceBehavior.SkipToThemeNext" not in behind.read_text(encoding="utf-8"):
+            problems.add(path, "code-behind must set InheritanceBehavior = InheritanceBehavior.SkipToThemeNext (keeps lookups off App.xaml)")
 
     # ---- x:Class, handlers, names ------------------------------------------------------------
     code = {p: p.read_text(encoding="utf-8") for p in APP.rglob("*.cs") if "/obj/" not in str(p) and "/bin/" not in str(p)}

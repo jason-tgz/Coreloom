@@ -95,6 +95,27 @@ layer calls Windows sensor APIs, so most of the logic is testable on any OS.
   - Writes are debounced by 600 ms.
   - A corrupt file is kept as `settings.json.bad` and defaults are used.
 
+## GPU tuning indicator and viewer
+
+Everything here is read-only.
+
+- **Reading.** `NvmlGpuProvider` polls the core and memory clock offsets (and their allowed ranges) and the stock
+  power-limit range every 2 s, as the `Tuning` group of metrics (`MetricKind.ClockOffset`, not tracked in history).
+  The exports are resolved individually, so a driver without one reports that metric as unavailable with the
+  reason. Only "get" functions are bound.
+- **Classifying.** `GpuTuningAnalyzer` (Core, platform-neutral) turns a `GpuTuningReading` into a
+  `GpuTuningStatus`: `Unavailable`, `NotDetected`, `Overclock`, `Reduced` or `Mixed`, with one finding per
+  setting that differs from stock. Unreadable values are never treated as stock.
+- **Measuring.** `VoltageFrequencyRecorder` bins (core clock, core voltage) pairs from every frame, including
+  while the window is hidden, into 15 MHz bins with min, mean and max. This is what the viewer plots; it is a
+  record of where the card ran, not the curve a tuning tool stores.
+- **Showing.** `GpuTuningViewModel` exposes the badge, meters and chart data; `RangeMeter` and
+  `VoltageFrequencyChart` are non-interactive (`IsHitTestVisible = false`). The only buttons are show/hide and *Clear*
+  (empties Coreloom's own recorded readings).
+- **Vendor marks.** `HardwareVendors.Detect` identifies NVIDIA/AMD/Intel from the vendor string, then the device
+  name. `BrandMark` shows a logo file from `%AppData%\Coreloom\Vendors` or the embedded `assets/vendors/` set, and
+  a text badge otherwise. No logos are bundled.
+
 ## Privileges
 
 Coreloom's manifest is `requireAdministrator`: Windows shows a UAC prompt each time the app is started by
@@ -115,6 +136,42 @@ terminal to include the admin-only sensors).
 - **Installer:** per-user and not elevated, so `Coreloom.exe` is launched with `shellexec` and an in-app update
   (started by the elevated app) inherits elevation. A manual install over a running instance requires exiting
   Coreloom first, because a non-elevated installer cannot close an elevated app.
+
+## Startup splash and handoff
+
+A launch that opens a window shows the Coreloom splash first and fades into the real main window once that window
+has painted. The design is the Coreloom splash opener kit (`assets/branding/splash/splash-screen-preview.png`),
+recreated in native XAML; no browser or web view is involved.
+
+- **When.** `App.Start` starts the splash right after the single-instance check and settings load. It is skipped
+  for `--minimized`, for the sign-in task with *Start minimized*, for a second launch (which hands over to the
+  running copy and exits) and for the uninstaller's `--remove-startup-task`. `SplashPolicy` (Core, unit-tested)
+  holds these rules and the timings.
+- **Own UI thread.** `SplashScreenHost` runs `SplashWindow` on a dedicated background STA thread with its own
+  dispatcher. WPF animations tick on their owner thread, so the loading line keeps moving while the main thread
+  builds the dashboard. The thread can't keep the process alive, and its window is destroyed with it. The window
+  sets `InheritanceBehavior = SkipToThemeNext` and defines everything it uses locally, because App.xaml's resources
+  belong to the main thread; `check-xaml.py` enforces both.
+- **Window.** 700 × 370, borderless and layered (`AllowsTransparency`, so the whole window can fade), centred on
+  the monitor with the mouse cursor, not topmost, no taskbar button, `WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE` so it
+  never appears in Alt+Tab or takes focus. The wordmark uses the embedded Inter with CSS-style letter spacing
+  (`TrackedText`); the icon is the approved `png/coreloom-512.png`.
+- **Readiness.** `StartupHandoff` creates the main window's handle, cloaks it (`DWMWA_CLOAK`), and shows it: the
+  window lays out and renders but isn't displayed. Its `ContentRendered` event, plus two composition frames, is
+  the ready signal. The dashboard does not wait for sensor data or network calls.
+- **Handoff.** The splash stays up at least 850 ms from its own first frame, so a fast start doesn't flash it.
+  Then the splash is ordered just above the window (only if the window is in the foreground, so it never jumps
+  over another app), the window is uncloaked with its frame and background already drawn, and the splash fades
+  out over 360 ms while the window's content fades in. With reduced motion (Coreloom's setting or Windows'
+  *Animation effects* off) there is no entrance, no moving line and no fade: the window appears fully painted.
+  If the splash hasn't reached the screen by the time the window is ready, it is cancelled instead of shown late.
+  While cloaked (normally well under a second) the main window already has keyboard focus.
+- **Failure paths.** A fatal startup error switches the splash to its error look behind the existing error
+  dialog, and every exit path closes it. A 10 s watchdog only covers a main window that never reports a first
+  frame. If cloaking isn't available, the window is shown directly. Splash problems are logged and never stop
+  the app.
+- **Timings** are logged under `Startup`: when the splash reached the screen and when the window was revealed,
+  both measured from process start.
 
 ## Rendering, fonts and lifetime
 

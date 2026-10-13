@@ -35,6 +35,8 @@ public enum MetricKind
     Count,
     /// <summary>Frequency in hertz (non-clock frequencies).</summary>
     Frequency,
+    /// <summary>A signed clock offset in MHz (positive = raised above the stock curve).</summary>
+    ClockOffset,
 }
 
 /// <summary>High level grouping used for navigation and section toggles.</summary>

@@ -133,6 +133,10 @@ internal sealed unsafe class NvmlLibrary : IDisposable
     private readonly delegate* unmanaged<IntPtr, ulong*, int> _deviceGetClockEventReasons;
     private readonly delegate* unmanaged<IntPtr, uint*, int> _deviceGetMemoryBusWidth;
     private readonly delegate* unmanaged<IntPtr, uint*, int> _deviceGetNumGpuCores;
+    private readonly delegate* unmanaged<IntPtr, int*, int> _deviceGetGpcClkVfOffset;
+    private readonly delegate* unmanaged<IntPtr, int*, int> _deviceGetMemClkVfOffset;
+    private readonly delegate* unmanaged<IntPtr, int*, int*, int> _deviceGetGpcClkMinMaxVfOffset;
+    private readonly delegate* unmanaged<IntPtr, int*, int*, int> _deviceGetMemClkMinMaxVfOffset;
 
     private NvmlLibrary(IntPtr handle, string path)
     {
@@ -178,6 +182,13 @@ internal sealed unsafe class NvmlLibrary : IDisposable
 
         _deviceGetMemoryBusWidth = (delegate* unmanaged<IntPtr, uint*, int>)Export("nvmlDeviceGetMemoryBusWidth");
         _deviceGetNumGpuCores = (delegate* unmanaged<IntPtr, uint*, int>)Export("nvmlDeviceGetNumGpuCores");
+
+        // Read-only clock offset queries (the matching "Set" functions are deliberately not bound). Documented in the
+        // NVML reference as `nvmlReturn_t f(nvmlDevice_t, int *offset)` and `f(nvmlDevice_t, int *min, int *max)`.
+        _deviceGetGpcClkVfOffset = (delegate* unmanaged<IntPtr, int*, int>)Export("nvmlDeviceGetGpcClkVfOffset");
+        _deviceGetMemClkVfOffset = (delegate* unmanaged<IntPtr, int*, int>)Export("nvmlDeviceGetMemClkVfOffset");
+        _deviceGetGpcClkMinMaxVfOffset = (delegate* unmanaged<IntPtr, int*, int*, int>)Export("nvmlDeviceGetGpcClkMinMaxVfOffset");
+        _deviceGetMemClkMinMaxVfOffset = (delegate* unmanaged<IntPtr, int*, int*, int>)Export("nvmlDeviceGetMemClkMinMaxVfOffset");
     }
 
     public string LibraryPath { get; }
@@ -323,6 +334,16 @@ internal sealed unsafe class NvmlLibrary : IDisposable
         return r;
     }
 
+    /// <summary>Current graphics (GPC) clock offset in MHz as set by a tuning tool; 0 when untouched.</summary>
+    public NvmlReturn GetCoreClockOffset(IntPtr device, out int mhz) => QueryInt(_deviceGetGpcClkVfOffset, device, out mhz);
+
+    /// <summary>Current memory clock offset in MHz (driver units) as set by a tuning tool; 0 when untouched.</summary>
+    public NvmlReturn GetMemoryClockOffset(IntPtr device, out int mhz) => QueryInt(_deviceGetMemClkVfOffset, device, out mhz);
+
+    public NvmlReturn GetCoreClockOffsetRange(IntPtr device, out int min, out int max) => QueryIntPair(_deviceGetGpcClkMinMaxVfOffset, device, out min, out max);
+
+    public NvmlReturn GetMemoryClockOffsetRange(IntPtr device, out int min, out int max) => QueryIntPair(_deviceGetMemClkMinMaxVfOffset, device, out min, out max);
+
     public NvmlReturn GetFanCount(IntPtr device, out uint count) => Query(_deviceGetNumFans, device, out count);
 
     public NvmlReturn GetFanSpeed(IntPtr device, uint fan, out uint percent)
@@ -419,6 +440,27 @@ internal sealed unsafe class NvmlLibrary : IDisposable
         uint v = 0;
         var r = (NvmlReturn)fn(device, arg, &v);
         value = v;
+        return r;
+    }
+
+    private static NvmlReturn QueryInt(delegate* unmanaged<IntPtr, int*, int> fn, IntPtr device, out int value)
+    {
+        value = 0;
+        if (fn == null) return NvmlReturn.FunctionNotFound;
+        int v = 0;
+        var r = (NvmlReturn)fn(device, &v);
+        value = v;
+        return r;
+    }
+
+    private static NvmlReturn QueryIntPair(delegate* unmanaged<IntPtr, int*, int*, int> fn, IntPtr device, out int first, out int second)
+    {
+        first = second = 0;
+        if (fn == null) return NvmlReturn.FunctionNotFound;
+        int a = 0, b = 0;
+        var r = (NvmlReturn)fn(device, &a, &b);
+        first = a;
+        second = b;
         return r;
     }
 

@@ -1,0 +1,99 @@
+<Window x:Class="Coreloom.App.Views.SplashWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:Coreloom.App.Controls"
+        Title="Coreloom"
+        Width="700" Height="370"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False" ShowActivated="False" Topmost="False" Focusable="False"
+        WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="Grayscale"
+        TextOptions.TextHintingMode="Fixed"
+        AutomationProperties.Name="Coreloom is starting">
+  <!--
+    Startup splash (native port of the Coreloom splash opener kit; see assets/branding/splash/splash-screen-preview.png).
+    It runs on its own UI thread, so it must stay self-contained: no StaticResource/DynamicResource keys and no
+    implicit styles from App.xaml (the window also blocks those lookups in code). Colours, sizes and spacing follow
+    the kit's splash.css at 700 × 370.
+  -->
+
+  <Grid TextElement.FontFamily="pack://application:,,,/Fonts/#Inter">
+    <!-- Surface: deep navy diagonal gradient, a soft blue glow behind the mark, a hairline edge. -->
+    <Border CornerRadius="8">
+      <Border.Background>
+        <!-- CSS linear-gradient(135deg, ...) on a 700 × 370 box. -->
+        <LinearGradientBrush MappingMode="Absolute" StartPoint="82.5,-82.5" EndPoint="617.5,452.5">
+          <GradientStop Color="#101B2A" Offset="0" />
+          <GradientStop Color="#0A111D" Offset="0.58" />
+          <GradientStop Color="#0A101B" Offset="1" />
+        </LinearGradientBrush>
+      </Border.Background>
+    </Border>
+    <Border CornerRadius="8">
+      <Border.Background>
+        <RadialGradientBrush Center="0.5,0.48" GradientOrigin="0.5,0.48" RadiusX="0.55" RadiusY="0.7">
+          <GradientStop Color="#38244F8E" Offset="0" />
+          <GradientStop Color="#00244F8E" Offset="0.75" />
+        </RadialGradientBrush>
+      </Border.Background>
+    </Border>
+    <Border CornerRadius="8" BorderThickness="1" BorderBrush="#0FBFDEFF" />
+
+    <StackPanel x:Name="Body" Width="560" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0">
+      <StackPanel.RenderTransform>
+        <TranslateTransform x:Name="BodyOffset" Y="12" />
+      </StackPanel.RenderTransform>
+
+      <!-- Approved icon (used as supplied) and the wordmark. -->
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+        <Image Width="88" Height="88" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"
+               Source="pack://application:,,,/Assets/coreloom-512.png" />
+        <StackPanel Margin="22,0,0,0" VerticalAlignment="Center">
+          <c:TrackedText Text="Coreloom" AccentStart="4" FontSize="46" FontWeight="Bold" Tracking="-2.35" LineHeight="47.84"
+                         Foreground="#F7FAFF" AccentForeground="#7FCAFF" />
+          <c:TrackedText Text="SYSTEM PERFORMANCE" Margin="0,12,0,0" FontSize="10" FontWeight="SemiBold" Tracking="2.8" LineHeight="12"
+                         Foreground="#8497B5" />
+        </StackPanel>
+      </StackPanel>
+
+      <Border Width="360" Height="1" Margin="0,34,0,24">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+            <GradientStop Color="#009ABFEC" Offset="0" />
+            <GradientStop Color="#2E9ABFEC" Offset="0.5" />
+            <GradientStop Color="#009ABFEC" Offset="1" />
+          </LinearGradientBrush>
+        </Border.Background>
+      </Border>
+
+      <Grid Width="320" Height="15">
+        <TextBlock x:Name="StatusText" Text="Starting Coreloom" FontSize="12" Foreground="#8D9EB6" VerticalAlignment="Center"
+                   AutomationProperties.LiveSetting="Polite" />
+        <TextBlock Text="WINDOWS" FontSize="11" FontWeight="Medium" Foreground="#7890AE" HorizontalAlignment="Right" VerticalAlignment="Center" />
+      </Grid>
+
+      <!-- Indeterminate loading line: it never shows a percentage, because startup has no measurable progress. -->
+      <Border x:Name="IndicatorTrack" Width="320" Height="2" Margin="0,14,0,0" CornerRadius="1" Background="#1C8DAEDB" ClipToBounds="True">
+        <Border x:Name="Indicator" Width="118.4" HorizontalAlignment="Left" CornerRadius="1">
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+              <GradientStop Color="#358CFF" Offset="0" />
+              <GradientStop Color="#6BD4EB" Offset="1" />
+            </LinearGradientBrush>
+          </Border.Background>
+          <Border.RenderTransform>
+            <TranslateTransform x:Name="IndicatorOffset" X="-165.76" />
+          </Border.RenderTransform>
+        </Border>
+      </Border>
+
+      <TextBlock x:Name="ErrorText" Visibility="Collapsed" MaxWidth="420" Margin="0,22,0,0" TextWrapping="Wrap" TextAlignment="Center"
+                 FontSize="12" LineHeight="18.6" Foreground="#FFB6AD" AutomationProperties.LiveSetting="Assertive" />
+    </StackPanel>
+
+    <c:TrackedText Text="CORELOOM" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,24"
+                   FontSize="9" FontWeight="Bold" Tracking="2" LineHeight="11" Foreground="#65758E" />
+  </Grid>
+</Window>

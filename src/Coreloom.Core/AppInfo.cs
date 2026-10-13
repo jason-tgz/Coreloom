@@ -74,6 +74,9 @@ public sealed class AppPaths
 
     public string SettingsFile => Path.Combine(SettingsDirectory, "settings.json");
 
+    /// <summary>Optional folder where the user can place vendor logo files (nvidia.png, amd.png, intel.png).</summary>
+    public string VendorLogoDirectory => Path.Combine(SettingsDirectory, "Vendors");
+
     public string LogDirectory => Path.Combine(LocalDirectory, "Logs");
 
     public string DownloadDirectory => Path.Combine(LocalDirectory, "Updates");

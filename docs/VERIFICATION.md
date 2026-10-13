@@ -27,15 +27,15 @@ That last point had consequences:
 | What | How | Result |
 |---|---|---|
 | `Coreloom.Core` compiles | `dotnet build` (net10.0) | ✅ |
-| Core unit tests: telemetry engine, history ring buffers, M4 downsampling, axis/curve math, alerts, settings persistence, formatting, semantic versions, release selection, checksum parsing, resumable download, SMBIOS parsing, diagnostic report incl. redaction | Real test code run through the shim runner | ✅ 117 passed, 0 failed (includes the settings-import tests) |
+| Core unit tests: telemetry engine, history ring buffers, M4 downsampling, axis/curve math, alerts, settings persistence, formatting, semantic versions, release selection, checksum parsing, resumable download, SMBIOS parsing, diagnostic report incl. redaction | Real test code run through the shim runner | ✅ 196 passed, 0 failed (includes the settings-import, vendor-detection, tuning-analysis, voltage/frequency-curve and splash-policy tests) |
 | `Coreloom.Hardware` compiles | `dotnet build` targeting net10.0-windows from Linux. LibreHardwareMonitor adapter compiled against an API stub whose signatures were checked against the v0.9.6 sources (`Computer`, `IHardware`, `ISensor`, `SensorType`, `HardwareType`). | ✅ |
 | Hardware mapping tests: LibreHardwareMonitor sensor name → canonical metric, GPU directory, disk matching, NVML return codes | shim runner | ✅ 47 passed. The 8 Windows integration tests were skipped, as designed, on Linux. |
 | `Coreloom.ViewModels` compiles | `dotnet build` (net10.0) with the MVVM shim | ✅ |
-| View-model tests: metric formatting and unavailable reasons, °F conversion, dashboard layout, overview cards, CSV export, settings service, shell navigation, section disabling, tray text, polling interval, sign-in task sync, custom accent, alert rule editing, history selection | shim runner | ✅ 20 passed |
+| View-model tests: metric formatting and unavailable reasons, °F conversion, dashboard layout, overview cards, CSV export, settings service, shell navigation, section disabling, tray text, polling interval, sign-in task sync, custom accent, alert rule editing, history selection, GPU tuning view model (badge, meters, viewer text, curve refresh) | shim runner | ✅ 38 passed |
 | `CoreloomDiag` compiles | `dotnet build` | ✅ |
-| `Coreloom.App` C# is syntactically valid | Roslyn parse of all app files (90 files across `src`, 11 in `tests`), language version `preview` | ✅ 0 errors |
+| `Coreloom.App` C# is syntactically valid | Roslyn parse of all source files (102 files under `src`, 14 under `tests`), language version `preview` | ✅ 0 errors |
 | `Coreloom.App` C# uses the Core/Hardware/ViewModels APIs correctly | Roslyn semantic compile **without** WPF references, keeping method-body errors. Every remaining error was checked to come only from missing WPF/WinForms types or members, XAML-generated members (`InitializeComponent`, `x:Name` fields) or source-generated P/Invokes. A probe file confirmed that this setup does catch wrong member names on Coreloom's own types. | ✅ No errors in Coreloom's own APIs |
-| XAML consistency (14 files) | `python3 build/check-xaml.py`, which checks: well-formed XML; x:Class ↔ code-behind; StaticResource defined before use; DynamicResource keys exist (including the brushes ThemeService creates at runtime); event handlers exist; `ElementName` targets exist; 392 binding paths resolve to known properties; icon keys; pack URIs (including linked resources and every embedded font family); settings sections. A mutation test confirmed it catches typos. | ✅ |
+| XAML consistency (15 files, 159 resource keys) | `python3 build/check-xaml.py`, which checks: well-formed XML; x:Class ↔ code-behind; StaticResource defined before use; DynamicResource keys exist (including the brushes ThemeService creates at runtime); event handlers exist; `ElementName` targets exist; 440 binding paths resolve to known properties; icon keys; pack URIs (including linked resources and every embedded font family); settings sections. A mutation test confirmed it catches typos. | ✅ |
 
 ## Reported by the owner (not independently verified here)
 
@@ -54,6 +54,28 @@ accuracy, overhead, or the details below, and none of it was observed by the aut
 | Always runs as administrator | `requireAdministrator` manifest; sign-in task replaces the Run key; old UI and commands removed; unit tests for the task sync | The UAC prompt, the elevated task actually starting at sign-in, the uninstaller's task removal |
 | Renamed Coreloom + supplied icon | Whole-repo rename; the supplied `coreloom.ico` and PNGs are used byte-for-byte (`cmp` identical) for the exe, window, tray (PNG sizes), installer and shortcuts; settings import is unit-tested | That the compiled exe, installer and shortcuts show the icon (needs a Windows build); Windows may show a cached old icon until the icon cache refreshes |
 
+### Vendor marks, tuning indicator and tuning viewer
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Vendor mark next to the CPU and GPU names | `HardwareVendors` (vendor string first, device name second) is unit-tested with GeForce/RTX/Quadro, Radeon/Ryzen/EPYC, Intel/Arc/Xeon names and ambiguous input; `BrandMark` shows a supplied file or a text badge; `check-xaml.py` confirms the resource pack URI and the wildcard `Resource` item | That a real logo file loads and looks right at your DPI and on both themes. No third-party logos are bundled, so the badge is what you see until you add files |
+| Overclock / reduced-limit indicator | `GpuTuningAnalyzer` is unit-tested for offsets either side of the 1 MHz threshold, power limits against the max(1 W, 0.5 %) tolerance, mixed results, and unreadable values (never reported as stock) | That the NVML offset functions (`nvmlDeviceGet{Gpc,Mem}ClkVfOffset` and the min/max forms) exist and return sensible values on the RTX 5090 and your driver. A missing export shows as *unavailable* with the reason, not as zero |
+| Tuning viewer (read-only) | View model, meters and recorder are unit-tested; the controls (`RangeMeter`, `VoltageFrequencyChart`) are not hit-testable and the only buttons are the show/hide toggle and *Clear*, which empties Coreloom's own recorded readings and touches nothing on the GPU | How the viewer lays out and renders, and whether LibreHardwareMonitor reports core voltage on the 5090 (without it the chart stays empty and says why) |
+| Voltage-per-clock chart | `VoltageFrequencyCurve` binning, min/mean/max and the sample threshold are unit-tested | Anything about the shape of a real curve; it is built only from measurements and fills over time |
+
+Known limit, by design of the public interface: the Afterburner-style voltage/frequency curve itself cannot be
+read, so an undervolt made only by editing that curve is **not** flagged by the indicator.
+
+### Startup splash
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Splash window (native XAML port of the supplied kit) | Layout numbers taken from the kit's `splash.css` measured at 700 × 370 in Chromium with the embedded Inter (the measured layout matches the supplied preview PNG); icon is the approved `png/coreloom-512.png`, byte-identical to the kit's `coreloom-app-icon.png`; `check-xaml.py` confirms the pack URIs, the embedded font, and that the splash uses no App.xaml resources | How it actually renders on Windows (letter spacing, gradients, sharpness at 125–200 %), and that `CenterScreen` puts it on the monitor with the mouse |
+| Splash on its own UI thread | Code review; Roslyn checks show only the expected "WPF types missing" errors; `InheritanceBehavior` isolation enforced by `check-xaml.py` | That the line keeps moving while the dashboard is built, and that nothing cross-thread throws at runtime |
+| Readiness and handoff (cloak → first frame → minimum 850 ms → raise splash → uncloak → crossfade) | Timing rules unit-tested in `SplashPolicyTests` (start-hidden rule, minimum time, reduced motion, timing ranges from the brief) | That `DWMWA_CLOAK` hides the first frames as intended, the crossfade looks smooth, focus lands on the dashboard, and no extra taskbar/Alt+Tab entry appears |
+| Failure and exit paths | Error state plus the existing dialogs (a splash not yet on screen is cancelled so it can't cover the dialog); every exit path closes the splash; background thread; 10 s watchdog for a window that never paints | Behaviour of a real failed start |
+| Independent read-through | A separate review pass over the splash code looked for compile errors, cross-thread access and lifecycle bugs. It found no compile or threading problems; its lifecycle findings (late splash over the error dialog, minimum time counted before the splash appeared, a blocking cross-thread call, watchdog priority, double close, live-region announcements) were fixed | Still not a substitute for compiling and running on Windows |
+
 ## Not verified yet (needs Windows and the real hardware)
 
 None of the following has been confirmed by the author. Don't treat any of it as working until the checklist in
@@ -62,10 +84,10 @@ None of the following has been confirmed by the author. Don't treat any of it as
 - **This version has not been compiled on Windows.** Its changes (fonts, `PageHost`, `DisplayInfo`, tray icon
   from PNG, startup task, linked icon resources) are checked only by the Roslyn and XAML checks above; GitHub
   Actions is the first real compile.
-- **Visual details**: layout, theming, Mica, chart rendering and smooth scrolling, animations, tray,
+- **Visual details**: the startup splash and its handoff, the vendor badge/logo, the tuning badge and viewer, layout, theming, Mica, chart rendering and smooth scrolling, animations, tray,
   notifications, single instance, startup registration and the elevated task.
 - **Sensors on real hardware**, by any provider:
-  - NVML calls, struct layouts and per-metric support on the RTX 5090;
+  - NVML calls, struct layouts and per-metric support on the RTX 5090, including the new clock-offset calls;
   - PDH counters;
   - storage IOCTLs;
   - SMBIOS on the ASRock X870E;

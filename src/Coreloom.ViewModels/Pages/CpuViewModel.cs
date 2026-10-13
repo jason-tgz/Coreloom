@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Coreloom.Core.Formatting;
+using Coreloom.Core.Hardware;
 using Coreloom.Core.Telemetry;
 using Coreloom.ViewModels.Infrastructure;
 
@@ -115,6 +116,7 @@ public sealed class CpuViewModel : PageViewModel
     private int _deviceVersion = -1;
     private int _catalogVersion = -1;
     private string _cpuName = "Processor";
+    private HardwareVendor _vendor;
     private bool _showThreads;
     private bool _hasCoreTable;
     private bool _lowLevelUnavailable;
@@ -158,7 +160,11 @@ public sealed class CpuViewModel : PageViewModel
         BoardSensors = new SensorTableViewModel(d => d.Category == MetricCategory.Motherboard && d.Kind is MetricKind.Fan or MetricKind.Temperature or MetricKind.Control, showRaw: false);
         Sensors = new SensorTableViewModel(d => d.Category is MetricCategory.Cpu or MetricCategory.Motherboard && !d.Id.StartsWith("cpu/thread/", StringComparison.Ordinal));
         _showThreads = Settings.Current.Monitoring.ShowPerThreadGraphs;
+        _vendor = HardwareVendors.Detect(null, Monitor.Summary.CpuName);
     }
+
+    /// <summary>"amd", "intel" or "nvidia"-style key for the brand mark next to the CPU name; empty when unknown.</summary>
+    public string VendorKey => HardwareVendors.Key(_vendor);
 
     public string CpuName
     {
@@ -253,6 +259,13 @@ public sealed class CpuViewModel : PageViewModel
             _deviceVersion = Devices.Version;
             var device = Devices.Get(MetricIds.CpuDeviceId);
             CpuName = ShortCpuName(device?.Name ?? Monitor.Summary.CpuName);
+            var vendor = HardwareVendors.Detect(device?.Vendor, device?.Name ?? Monitor.Summary.CpuName);
+            if (vendor != _vendor)
+            {
+                _vendor = vendor;
+                OnPropertyChanged(nameof(VendorKey));
+            }
+
             Subtitle = string.Join(" · ", new[] { device?.GetProperty("Cores") is { } c ? $"{c} cores" : null, device?.GetProperty("Threads") is { } t ? $"{t} threads" : null, device?.GetProperty("L3 cache") is { } l3 ? $"{l3} L3" : null }.Where(s => s is not null));
             var items = ToItems(device);
             if (!Specifications.SequenceEqual(items))

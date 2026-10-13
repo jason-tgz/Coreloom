@@ -32,6 +32,19 @@ Coreloom loads `nvml.dll`, which comes with the NVIDIA driver, from `C:\Windows\
 3. Hot spot temperature, memory junction temperature, fan RPM and core voltage aren't part of NVML. They
    come from LibreHardwareMonitor, which needs to be enabled.
 
+## The splash stays up, or the window doesn't appear after it
+
+The splash only goes away once the main window has drawn its first frame, so a splash that stays up means startup
+is still working or stuck.
+
+1. Wait a little: a first start after installing or updating can be slower (Windows scans the new files).
+2. Open `%LOCALAPPDATA%\Coreloom\Logs\coreloom.log`. Lines starting with `Startup` show when the splash appeared
+   and when the main window was revealed; a warning there names what failed.
+3. If Coreloom is stuck, end it in Task Manager (Details tab; Task Manager may need to run as administrator,
+   because Coreloom is elevated), then start it again and send the log.
+4. To rule the splash out, start Coreloom with `--minimized` (it opens in the notification area without a splash)
+   and open it from the tray icon.
+
 ## Values differ from another tool
 
 - Tools sample at different moments. Compare averages over a few seconds, not single readings.

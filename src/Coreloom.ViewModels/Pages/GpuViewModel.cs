@@ -18,6 +18,7 @@ public sealed class GpuViewModel : PageViewModel
     private int _deviceVersion = -1;
     private GpuChoice? _selectedGpu;
     private string _gpuName = "Graphics";
+    private HardwareVendor _vendor;
     private string? _clockReasons;
     private bool _suppressSelection;
 
@@ -76,6 +77,9 @@ public sealed class GpuViewModel : PageViewModel
             new ChartSeriesViewModel(MetricIds.GpuMemoryUsed(0), "Used", ColorKeys.Memory, ValueStyle.Bytes));
 
         Sensors = new SensorTableViewModel(d => d.Category == MetricCategory.Gpu && d.DeviceId == MetricIds.GpuDeviceId(_slot < 0 ? 0 : _slot));
+
+        Tuning = new GpuTuningViewModel(context.VoltageFrequency);
+        Tuning.OpenChanged += RefreshTuningNow;
     }
 
     public ObservableCollection<GpuChoice> Gpus { get; } = [];
@@ -99,6 +103,25 @@ public sealed class GpuViewModel : PageViewModel
         get => _gpuName;
         private set => SetProperty(ref _gpuName, value);
     }
+
+    /// <summary>Vendor of the selected GPU (picks the brand mark next to its name).</summary>
+    public HardwareVendor Vendor
+    {
+        get => _vendor;
+        private set
+        {
+            if (SetProperty(ref _vendor, value))
+            {
+                OnPropertyChanged(nameof(VendorKey));
+            }
+        }
+    }
+
+    /// <summary>"nvidia", "amd" or "intel"; empty when the vendor could not be identified.</summary>
+    public string VendorKey => HardwareVendors.Key(_vendor);
+
+    /// <summary>Read-only overclock / power-limit indicator and viewer.</summary>
+    public GpuTuningViewModel Tuning { get; }
 
     public ObservableCollection<KeyValueItem> Specifications { get; } = [];
 
@@ -211,6 +234,17 @@ public sealed class GpuViewModel : PageViewModel
 
         UpdateCharts(frame, UsageChart, TemperatureChart, PowerChart, ClockChart, MemoryChart);
         Sensors.Update(frame, Formatter, Catalog);
+        Tuning.Update(frame, slot, _vendor, Formatter, Catalog);
+    }
+
+    /// <summary>Refreshes the tuning viewer immediately when it is opened instead of waiting for the next frame.</summary>
+    private void RefreshTuningNow()
+    {
+        var frame = Monitor.Engine.LatestFrame;
+        if (IsActive && frame.Sequence > 0 && _slot >= 0)
+        {
+            Tuning.Update(frame, _slot, _vendor, Formatter, Catalog, force: true);
+        }
     }
 
     private void Retarget(int slot)
@@ -274,6 +308,7 @@ public sealed class GpuViewModel : PageViewModel
 
         var device = Devices.Get(MetricIds.GpuDeviceId(_slot));
         GpuName = device?.Name ?? SelectedGpu?.Name ?? "No GPU detected";
+        Vendor = HardwareVendors.Detect(device?.Vendor, GpuName);
         Subtitle = device is null ? "No supported GPU was detected" : string.Join(" · ", new[] { device.Kind, device.GetProperty("Driver") is { } d ? $"Driver {d}" : null, device.GetProperty("VRAM") }.Where(s => !string.IsNullOrEmpty(s)));
         var items = ToItems(device);
         if (!Specifications.SequenceEqual(items))

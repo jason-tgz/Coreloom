@@ -341,7 +341,7 @@ public static class CsvExporter
     {
         MetricKind.Load or MetricKind.Control or MetricKind.Level => "%",
         MetricKind.Temperature => "°C",
-        MetricKind.Clock => "MHz",
+        MetricKind.Clock or MetricKind.ClockOffset => "MHz",
         MetricKind.Power => "W",
         MetricKind.Voltage => "V",
         MetricKind.Current => "A",

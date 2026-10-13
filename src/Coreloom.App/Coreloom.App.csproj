@@ -36,6 +36,11 @@
     <Resource Include="..\..\assets\branding\png\coreloom-48.png" Link="Assets\coreloom-48.png" />
     <Resource Include="..\..\assets\branding\png\coreloom-64.png" Link="Assets\coreloom-64.png" />
     <Resource Include="..\..\assets\branding\png\coreloom-128.png" Link="Assets\coreloom-128.png" />
+    <!-- Startup splash icon (88 DIP, sharp up to ~580 % scaling). -->
+    <Resource Include="..\..\assets\branding\png\coreloom-512.png" Link="Assets\coreloom-512.png" />
+    <!-- Vendor logos (nvidia/amd/intel[-on-dark|-on-light].png) are optional and supplied by the repository owner from
+         the vendors' own brand pages; none are bundled. Anything placed in assets/vendors is embedded at build time. -->
+    <Resource Include="..\..\assets\vendors\*.png" Link="Assets\Vendors\%(Filename)%(Extension)" />
     <!-- Inter and JetBrains Mono (SIL Open Font License 1.1); the license texts ship next to the app. -->
     <Resource Include="Fonts\*.ttf" />
     <None Include="Fonts\LICENSE-*.txt">

@@ -154,7 +154,7 @@ public sealed class AlertRuleViewModel : ObservableObject
         MetricKind.Temperature => _owner.CurrentFormatter.TemperatureSymbol,
         MetricKind.Load or MetricKind.Level or MetricKind.Control => "%",
         MetricKind.Power => "W",
-        MetricKind.Clock => "MHz",
+        MetricKind.Clock or MetricKind.ClockOffset => "MHz",
         MetricKind.Fan => "RPM",
         _ => string.Empty,
     };
