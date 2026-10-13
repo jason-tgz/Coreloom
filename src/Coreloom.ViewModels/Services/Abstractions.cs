@@ -74,14 +74,27 @@ public interface IShellService
 /// <summary>Hands a verified installer to Windows and exits the app so files can be replaced safely.</summary>
 public interface IUpdateInstaller
 {
-    /// <summary>True when Coreloom was installed with the installer (portable copies cannot self-update).</summary>
+    /// <summary>True when this copy can update itself (installed and portable copies alike).</summary>
     bool CanInstallUpdates { get; }
 
     /// <summary>
-    /// Starts the installer (still held open by <paramref name="installer"/>, so it can't change before it runs) with
-    /// the arguments for <paramref name="options"/>, then exits Coreloom. Returns false when it could not be started.
+    /// What this copy installs from: the release's installer (copies installed with it) or its portable zip (every
+    /// other copy, which is updated in place).
     /// </summary>
-    bool LaunchInstallerAndExit(Coreloom.Core.Updates.VerifiedInstaller installer, Coreloom.Core.Updates.UpdateInstallOptions options);
+    Coreloom.Core.Updates.UpdatePackageKind PackageKind { get; }
+
+    /// <summary>
+    /// Gets a verified package ready to install. For a portable zip this unpacks it next to the app, which takes a few
+    /// seconds, so it may run on any thread. Returns false when it couldn't (the reason is logged).
+    /// </summary>
+    bool Prepare(Coreloom.Core.Updates.VerifiedPackage package);
+
+    /// <summary>
+    /// Starts the installer (still held open by <paramref name="package"/>, so it can't change before it runs) or the
+    /// unpacked new version that copies itself over this one, with the arguments for <paramref name="options"/>, then
+    /// exits Coreloom. Both start Coreloom again when they're done. Returns false when nothing could be started.
+    /// </summary>
+    bool LaunchAndExit(Coreloom.Core.Updates.VerifiedPackage package, Coreloom.Core.Updates.UpdateInstallOptions options);
 }
 
 /// <summary>Application lifetime operations.</summary>

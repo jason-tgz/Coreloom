@@ -17,11 +17,11 @@ public enum UpdatePhase
     Checking,
     UpToDate,
 
-    /// <summary>A newer version exists and hasn't been downloaded (automatic updates off, a portable copy, or the download failed).</summary>
+    /// <summary>A newer version exists and hasn't been downloaded (automatic updates off, or the download failed).</summary>
     Available,
     Downloading,
 
-    /// <summary>The installer is downloaded and verified; it runs on "Restart to update", at the next start or while the PC is idle.</summary>
+    /// <summary>The update is downloaded and verified; it installs on "Install update", at the next start or while the PC is idle.</summary>
     Ready,
     Installing,
 
@@ -37,12 +37,13 @@ public enum UpdatePhase
 public sealed record UpdateNotification(string Title, string Message, bool UserInitiated);
 
 /// <summary>
-/// Automatic updates from GitHub Releases. A check that finds a newer version downloads its installer in the
-/// background (resumable), verifies it against the release's SHA256SUMS.txt and records the hash where only
-/// administrators can write. The verified installer then runs when the user clicks "Restart to update", the next
-/// time Coreloom starts, or while the PC is idle (see <see cref="UpdateInstallPolicy"/>). Coreloom exits and the
-/// installer replaces the files; running executables are never overwritten in place. Copies that weren't installed
-/// with the installer (portable) are told about new versions but not updated.
+/// Automatic updates from GitHub Releases. A check that finds a newer version downloads its package in the background
+/// (resumable): the installer for copies installed with it, the portable zip for every other copy. The download is
+/// verified against the release's SHA256SUMS.txt and its hash recorded where only administrators can write. The update
+/// then installs when the user clicks "Install update" (which also downloads it first when needed), the next time
+/// Coreloom starts, or while the PC is idle (see <see cref="UpdateInstallPolicy"/>). Either way Coreloom exits, the
+/// files are replaced (by the installer, or by the new version copying itself over a portable copy; see
+/// <see cref="FolderUpdate"/>) and Coreloom opens again. Running executables are never overwritten in place.
 /// </summary>
 public sealed class UpdatesViewModel : ObservableObject
 {
@@ -100,11 +101,9 @@ public sealed class UpdatesViewModel : ObservableObject
         _phase = IsConfigured ? UpdatePhase.Idle : UpdatePhase.NotConfigured;
 
         CheckCommand = new AsyncRelayCommand(() => CheckAsync(userInitiated: true), () => IsConfigured && !IsBusy);
-        DownloadCommand = new AsyncRelayCommand(() => DownloadAsync(userInitiated: true), () => _phase == UpdatePhase.Available && _release is not null);
-        InstallNowCommand = new RelayCommand(() => InstallNow(UpdateInstallOptions.Interactive), () => _phase == UpdatePhase.Ready);
+        InstallCommand = new AsyncRelayCommand(InstallAsync, () => CanInstall && (_phase == UpdatePhase.Ready || (_phase == UpdatePhase.Available && _release is not null)));
         CancelDownloadCommand = new RelayCommand(CancelDownload, () => _phase == UpdatePhase.Downloading);
         SkipCommand = new RelayCommand(Skip, () => _phase is UpdatePhase.Available or UpdatePhase.Ready);
-        OpenReleaseCommand = new RelayCommand(() => _shell.OpenUrl(UpdateReleaseUrl ?? RepositoryUrl ?? "https://github.com"), () => UpdateReleaseUrl is not null || RepositoryUrl is not null);
         OpenInstalledReleaseCommand = new RelayCommand(() => _shell.OpenUrl(InstalledReleaseUrl ?? RepositoryUrl ?? "https://github.com"), () => InstalledReleaseUrl is not null || RepositoryUrl is not null);
         DismissUpdatedBannerCommand = new RelayCommand(DismissUpdatedBanner);
     }
@@ -124,7 +123,7 @@ public sealed class UpdatesViewModel : ObservableObject
 
     public bool IsConfigured => GitHubReleaseClient.IsValidRepository(Repository);
 
-    /// <summary>True for copies installed with the installer; portable copies are only told about new versions.</summary>
+    /// <summary>True when this copy can update itself (installed and portable copies alike).</summary>
     public bool CanInstall => _installer.CanInstallUpdates;
 
     // ---- State ------------------------------------------------------------------------------------
@@ -156,8 +155,8 @@ public sealed class UpdatesViewModel : ObservableObject
 
     public string BadgeText => _phase switch
     {
-        UpdatePhase.Ready => "Restart to update",
-        UpdatePhase.Checking when _pending is not null => "Restart to update",
+        UpdatePhase.Ready => "Install update",
+        UpdatePhase.Checking when _pending is not null => "Install update",
         UpdatePhase.Downloading => "Downloading update",
         UpdatePhase.Installing => "Updating…",
         _ => "Update available",
@@ -209,14 +208,14 @@ public sealed class UpdatesViewModel : ObservableObject
         UpdatePhase.Checking => "Looking for a newer version on GitHub.",
         UpdatePhase.UpToDate => _resultMessage ?? $"Coreloom {CurrentVersion} is the latest version · {CheckedText}",
         UpdatePhase.Available => _problem ?? (CanInstall
-            ? AutoInstall ? $"You have {CurrentVersion}. Download it to update." : $"You have {CurrentVersion}. Download it now, or turn on automatic updates below."
-            : $"You have {CurrentVersion}. This copy wasn't installed with the Coreloom installer, so it can't update itself. Download the new version from GitHub."),
+            ? $"You have {CurrentVersion}. Installing it closes Coreloom for a moment and opens the new version."
+            : $"You have {CurrentVersion}. This copy can't update itself."),
         UpdatePhase.Downloading => _progressText ?? "Starting the download…",
         UpdatePhase.Ready => _problem ?? (_pending?.InstallFailed == true
-            ? "Coreloom couldn't finish installing it automatically. Try again, or download it from GitHub."
+            ? "Coreloom couldn't finish installing it automatically. Try again."
             : AutoInstall
-                ? "It installs the next time Coreloom starts, or while your PC is idle. Restart now to update right away."
-                : "Restart Coreloom to install it."),
+                ? "Install it now, or it installs by itself the next time Coreloom starts or while your PC is idle."
+                : "Installing it closes Coreloom for a moment and opens the new version."),
         UpdatePhase.Installing => "Coreloom will close and reopen in a moment.",
         UpdatePhase.Failed => _problem ?? "Something went wrong. Try again later.",
         UpdatePhase.NotConfigured => "This copy wasn't built by the release workflow, so it doesn't know where to look for updates.",
@@ -233,11 +232,11 @@ public sealed class UpdatesViewModel : ObservableObject
     // Which action the status card offers.
     public bool ShowCheckButton => _phase is UpdatePhase.Idle or UpdatePhase.Checking or UpdatePhase.UpToDate or UpdatePhase.Failed or UpdatePhase.NotConfigured;
 
-    public bool ShowDownloadButton => _phase == UpdatePhase.Available && CanInstall;
+    /// <summary>"Install update": downloads the update if needed, then closes Coreloom, installs it and opens Coreloom again.</summary>
+    public bool ShowInstallButton => CanInstall && _phase is UpdatePhase.Available or UpdatePhase.Ready;
 
-    public bool ShowGetFromGitHubButton => _phase == UpdatePhase.Available && !CanInstall;
-
-    public bool ShowRestartButton => _phase == UpdatePhase.Ready;
+    /// <summary>The status card shows "Install update" only when the What's new card (which has it) isn't shown.</summary>
+    public bool ShowStatusInstallButton => ShowInstallButton && !ShowUpdateSummary;
 
     public bool ShowCancelButton => _phase == UpdatePhase.Downloading;
 
@@ -245,8 +244,6 @@ public sealed class UpdatesViewModel : ObservableObject
 
     /// <summary>The version that is available, downloading or ready.</summary>
     public string? UpdateVersion => _phase == UpdatePhase.Ready || _release is null ? _pending?.Version ?? _release?.Version.ToString() : _release.Version.ToString();
-
-    public string? UpdateReleaseUrl => _phase == UpdatePhase.Ready ? _pending?.HtmlUrl ?? _release?.HtmlUrl.ToString() : _release?.HtmlUrl.ToString() ?? _pending?.HtmlUrl;
 
     /// <summary>"What's new" for the available version (shown while an update is available, downloading or ready).</summary>
     public ReleaseSummaryViewModel? UpdateSummary => ShowBadge ? _updateSummary : null;
@@ -306,21 +303,19 @@ public sealed class UpdatesViewModel : ObservableObject
 
     public string AutoInstallDescription => CanInstall
         ? "Download new versions in the background and install them the next time Coreloom starts, or while your PC is idle."
-        : "Only copies installed with the Coreloom installer can update themselves. This copy will tell you when a new version is out.";
+        : "This copy can't update itself. It will tell you when a new version is out.";
 
     // ---- Commands ---------------------------------------------------------------------------------
 
     public IAsyncRelayCommand CheckCommand { get; }
 
-    public IAsyncRelayCommand DownloadCommand { get; }
-
-    public IRelayCommand InstallNowCommand { get; }
+    /// <summary>"Install update" (Settings › Updates and the tray).</summary>
+    public IAsyncRelayCommand InstallCommand { get; }
 
     public IRelayCommand CancelDownloadCommand { get; }
 
     public IRelayCommand SkipCommand { get; }
 
-    public IRelayCommand OpenReleaseCommand { get; }
 
     public IRelayCommand OpenInstalledReleaseCommand { get; }
 
@@ -363,7 +358,7 @@ public sealed class UpdatesViewModel : ObservableObject
                 break;
         }
 
-        _store.DeleteInstallersUpTo(_app.Version);
+        _store.DeletePackagesUpTo(_app.Version);
         _installed = _store.LoadInstalled() is { } installed && installed.ParsedVersion?.Equals(_app.Version) == true ? installed : null;
         _installedSummary = _installed is null ? null : ReleaseSummaryViewModel.From(CurrentVersion, _installed.Notes, _installed.PublishedAt);
         RaiseState();
@@ -372,7 +367,7 @@ public sealed class UpdatesViewModel : ObservableObject
     private void RestorePending(PendingUpdate pending, bool launchedAfterFailedUpdate)
     {
         var trusted = _trust.Load();
-        string? path = _store.InstallerPath(pending);
+        string? path = _store.PackagePath(pending, _installer.PackageKind);
         if (!CanInstall || path is null || !File.Exists(path) || trusted is null
             || trusted.Value.Version != pending.Version || !HashEquals(trusted.Value.Sha256, pending.Sha256))
         {
@@ -579,25 +574,23 @@ public sealed class UpdatesViewModel : ObservableObject
 
     // ---- Downloading ------------------------------------------------------------------------------
 
-    private async Task DownloadAsync(bool userInitiated)
+    /// <param name="userInitiated">The user asked (a check, the switch or "Install update").</param>
+    /// <param name="installNext">"Install update" installs right after, so there is nothing to announce.</param>
+    private async Task DownloadAsync(bool userInitiated, bool installNext = false)
     {
         var release = _release;
-        if (release is null || _phase is UpdatePhase.Downloading or UpdatePhase.Installing)
+        if (release is null || !CanInstall || _phase is UpdatePhase.Downloading or UpdatePhase.Installing)
         {
             return;
         }
 
-        if (!CanInstall)
-        {
-            _shell.OpenUrl(release.HtmlUrl.ToString()); // portable copies: get it from GitHub
-            return;
-        }
-
-        var installer = release.Installer;
+        var package = release.PackageFor(_installer.PackageKind);
         var checksums = release.Checksums;
-        if (installer is null || checksums is null)
+        if (package is null || checksums is null)
         {
-            _problem = "This release has no Windows installer and checksum file, so it can't be installed from here. Download it from GitHub instead.";
+            _problem = _installer.PackageKind == UpdatePackageKind.Installer
+                ? "This release doesn't include the Windows installer and its checksums, so Coreloom can't install it."
+                : "This release doesn't include the portable zip and its checksums, so Coreloom can't install it.";
             Phase = UpdatePhase.Available;
             RaiseState();
             return;
@@ -610,7 +603,7 @@ public sealed class UpdatesViewModel : ObservableObject
         Progress = 0;
         _progressText = null;
         Phase = UpdatePhase.Downloading;
-        string fileName = Path.GetFileName(installer.Name);
+        string fileName = Path.GetFileName(package.Name);
         string path = Path.Combine(_store.Directory, fileName);
         try
         {
@@ -630,7 +623,7 @@ public sealed class UpdatesViewModel : ObservableObject
                     : string.Format(CultureInfo.CurrentCulture, "{0:0.0} MB", p.BytesReceived / 1048576.0);
                 OnPropertyChanged(nameof(DetailText));
             });
-            await downloader.DownloadAsync(installer.DownloadUrl, path, installer.Size > 0 ? installer.Size : null, progress, token);
+            await downloader.DownloadAsync(package.DownloadUrl, path, package.Size > 0 ? package.Size : null, progress, token);
 
             _progressText = "Verifying the download…";
             OnPropertyChanged(nameof(DetailText));
@@ -640,7 +633,7 @@ public sealed class UpdatesViewModel : ObservableObject
                 throw new UpdateException("The download didn't match its SHA-256 checksum and was deleted. Try again.");
             }
 
-            var pending = PendingUpdate.FromRelease(release, installer, expected, _utcNow());
+            var pending = PendingUpdate.FromRelease(release, package, expected, _utcNow());
             _sessionHash = (pending.Version, pending.Sha256);
             if (!_trust.TrySave(pending.Version, pending.Sha256))
             {
@@ -652,10 +645,13 @@ public sealed class UpdatesViewModel : ObservableObject
             _readySinceUtc = _utcNow();
             Log.Info("Updates", $"Coreloom {pending.Version} downloaded and verified ({fileName}).");
             Phase = UpdatePhase.Ready;
-            Notify(
-                $"Coreloom {pending.Version} is ready to install",
-                WithTail(_updateSummary?.OneLine, AutoInstall ? "It installs the next time Coreloom starts. Click to see what's new." : "Click to see what's new and install it."),
-                userInitiated);
+            if (!installNext)
+            {
+                Notify(
+                    $"Coreloom {pending.Version} is ready to install",
+                    WithTail(_updateSummary?.OneLine, AutoInstall ? "It installs the next time Coreloom starts. Click to see what's new." : "Click to see what's new and install it."),
+                    userInitiated);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -684,30 +680,64 @@ public sealed class UpdatesViewModel : ObservableObject
 
     // ---- Installing -------------------------------------------------------------------------------
 
+    /// <summary>"Install update": downloads the update first when needed, then installs it right away.</summary>
+    private async Task InstallAsync()
+    {
+        if (_phase == UpdatePhase.Available)
+        {
+            await DownloadAsync(userInitiated: true, installNext: true);
+        }
+
+        if (_phase == UpdatePhase.Ready)
+        {
+            await InstallNowAsync(UpdateInstallOptions.Interactive);
+        }
+    }
+
     /// <summary>
-    /// Verifies the downloaded installer again (holding the file so it can't change), then starts it and lets
-    /// Coreloom exit. Returns true when the installer started.
+    /// Installs the downloaded update now: verifies it again (holding the file so it can't change), prepares it (a
+    /// portable zip is unpacked next to the app), starts it and lets Coreloom exit. Used at startup and while the PC is
+    /// idle, where waiting a few seconds is fine. Returns true when Coreloom is exiting.
     /// </summary>
     public bool InstallNow(UpdateInstallOptions options)
     {
-        var pending = _pending;
-        if (_phase != UpdatePhase.Ready || pending is null || !CanInstall)
+        using var verified = BeginInstall();
+        return verified is not null && Launch(verified, options, TryPrepare(verified));
+    }
+
+    /// <summary>The same as <see cref="InstallNow"/>, with the slow part off the UI thread (for "Install update").</summary>
+    public async Task<bool> InstallNowAsync(UpdateInstallOptions options)
+    {
+        using var verified = BeginInstall();
+        if (verified is null)
         {
             return false;
         }
 
-        string? path = _store.InstallerPath(pending);
+        bool prepared = await Task.Run(() => TryPrepare(verified));
+        return Launch(verified, options, prepared);
+    }
+
+    private VerifiedPackage? BeginInstall()
+    {
+        var pending = _pending;
+        if (_phase != UpdatePhase.Ready || pending is null || !CanInstall)
+        {
+            return null;
+        }
+
+        string? path = _store.PackagePath(pending, _installer.PackageKind);
         string? expected = TrustedHash(pending);
-        using var verified = path is null || expected is null ? null : VerifiedInstaller.Open(path, expected);
+        var verified = path is null || expected is null ? null : VerifiedPackage.Open(path, expected);
         if (verified is null)
         {
-            Log.Warn("Updates", $"The downloaded installer for {pending.Version} is missing, changed or untrusted; deleting it.");
+            Log.Warn("Updates", $"The downloaded update to {pending.Version} is missing, changed or untrusted; deleting it.");
             DiscardPending();
             _problem = "The downloaded update was missing or damaged, so it was deleted. Check for updates to download it again.";
             _failedHeadline = "Couldn't install the update";
             Phase = UpdatePhase.Failed;
             RaiseState();
-            return false;
+            return null;
         }
 
         pending = pending with { InstallAttempts = pending.InstallAttempts + 1 };
@@ -715,22 +745,43 @@ public sealed class UpdatesViewModel : ObservableObject
         TrySave(pending);
         _problem = null;
         Phase = UpdatePhase.Installing;
-        Log.Info("Updates", $"Starting the installer for {pending.Version} ({options.ToInstallerArguments()}).");
+        Log.Info("Updates", $"Installing Coreloom {pending.Version} from {Path.GetFileName(verified.Path)}.");
+        return verified;
+    }
 
-        bool started;
+    private bool TryPrepare(VerifiedPackage verified)
+    {
         try
         {
-            started = _installer.LaunchInstallerAndExit(verified, options);
+            return _installer.Prepare(verified);
         }
         catch (Exception ex)
         {
-            Log.Warn("Updates", "Starting the installer failed.", ex);
-            started = false;
+            Log.Warn("Updates", "Preparing the update failed.", ex);
+            return false;
+        }
+    }
+
+    private bool Launch(VerifiedPackage verified, UpdateInstallOptions options, bool prepared)
+    {
+        bool started = false;
+        if (prepared)
+        {
+            try
+            {
+                started = _installer.LaunchAndExit(verified, options);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Updates", "Starting the update failed.", ex);
+            }
         }
 
         if (!started)
         {
-            _problem = "The installer couldn't be started. Try again, or download the update from GitHub.";
+            _problem = prepared
+                ? "The update couldn't be started. Try again in a moment."
+                : "The update couldn't be unpacked next to Coreloom. Check that its folder isn't read-only and the disk has space, then try again.";
             Phase = UpdatePhase.Ready;
             RaiseState();
         }
@@ -883,12 +934,10 @@ public sealed class UpdatesViewModel : ObservableObject
         OnPropertyChanged(nameof(HeadlineText));
         OnPropertyChanged(nameof(DetailText));
         OnPropertyChanged(nameof(ShowCheckButton));
-        OnPropertyChanged(nameof(ShowDownloadButton));
-        OnPropertyChanged(nameof(ShowGetFromGitHubButton));
-        OnPropertyChanged(nameof(ShowRestartButton));
+        OnPropertyChanged(nameof(ShowInstallButton));
+        OnPropertyChanged(nameof(ShowStatusInstallButton));
         OnPropertyChanged(nameof(ShowCancelButton));
         OnPropertyChanged(nameof(UpdateVersion));
-        OnPropertyChanged(nameof(UpdateReleaseUrl));
         OnPropertyChanged(nameof(UpdateSummary));
         OnPropertyChanged(nameof(ShowUpdateSummary));
         OnPropertyChanged(nameof(InstalledSummary));
@@ -896,11 +945,9 @@ public sealed class UpdatesViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowUpdatedBanner));
         OnPropertyChanged(nameof(AutoInstallDescription));
         CheckCommand.NotifyCanExecuteChanged();
-        DownloadCommand.NotifyCanExecuteChanged();
-        InstallNowCommand.NotifyCanExecuteChanged();
+        InstallCommand.NotifyCanExecuteChanged();
         CancelDownloadCommand.NotifyCanExecuteChanged();
         SkipCommand.NotifyCanExecuteChanged();
-        OpenReleaseCommand.NotifyCanExecuteChanged();
         OpenInstalledReleaseCommand.NotifyCanExecuteChanged();
     }
 }

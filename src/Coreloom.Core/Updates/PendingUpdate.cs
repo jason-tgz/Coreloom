@@ -5,14 +5,27 @@ using Coreloom.Core.Diagnostics;
 
 namespace Coreloom.Core.Updates;
 
+/// <summary>How a copy of Coreloom is updated.</summary>
+public enum UpdatePackageKind
+{
+    /// <summary>Copies installed with the installer: the release's <c>-Setup.exe</c> runs and replaces the files.</summary>
+    Installer,
+
+    /// <summary>
+    /// Portable copies (and any other unzipped copy): the release's <c>-Portable.zip</c> is unpacked next to the app
+    /// and copied over it once Coreloom has exited (see <see cref="FolderUpdate"/>).
+    /// </summary>
+    PortableZip,
+}
+
 /// <summary>
-/// A release whose installer has been downloaded and verified, waiting to be installed. Saved next to the installer
-/// as <c>pending-update.json</c> so the update survives a restart and can be installed when Coreloom next starts.
-/// After the installer has run, the same record describes the installed version (its notes feed "What's new").
+/// A release whose package (installer or portable zip) has been downloaded and verified, waiting to be installed. Saved
+/// next to the package as <c>pending-update.json</c> so the update survives a restart and can be installed when
+/// Coreloom next starts. After the update, the same record describes the installed version (its notes feed "What's new").
 /// </summary>
 /// <remarks>
 /// This file lives in a folder the user (and so any program running as the user) can write to. It is therefore only
-/// a description: before Coreloom (which always runs as administrator) starts an installer, the file's SHA-256 must
+/// a description: before Coreloom (which always runs as administrator) installs a package, the file's SHA-256 must
 /// match the hash recorded in <see cref="IUpdateTrustStore"/>, which only administrators can write.
 /// </remarks>
 public sealed record PendingUpdate
@@ -29,10 +42,13 @@ public sealed record PendingUpdate
 
     public DateTimeOffset? PublishedAt { get; init; }
 
-    /// <summary>File name of the installer inside the downloads folder (never a path).</summary>
+    /// <summary>
+    /// File name of the downloaded package inside the downloads folder (never a path): the installer (<c>.exe</c>) or
+    /// the portable zip (<c>.zip</c>). The JSON name is kept from 1.1.0, which only downloaded installers.
+    /// </summary>
     public required string InstallerFileName { get; init; }
 
-    /// <summary>Lowercase hex SHA-256 of the installer, from the release's SHA256SUMS.txt.</summary>
+    /// <summary>Lowercase hex SHA-256 of the package, from the release's SHA256SUMS.txt.</summary>
     public required string Sha256 { get; init; }
 
     public DateTime DownloadedUtc { get; init; }
@@ -46,7 +62,7 @@ public sealed record PendingUpdate
     [JsonIgnore]
     public SemanticVersion? ParsedVersion => SemanticVersion.TryParse(Version, out var v) ? v : null;
 
-    public static PendingUpdate FromRelease(ReleaseInfo release, ReleaseAsset installer, string sha256, DateTime downloadedUtc) => new()
+    public static PendingUpdate FromRelease(ReleaseInfo release, ReleaseAsset package, string sha256, DateTime downloadedUtc) => new()
     {
         Version = release.Version.ToString(),
         TagName = release.TagName,
@@ -54,7 +70,7 @@ public sealed record PendingUpdate
         Notes = release.Notes,
         HtmlUrl = release.HtmlUrl.ToString(),
         PublishedAt = release.PublishedAt,
-        InstallerFileName = Path.GetFileName(installer.Name),
+        InstallerFileName = Path.GetFileName(package.Name),
         Sha256 = sha256.Trim().ToLowerInvariant(),
         DownloadedUtc = downloadedUtc,
     };
@@ -77,9 +93,9 @@ public enum PendingUpdateState
 }
 
 /// <summary>
-/// Where Coreloom keeps the SHA-256 of a downloaded installer so it can be trusted after a restart. The Windows
+/// Where Coreloom keeps the SHA-256 of a downloaded package so it can be trusted after a restart. The Windows
 /// implementation writes it under HKEY_LOCAL_MACHINE, which programs running without administrator rights cannot
-/// change; this is what stops another program from swapping in its own installer for Coreloom to run.
+/// change; this is what stops another program from swapping in its own installer or zip for Coreloom to run.
 /// </summary>
 public interface IUpdateTrustStore
 {
@@ -92,7 +108,7 @@ public interface IUpdateTrustStore
     void Clear();
 }
 
-/// <summary>A trust store that only remembers for the lifetime of the process (tests, portable copies).</summary>
+/// <summary>A trust store that only remembers for the lifetime of the process (tests).</summary>
 public sealed class InMemoryUpdateTrustStore : IUpdateTrustStore
 {
     private (string Version, string Sha256)? _value;
@@ -108,7 +124,7 @@ public sealed class InMemoryUpdateTrustStore : IUpdateTrustStore
     public void Clear() => _value = null;
 }
 
-/// <summary>Reads and writes <c>pending-update.json</c> and the last installed release's notes in the downloads folder.</summary>
+/// <summary>Reads and writes <c>pending-update.json</c>, the downloaded packages and the last installed release's notes in the downloads folder.</summary>
 public sealed class PendingUpdateStore
 {
     public const string PendingFileName = "pending-update.json";
@@ -133,13 +149,17 @@ public sealed class PendingUpdateStore
 
     public string InstalledFile => Path.Combine(Directory, InstalledFileName);
 
-    /// <summary>Full path of a pending update's installer. Only a plain file name inside the folder is accepted.</summary>
-    public string? InstallerPath(PendingUpdate pending)
+    /// <summary>
+    /// Full path of a pending update's package when it is the kind this copy installs (an <c>.exe</c> installer or a
+    /// <c>.zip</c>). Only a plain file name inside the folder is accepted.
+    /// </summary>
+    public string? PackagePath(PendingUpdate pending, UpdatePackageKind kind)
     {
         string name = pending.InstallerFileName;
+        string extension = kind == UpdatePackageKind.Installer ? ".exe" : ".zip";
         if (string.IsNullOrWhiteSpace(name) || name != Path.GetFileName(name) || name.Contains("..", StringComparison.Ordinal)
             || name.IndexOfAny(['\\', '/', ':']) >= 0 || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
-            || !name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            || !name.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
@@ -166,7 +186,7 @@ public sealed class PendingUpdateStore
 
     /// <summary>
     /// The update was installed: keeps its notes as <c>installed-release.json</c> (for "What's new") and removes
-    /// the pending record and every downloaded installer.
+    /// the pending record and every downloaded package.
     /// </summary>
     public void MarkInstalled(PendingUpdate pending)
     {
@@ -174,14 +194,14 @@ public sealed class PendingUpdateStore
         DeletePending();
     }
 
-    /// <summary>Removes the pending record and downloaded installers (complete or partial).</summary>
+    /// <summary>Removes the pending record and downloaded packages (complete or partial).</summary>
     public void DeletePending()
     {
         TryDelete(PendingFile);
         DeleteDownloads(keepFileName: null);
     }
 
-    /// <summary>Deletes installers and partial downloads in the folder, except <paramref name="keepFileName"/>.</summary>
+    /// <summary>Deletes installers, portable zips and partial downloads in the folder, except <paramref name="keepFileName"/>.</summary>
     public void DeleteDownloads(string? keepFileName)
     {
         if (!System.IO.Directory.Exists(Directory))
@@ -195,6 +215,7 @@ public sealed class PendingUpdateStore
             {
                 string name = Path.GetFileName(file);
                 bool download = name.EndsWith("-Setup.exe", StringComparison.OrdinalIgnoreCase)
+                    || name.EndsWith("-Portable.zip", StringComparison.OrdinalIgnoreCase)
                     || name.EndsWith(".partial", StringComparison.OrdinalIgnoreCase);
                 bool keep = keepFileName is not null
                     && (name.Equals(keepFileName, StringComparison.OrdinalIgnoreCase) || name.Equals(keepFileName + ".partial", StringComparison.OrdinalIgnoreCase));
@@ -211,11 +232,11 @@ public sealed class PendingUpdateStore
     }
 
     /// <summary>
-    /// Deletes downloaded installers (<c>Coreloom-&lt;version&gt;-win-x64-Setup.exe</c>) for versions up to
-    /// <paramref name="current"/>: leftovers of updates that are done, including ones installed by Coreloom 1.0.0's
-    /// updater, which didn't clean up. Newer downloads and partial downloads are kept.
+    /// Deletes downloaded packages (<c>Coreloom-&lt;version&gt;-win-x64-Setup.exe</c> or <c>-Portable.zip</c>) for
+    /// versions up to <paramref name="current"/>: leftovers of updates that are done, including ones installed by
+    /// Coreloom 1.0.0's updater, which didn't clean up. Newer downloads and partial downloads are kept.
     /// </summary>
-    public void DeleteInstallersUpTo(SemanticVersion current)
+    public void DeletePackagesUpTo(SemanticVersion current)
     {
         if (!System.IO.Directory.Exists(Directory))
         {
@@ -223,23 +244,25 @@ public sealed class PendingUpdateStore
         }
 
         const string prefix = "Coreloom-";
-        const string suffix = "-win-x64-Setup.exe";
         try
         {
-            foreach (string file in System.IO.Directory.EnumerateFiles(Directory, prefix + "*" + suffix))
+            foreach (string suffix in new[] { "-win-x64-Setup.exe", "-win-x64-Portable.zip" })
             {
-                string name = Path.GetFileName(file);
-                if (name.Length > prefix.Length + suffix.Length
-                    && SemanticVersion.TryParse(name[prefix.Length..^suffix.Length], out var version)
-                    && version.CompareTo(current) <= 0)
+                foreach (string file in System.IO.Directory.EnumerateFiles(Directory, prefix + "*" + suffix))
                 {
-                    TryDelete(file);
+                    string name = Path.GetFileName(file);
+                    if (name.Length > prefix.Length + suffix.Length
+                        && SemanticVersion.TryParse(name[prefix.Length..^suffix.Length], out var version)
+                        && version.CompareTo(current) <= 0)
+                    {
+                        TryDelete(file);
+                    }
                 }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Log.Warn("Updates", "Cleaning up old installers failed.", ex);
+            Log.Warn("Updates", "Cleaning up old downloads failed.", ex);
         }
     }
 
@@ -293,15 +316,15 @@ public sealed class PendingUpdateStore
 }
 
 /// <summary>
-/// An installer file that was opened, hashed and found to match the expected SHA-256. The file stays open for
-/// reading (other programs may read it but not change, rename or delete it) until this object is disposed, so the
-/// file that was checked is the file that runs.
+/// A downloaded package (installer or portable zip) that was opened, hashed and found to match the expected SHA-256.
+/// The file stays open for reading (other programs may read it but not change, rename or delete it) until this object
+/// is disposed, so the file that was checked is the file that runs or is unpacked.
 /// </summary>
-public sealed class VerifiedInstaller : IDisposable
+public sealed class VerifiedPackage : IDisposable
 {
     private FileStream? _stream;
 
-    private VerifiedInstaller(string path, FileStream stream)
+    private VerifiedPackage(string path, FileStream stream)
     {
         Path = path;
         _stream = stream;
@@ -310,7 +333,7 @@ public sealed class VerifiedInstaller : IDisposable
     public string Path { get; }
 
     /// <summary>Opens and hashes <paramref name="path"/>. Returns null (and closes the file) when it is missing or the hash differs.</summary>
-    public static VerifiedInstaller? Open(string path, string expectedSha256)
+    public static VerifiedPackage? Open(string path, string expectedSha256)
     {
         if (string.IsNullOrWhiteSpace(expectedSha256) || !File.Exists(path))
         {
@@ -336,7 +359,7 @@ public sealed class VerifiedInstaller : IDisposable
                 return null;
             }
 
-            var verified = new VerifiedInstaller(path, stream);
+            var verified = new VerifiedPackage(path, stream);
             stream = null;
             return verified;
         }
@@ -346,6 +369,16 @@ public sealed class VerifiedInstaller : IDisposable
             stream?.Dispose();
             return null;
         }
+    }
+
+    /// <summary>
+    /// A second read-only handle to the verified file (for unpacking a zip). The file can't change while this object
+    /// still holds it, so what is read is what was checked.
+    /// </summary>
+    public Stream OpenRead()
+    {
+        ObjectDisposedException.ThrowIf(_stream is null, this);
+        return new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan);
     }
 
     /// <summary>Lets go of the file early (used only if Windows refuses to start it while it is held open).</summary>

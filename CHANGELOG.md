@@ -7,6 +7,10 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+### Changed
+- **One-click updates.** When a new version is out, *Settings › Updates* and the tray menu offer *Install update*: Coreloom downloads and checks the update, closes, installs it over the old version and opens again. No more trips to GitHub.
+- **Portable copies update themselves.** Copies from the portable zip now update in place like installed ones and keep their settings in the `Data` folder. If a file can't be replaced, every change is undone and the previous version opens again. Portable copies of 1.1.0 or earlier need one last update by hand.
+
 ## [1.1.0] - 2026-10-13
 
 Coreloom now keeps itself up to date, and the Overview opens with your PC and its specs at a glance.

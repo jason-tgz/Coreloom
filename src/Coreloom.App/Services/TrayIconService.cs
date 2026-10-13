@@ -7,7 +7,7 @@ using Coreloom.Core.Diagnostics;
 namespace Coreloom.App.Services;
 
 /// <summary>
-/// Notification-area icon with a themed WPF context menu (Restart to update when an update is ready, Open,
+/// Notification-area icon with a themed WPF context menu (Install update when a new version is out, Open,
 /// Pause/Resume, Settings, Check for updates, Exit) and balloon notifications (shown as toasts on Windows 10/11). Uses WinForms' NotifyIcon, which
 /// handles Explorer restarts and DPI changes reliably.
 /// </summary>
@@ -41,7 +41,7 @@ public sealed partial class TrayIconService : IDisposable
         };
 
         _menu = new ContextMenu();
-        _updateItem = CreateItem("Restart to update", installUpdate, bold: true);
+        _updateItem = CreateItem("Install update", installUpdate, bold: true);
         _updateItem.Visibility = Visibility.Collapsed;
         _updateSeparator = new Separator { Visibility = Visibility.Collapsed };
         _menu.Items.Add(_updateItem);
@@ -81,11 +81,11 @@ public sealed partial class TrayIconService : IDisposable
 
     public void SetPaused(bool paused) => _pauseItem.Header = paused ? "Resume monitoring" : "Pause monitoring";
 
-    /// <summary>Shows "Restart to update" at the top of the menu (e.g. "Restart to update to 1.2.0"), or hides it when null.</summary>
+    /// <summary>Shows "Install update" at the top of the menu (e.g. "Install update to 1.2.0"), or hides it when null.</summary>
     public void SetUpdateItem(string? header)
     {
         var visibility = header is null ? Visibility.Collapsed : Visibility.Visible;
-        _updateItem.Header = header ?? "Restart to update";
+        _updateItem.Header = header ?? "Install update";
         _updateItem.Visibility = visibility;
         _updateSeparator.Visibility = visibility;
     }

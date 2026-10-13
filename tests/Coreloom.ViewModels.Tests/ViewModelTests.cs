@@ -297,7 +297,9 @@ public class ShellViewModelTests
         public void SetVerboseLogging(bool enabled) { }
         public IReadOnlyList<LogEntry> RecentLog() => [];
         public bool CanInstallUpdates => false;
-        public bool LaunchInstallerAndExit(VerifiedInstaller installer, UpdateInstallOptions options) => false;
+        public UpdatePackageKind PackageKind => UpdatePackageKind.Installer;
+        public bool Prepare(VerifiedPackage package) => false;
+        public bool LaunchAndExit(VerifiedPackage package, UpdateInstallOptions options) => false;
     }
 
     private static (ShellViewModel Shell, MonitorContext Monitor, SettingsService Settings, Stubs Stubs) Create()

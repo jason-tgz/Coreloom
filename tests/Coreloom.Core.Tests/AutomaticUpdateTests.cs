@@ -197,19 +197,20 @@ public sealed class PendingUpdateStoreTests : IDisposable
     }
 
     [Fact]
-    public void DeleteInstallersUpTo_RemovesOnlyFinishedVersions()
+    public void DeletePackagesUpTo_RemovesOnlyFinishedVersions()
     {
         Directory.CreateDirectory(_dir);
         foreach (string name in new[] { "Coreloom-1.0.0-win-x64-Setup.exe", "Coreloom-1.1.0-win-x64-Setup.exe", "Coreloom-1.2.0-win-x64-Setup.exe",
-                                        "Coreloom-1.2.0-win-x64-Setup.exe.partial", "Coreloom-1.1.1-test.1-win-x64-Setup.exe", "notes.txt" })
+                                        "Coreloom-1.2.0-win-x64-Setup.exe.partial", "Coreloom-1.1.1-test.1-win-x64-Setup.exe", "notes.txt",
+                                        "Coreloom-1.1.0-win-x64-Portable.zip", "Coreloom-1.2.0-win-x64-Portable.zip" })
         {
             File.WriteAllText(Path.Combine(_dir, name), "x");
         }
 
-        new PendingUpdateStore(_dir).DeleteInstallersUpTo(SemanticVersion.Parse("1.1.0"));
+        new PendingUpdateStore(_dir).DeletePackagesUpTo(SemanticVersion.Parse("1.1.0"));
 
         Assert.Equal(
-            new[] { "Coreloom-1.1.1-test.1-win-x64-Setup.exe", "Coreloom-1.2.0-win-x64-Setup.exe", "Coreloom-1.2.0-win-x64-Setup.exe.partial", "notes.txt" },
+            new[] { "Coreloom-1.1.1-test.1-win-x64-Setup.exe", "Coreloom-1.2.0-win-x64-Portable.zip", "Coreloom-1.2.0-win-x64-Setup.exe", "Coreloom-1.2.0-win-x64-Setup.exe.partial", "notes.txt" },
             Directory.GetFiles(_dir).Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray());
     }
 
@@ -226,16 +227,19 @@ public sealed class PendingUpdateStoreTests : IDisposable
     }
 
     [Theory]
-    [InlineData("Coreloom-1.1.0-win-x64-Setup.exe", true)]
-    [InlineData("..\\evil.exe", false)]
-    [InlineData("../evil.exe", false)]
-    [InlineData("sub/Coreloom-Setup.exe", false)]
-    [InlineData("C:\\Windows\\evil.exe", false)]
-    [InlineData("Coreloom-1.1.0-win-x64-Setup.zip", false)]
-    public void InstallerPath_OnlyAcceptsAPlainExeNameInTheFolder(string name, bool accepted)
+    [InlineData("Coreloom-1.1.0-win-x64-Setup.exe", UpdatePackageKind.Installer, true)]
+    [InlineData("..\\evil.exe", UpdatePackageKind.Installer, false)]
+    [InlineData("../evil.exe", UpdatePackageKind.Installer, false)]
+    [InlineData("sub/Coreloom-Setup.exe", UpdatePackageKind.Installer, false)]
+    [InlineData("C:\\Windows\\evil.exe", UpdatePackageKind.Installer, false)]
+    [InlineData("Coreloom-1.1.0-win-x64-Portable.zip", UpdatePackageKind.Installer, false)]
+    [InlineData("Coreloom-1.1.0-win-x64-Portable.zip", UpdatePackageKind.PortableZip, true)]
+    [InlineData("Coreloom-1.1.0-win-x64-Setup.exe", UpdatePackageKind.PortableZip, false)]
+    [InlineData("../Coreloom-1.1.0-win-x64-Portable.zip", UpdatePackageKind.PortableZip, false)]
+    public void PackagePath_OnlyAcceptsAPlainNameOfTheRightKindInTheFolder(string name, UpdatePackageKind kind, bool accepted)
     {
         var store = new PendingUpdateStore(_dir);
-        var path = store.InstallerPath(Pending("1.1.0") with { InstallerFileName = name });
+        var path = store.PackagePath(Pending("1.1.0") with { InstallerFileName = name }, kind);
         Assert.Equal(accepted, path is not null);
         if (path is not null)
         {
@@ -244,7 +248,7 @@ public sealed class PendingUpdateStoreTests : IDisposable
     }
 
     [Fact]
-    public void VerifiedInstaller_OpensOnlyAMatchingFile()
+    public void VerifiedPackage_OpensOnlyAMatchingFile()
     {
         Directory.CreateDirectory(_dir);
         string file = Path.Combine(_dir, "Coreloom-1.1.0-win-x64-Setup.exe");
@@ -252,19 +256,28 @@ public sealed class PendingUpdateStoreTests : IDisposable
         File.WriteAllBytes(file, content);
         string hash = Convert.ToHexStringLower(SHA256.HashData(content));
 
-        using (var verified = VerifiedInstaller.Open(file, hash.ToUpperInvariant()))
+        using (var verified = VerifiedPackage.Open(file, hash.ToUpperInvariant()))
         {
             Assert.NotNull(verified);
             Assert.Equal(file, verified!.Path);
+            using (var read = verified.OpenRead())
+            {
+                var copy = new MemoryStream();
+                read.CopyTo(copy);
+                Assert.Equal(content, copy.ToArray()); // a second handle reads the checked bytes
+            }
+
+            verified.Release();
+            Assert.Throws<ObjectDisposedException>(() => verified.OpenRead());
         }
 
-        Assert.Null(VerifiedInstaller.Open(file, new string('0', 64)));
-        Assert.Null(VerifiedInstaller.Open(Path.Combine(_dir, "missing.exe"), hash));
-        Assert.Null(VerifiedInstaller.Open(file, ""));
+        Assert.Null(VerifiedPackage.Open(file, new string('0', 64)));
+        Assert.Null(VerifiedPackage.Open(Path.Combine(_dir, "missing.exe"), hash));
+        Assert.Null(VerifiedPackage.Open(file, ""));
     }
 
     [Fact]
-    public void VerifiedInstaller_RefusesALink()
+    public void VerifiedPackage_RefusesALink()
     {
         Directory.CreateDirectory(_dir);
         string target = Path.Combine(_dir, "real.bin");
@@ -280,7 +293,7 @@ public sealed class PendingUpdateStoreTests : IDisposable
             Assert.SkipUnless(false, "Symbolic links can't be created here.");
         }
 
-        Assert.Null(VerifiedInstaller.Open(link, Convert.ToHexStringLower(SHA256.HashData(content))));
+        Assert.Null(VerifiedPackage.Open(link, Convert.ToHexStringLower(SHA256.HashData(content))));
     }
 
     public void Dispose()

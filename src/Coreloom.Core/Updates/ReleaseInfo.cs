@@ -23,6 +23,9 @@ public sealed record ReleaseInfo(
         a.Name.EndsWith("-Portable.zip", StringComparison.OrdinalIgnoreCase) &&
         a.Name.Contains("x64", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>The package a copy of the given kind installs from.</summary>
+    public ReleaseAsset? PackageFor(UpdatePackageKind kind) => kind == UpdatePackageKind.Installer ? Installer : Portable;
+
     /// <summary>Checksum manifest (<c>SHA256SUMS.txt</c>).</summary>
     public ReleaseAsset? Checksums => Assets.FirstOrDefault(a =>
         a.Name.Equals("SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase));

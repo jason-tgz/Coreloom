@@ -42,12 +42,13 @@ Releases are built entirely by GitHub Actions from a version tag. Nothing is upl
      - `Coreloom-<version>-win-x64-Setup.exe`
      - `Coreloom-<version>-win-x64-Portable.zip`
      - `SHA256SUMS.txt`
-4. The build embeds `GITHUB_REPOSITORY` as the update source. Installed copies of earlier versions find the
+4. The build embeds `GITHUB_REPOSITORY` as the update source. Copies of earlier versions find the
    new release at their next check (20 seconds after they start, then as often as *Settings → Updates* says;
    daily by default) or right away with *Check for updates*. With *Update automatically* on (the default), they
    download and verify it in the background, show a badge and a notification, and install it the next time
-   Coreloom starts, while the PC is idle, or when the user clicks *Restart to update*. Portable copies only show
-   the badge and link to the release.
+   Coreloom starts, while the PC is idle, or when the user clicks *Install update*. Installed copies update with
+   `-Setup.exe`, portable copies with `-Portable.zip`, so every release needs both (plus `SHA256SUMS.txt`). Copies
+   of 1.1.0 or earlier that are portable still link to the release page: they predate in-place updates.
 
 If you create the release yourself on GitHub's website (for example to write its text there), the workflow adds
 the files to that release and keeps your title and text; it only fills in the text when you left it empty. If a
@@ -99,8 +100,8 @@ Coreloom now keeps itself up to date.
   ```
 
   The hash must match the line in `SHA256SUMS.txt`.
-- Install the previous version, then use *Check for updates*. The update should download, verify, show
-  *Restart to update*, then install and relaunch. The full checklist, including the automatic paths, is in
+- Install the previous version (and unzip its portable build), then use *Check for updates* in each. *Install
+  update* should download, verify, install and relaunch. The full checklist, including the automatic paths, is in
   [TESTING-ON-YOUR-PC.md](TESTING-ON-YOUR-PC.md#6-automatic-updates-after-publishing-two-releases).
 
 ## Code signing (recommended before wide distribution)

@@ -5,7 +5,7 @@ namespace Coreloom.Core.Updates;
 /// <param name="RelaunchMinimized">Start the new version in the notification area instead of opening its window.</param>
 public readonly record struct UpdateInstallOptions(bool ShowProgress, bool RelaunchMinimized)
 {
-    /// <summary>The user asked for it ("Restart to update"): show progress, reopen the window.</summary>
+    /// <summary>The user asked for it ("Install update"): show progress, reopen the window.</summary>
     public static UpdateInstallOptions Interactive => new(ShowProgress: true, RelaunchMinimized: false);
 
     /// <summary>Installed while nobody was using Coreloom: no windows, back to the notification area.</summary>

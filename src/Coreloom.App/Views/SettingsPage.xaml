@@ -613,10 +613,10 @@
         <!-- ======================================================================= -->
         <StackPanel b:Motion.Entrance="True" Visibility="{Binding SelectedSection, Converter={StaticResource EqualsToVisibility}, ConverterParameter=Updates}">
           <TextBlock Style="{StaticResource Panel.Header}" Text="Updates" />
-          <TextBlock Style="{StaticResource Panel.Intro}" Text="Coreloom gets new versions from its GitHub Releases page. Every download is checked against the release's SHA-256 checksums before it runs. Only GitHub is contacted, and no hardware data is sent." />
+          <TextBlock Style="{StaticResource Panel.Intro}" Text="Coreloom updates itself from its GitHub releases. Every download is checked against the release's SHA-256 checksums before it's installed. Only GitHub is contacted, and no hardware data is sent." />
 
           <StackPanel DataContext="{Binding Updates}">
-            <!-- Status: check for updates, download, restart to update -->
+            <!-- Status: check for updates, download progress (Install update sits in the What's new card below) -->
             <Border Style="{StaticResource Card}">
               <StackPanel>
                 <Grid>
@@ -640,28 +640,12 @@
                         <TextBlock Text="Check for updates" Margin="6,0,0,0" />
                       </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource Button.Primary}" Command="{Binding DownloadCommand}"
-                            Visibility="{Binding ShowDownloadButton, Converter={StaticResource BoolToVisibility}}"
-                            ToolTip="Downloads the installer and checks its SHA-256 checksum. Nothing is installed until Coreloom restarts.">
+                    <Button Style="{StaticResource Button.Primary}" Command="{Binding InstallCommand}"
+                            Visibility="{Binding ShowStatusInstallButton, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="Downloads the update if needed, closes Coreloom, installs it and opens Coreloom again.">
                       <StackPanel Orientation="Horizontal">
                         <Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Download}" Stroke="{DynamicResource Brush.OnAccent}" />
-                        <TextBlock Text="Download update" Margin="6,0,0,0" />
-                      </StackPanel>
-                    </Button>
-                    <Button Style="{StaticResource Button.Primary}" Command="{Binding DownloadCommand}"
-                            Visibility="{Binding ShowGetFromGitHubButton, Converter={StaticResource BoolToVisibility}}"
-                            ToolTip="Opens the release page in your browser.">
-                      <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Download from GitHub" />
-                        <Path Style="{StaticResource IconPath}" Width="11" Height="11" Data="{StaticResource Icon.External}" Stroke="{DynamicResource Brush.OnAccent}" Margin="6,0,0,0" />
-                      </StackPanel>
-                    </Button>
-                    <Button Style="{StaticResource Button.Primary}" Command="{Binding InstallNowCommand}"
-                            Visibility="{Binding ShowRestartButton, Converter={StaticResource BoolToVisibility}}"
-                            ToolTip="Closes Coreloom, installs the update and opens Coreloom again.">
-                      <StackPanel Orientation="Horizontal">
-                        <Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Refresh}" Stroke="{DynamicResource Brush.OnAccent}" />
-                        <TextBlock Text="Restart to update" Margin="6,0,0,0" />
+                        <TextBlock Text="Install update" Margin="6,0,0,0" />
                       </StackPanel>
                     </Button>
                     <Button Style="{StaticResource Button.Secondary}" Content="Cancel" Command="{Binding CancelDownloadCommand}"
@@ -692,11 +676,13 @@
                   </StackPanel>
                 </Grid>
                 <ContentControl Content="{Binding UpdateSummary}" ContentTemplate="{StaticResource WhatsNewBody}" Focusable="False" />
-                <WrapPanel Margin="0,10,0,0">
-                  <Button Style="{StaticResource Button.Secondary}" Command="{Binding OpenReleaseCommand}" Margin="0,0,8,0">
+                <WrapPanel Margin="0,14,0,0">
+                  <Button Style="{StaticResource Button.Primary}" Command="{Binding InstallCommand}" Margin="0,0,8,0"
+                          Visibility="{Binding ShowInstallButton, Converter={StaticResource BoolToVisibility}}"
+                          ToolTip="Downloads the update if needed, closes Coreloom, installs it and opens Coreloom again.">
                     <StackPanel Orientation="Horizontal">
-                      <TextBlock Text="Full release notes" />
-                      <Path Style="{StaticResource IconPath}" Width="11" Height="11" Data="{StaticResource Icon.External}" Margin="6,0,0,0" />
+                      <Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Download}" Stroke="{DynamicResource Brush.OnAccent}" />
+                      <TextBlock Text="Install update" Margin="6,0,0,0" />
                     </StackPanel>
                   </Button>
                   <Button Style="{StaticResource Button.Subtle}" Content="Skip this version" Command="{Binding SkipCommand}"

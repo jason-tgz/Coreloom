@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Net.Http;
@@ -121,7 +122,14 @@ public partial class App : Application
             return;
         }
 
-        // A restart (elevation, settings change) passes our old PID: wait for it so the instance lock is free.
+        if (args.ApplyUpdate)
+        {
+            // Started by the previous version to copy this (new) version over its folder; see RunUpdateHelper.
+            RunUpdateHelper(args);
+            return;
+        }
+
+        // A restart (elevation, settings change, update) passes our old PID: wait for it so the instance lock is free.
         if (args.WaitForProcessId is int pid)
         {
             SingleInstance.WaitForProcessExit(pid, TimeSpan.FromSeconds(15));
@@ -173,16 +181,19 @@ public partial class App : Application
 
         // ---- Updates ------------------------------------------------------------------------------
         // Before anything else is built: pick up what the last session downloaded and, when automatic updates are on,
-        // install it now (Coreloom exits and the installer starts the new version). A launch that follows an update
-        // records it here, so the window can say what's new.
+        // install it now (Coreloom exits, the update replaces the files and starts the new version). A launch that
+        // follows an update records it here, so the window can say what's new.
         var shellService = new ShellService();
         var installer = new UpdateInstaller(paths, () => Dispatcher.InvokeAsync(ExitApplication));
+        installer.StartCleanup();  // what the last in-place update left next to the app
         _http = new HttpClient(new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(15), AutomaticDecompression = System.Net.DecompressionMethods.All })
         {
             // Applies until response headers arrive; downloads stream afterwards and are cancellable by the user.
             Timeout = TimeSpan.FromSeconds(60),
         };
-        IUpdateTrustStore trust = installer.CanInstallUpdates ? new RegistryUpdateTrustStore() : new InMemoryUpdateTrustStore();
+        IUpdateTrustStore trust = installer.PackageKind == UpdatePackageKind.Installer
+            ? new RegistryUpdateTrustStore()
+            : new RegistryUpdateTrustStore(FolderUpdate.CopyId(paths.BaseDirectory));
         var updates = new UpdatesViewModel(app, settingsService, installer, shellService, _http, new PendingUpdateStore(paths.DownloadDirectory), trust);
         _updates = updates;
         updates.InitializeFromDisk(launchedAfterFailedUpdate: args.UpdateFailed);
@@ -193,7 +204,7 @@ public partial class App : Application
 
         if (updates.TryInstallAtStartup(startHidden))
         {
-            Log.Info("App", "Exiting so the installer can update Coreloom; it starts the new version when it's done.");
+            Log.Info("App", "Exiting so the update can replace Coreloom's files; the new version starts when it's done.");
             return;
         }
 
@@ -300,7 +311,15 @@ public partial class App : Application
                 OpenUpdates();
                 _ = updates.CheckAsync(userInitiated: true);
             },
-            installUpdate: () => updates.InstallNowCommand.Execute(null),
+            installUpdate: () =>
+            {
+                if (!updates.IsReady)
+                {
+                    OpenUpdates();  // it downloads first: show the progress
+                }
+
+                updates.InstallCommand.Execute(null);
+            },
             exit: ExitApplication);
         _tray = tray;
 
@@ -323,10 +342,10 @@ public partial class App : Application
             _tray?.Notify(note.Title, note.Message, onClick: OpenUpdates);
         });
 
-        void SyncTrayUpdateItem() => _tray?.SetUpdateItem(updates.IsReady ? $"Restart to update to {updates.UpdateVersion}" : null);
+        void SyncTrayUpdateItem() => _tray?.SetUpdateItem(updates.ShowInstallButton ? $"Install update to {updates.UpdateVersion}" : null);
         updates.PropertyChanged += (_, pe) =>
         {
-            if (pe.PropertyName is nameof(UpdatesViewModel.IsReady) or nameof(UpdatesViewModel.UpdateVersion))
+            if (pe.PropertyName is nameof(UpdatesViewModel.ShowInstallButton) or nameof(UpdatesViewModel.UpdateVersion))
             {
                 SyncTrayUpdateItem();
             }
@@ -576,6 +595,89 @@ public partial class App : Application
     }
 
     // ------------------------------------------------------------------------------------------------
+    // In-place update helper
+    // ------------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// <c>--apply-update</c>: this process is the new version, unpacked into <c>&lt;app&gt;\.coreloom-update\new</c> by the
+    /// version that is exiting. It waits for that version to exit, copies itself over the app folder (every change is
+    /// undone if a file can't be replaced) and starts Coreloom again: the new version with <c>--updated</c>, or the old
+    /// one with <c>--update-failed</c>. Later versions must keep accepting this switch (see <see cref="FolderUpdate"/>).
+    /// </summary>
+    private void RunUpdateHelper(CommandLine args)
+    {
+        if (!FolderUpdate.TryGetAppDirectoryFromStagingLocation(AppContext.BaseDirectory, out string appDirectory))
+        {
+            Shutdown(2);  // not an unpacked update next to a Coreloom folder: nothing to do
+            return;
+        }
+
+        var paths = AppPaths.Resolve(appDirectory);
+        InitializeLogging(paths, new MemoryLogSink());
+        var app = AppVersionInfo.FromAssembly(typeof(App).Assembly);
+        Log.Info("Updates", $"Updating {appDirectory} to Coreloom {app.InformationalVersion} (args: {string.Join(' ', Environment.GetCommandLineArgs().Skip(1))}).");
+        if (!args.Quiet)
+        {
+            _splash = SplashScreenHost.TryStart(SplashPolicy.UseReducedMotion(false, SystemParameters.ClientAreaAnimation), $"Updating Coreloom to {app.DisplayVersion}");
+        }
+
+        if (args.WaitForProcessId is int pid)
+        {
+            SingleInstance.WaitForProcessExit(pid, TimeSpan.FromSeconds(60));
+        }
+
+        // Hold the instance lock while files change, so Coreloom can't be started halfway through. The relaunched
+        // copy waits for this process to exit (--wait-for), which releases it.
+        _instance = new SingleInstance("Coreloom");
+        var deadline = Stopwatch.StartNew();
+        bool locked;
+        while (!(locked = _instance.TryAcquire()) && deadline.Elapsed < TimeSpan.FromSeconds(30))
+        {
+            Thread.Sleep(250);
+        }
+
+        if (!locked)
+        {
+            Log.Warn("Updates", "Coreloom is still running, so its files can't be replaced. The update will be offered again.");
+            ReleaseAndShutdown(1);
+            return;
+        }
+
+        FolderUpdateResult result;
+        try
+        {
+            result = FolderUpdate.Apply(appDirectory);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Updates", "Updating the files failed.", ex);
+            result = new FolderUpdateResult(false, 0, ex.Message);
+        }
+
+        _splash?.SetStatus(result.Succeeded ? "Starting Coreloom" : "The update couldn't finish. Starting Coreloom again");
+        string relaunch = (result.Succeeded ? "--updated" : "--update-failed")
+            + $" --wait-for {Environment.ProcessId.ToString(CultureInfo.InvariantCulture)}"
+            + (args.Minimized ? " --minimized" : string.Empty);
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(Path.Combine(appDirectory, FolderUpdate.AppExecutable), relaunch)
+            {
+                UseShellExecute = true,
+                WorkingDirectory = appDirectory,
+            });
+            Log.Info("Updates", result.Succeeded
+                ? $"Updated {result.FilesCopied} files; starting Coreloom {app.DisplayVersion}."
+                : $"The update failed ({result.Error}); starting the previous version again.");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Updates", "Starting Coreloom after the update failed.", ex);
+        }
+
+        ReleaseAndShutdown(result.Succeeded ? 0 : 1);
+    }
+
+    // ------------------------------------------------------------------------------------------------
     // Exit
     // ------------------------------------------------------------------------------------------------
 
@@ -725,10 +827,12 @@ public partial class App : Application
 }
 
 /// <summary>
-/// Command-line options: --minimized, --startup, --wait-for &lt;pid&gt;, --remove-startup-task, and from the installer
-/// after an in-app update --updated (informational) or --update-failed (the update was rolled back).
+/// Command-line options: --minimized, --startup, --wait-for &lt;pid&gt;, --remove-startup-task; after an in-app update
+/// (from the installer or the update helper) --updated (informational) or --update-failed (the update was rolled back);
+/// and for the update helper itself --apply-update and --quiet (no splash while copying).
 /// </summary>
-internal sealed record CommandLine(bool Minimized, bool FromStartup, int? WaitForProcessId, bool RemoveStartupTask = false, bool UpdateFailed = false)
+internal sealed record CommandLine(bool Minimized, bool FromStartup, int? WaitForProcessId, bool RemoveStartupTask = false, bool UpdateFailed = false,
+    bool ApplyUpdate = false, bool Quiet = false)
 {
     public static CommandLine Parse(IReadOnlyList<string> args)
     {
@@ -736,6 +840,8 @@ internal sealed record CommandLine(bool Minimized, bool FromStartup, int? WaitFo
         bool startup = false;
         bool removeTask = false;
         bool updateFailed = false;
+        bool applyUpdate = false;
+        bool quiet = false;
         int? waitFor = null;
         for (int i = 0; i < args.Count; i++)
         {
@@ -753,6 +859,12 @@ internal sealed record CommandLine(bool Minimized, bool FromStartup, int? WaitFo
                 case "--update-failed":
                     updateFailed = true;
                     break;
+                case FolderUpdate.ApplySwitch:
+                    applyUpdate = true;
+                    break;
+                case FolderUpdate.QuietSwitch:
+                    quiet = true;
+                    break;
                 case "--wait-for" when i + 1 < args.Count && int.TryParse(args[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int pid):
                     waitFor = pid;
                     i++;
@@ -760,6 +872,6 @@ internal sealed record CommandLine(bool Minimized, bool FromStartup, int? WaitFo
             }
         }
 
-        return new CommandLine(minimized, startup, waitFor, removeTask, updateFailed);
+        return new CommandLine(minimized, startup, waitFor, removeTask, updateFailed, applyUpdate, quiet);
     }
 }

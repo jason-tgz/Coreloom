@@ -8,12 +8,14 @@ using Coreloom.ViewModels.Services;
 
 namespace Coreloom.ViewModels.Tests;
 
-/// <summary>Serves a fake GitHub release (API listing, SHA256SUMS.txt and installer) for the updater.</summary>
+/// <summary>Serves a fake GitHub release (API listing, SHA256SUMS.txt, installer and portable zip) for the updater.</summary>
 internal sealed class FakeGitHub : HttpMessageHandler
 {
     public string Version { get; set; } = "1.1.0";
 
     public byte[] Installer { get; set; } = Encoding.ASCII.GetBytes("pretend this is Coreloom-Setup.exe");
+
+    public byte[] Portable { get; set; } = Encoding.ASCII.GetBytes("pretend this is Coreloom-Portable.zip");
 
     /// <summary>Overrides the hash written to SHA256SUMS.txt (to simulate a corrupted download).</summary>
     public string? ChecksumOverride { get; set; }
@@ -24,9 +26,16 @@ internal sealed class FakeGitHub : HttpMessageHandler
 
     public int InstallerRequests { get; private set; }
 
+    public int PortableRequests { get; private set; }
+
+    /// <summary>False to publish a release without the portable zip.</summary>
+    public bool IncludePortable { get; set; } = true;
+
     public int TagRequests { get; private set; }
 
     public string InstallerName => $"Coreloom-{Version}-win-x64-Setup.exe";
+
+    public string PortableName => $"Coreloom-{Version}-win-x64-Portable.zip";
 
     public string ReleaseUrl => $"https://github.com/owner/repo/releases/tag/v{Version}";
 
@@ -61,6 +70,7 @@ internal sealed class FakeGitHub : HttpMessageHandler
                     "draft": false, "prerelease": false, "html_url": "{{ReleaseUrl}}", "published_at": "2026-10-20T10:00:00Z",
                     "assets": [
                       { "name": "{{InstallerName}}", "size": {{Installer.Length}}, "browser_download_url": "https://example.test/{{InstallerName}}" },
+                      {{(IncludePortable ? $$"""{ "name": "{{PortableName}}", "size": {{Portable.Length}}, "browser_download_url": "https://example.test/{{PortableName}}" },""" : "")}}
                       { "name": "SHA256SUMS.txt", "size": 100, "browser_download_url": "https://example.test/SHA256SUMS.txt" } ] } ]
                 """;
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") });
@@ -69,13 +79,20 @@ internal sealed class FakeGitHub : HttpMessageHandler
         if (url == "https://example.test/SHA256SUMS.txt")
         {
             string hash = ChecksumOverride ?? Convert.ToHexStringLower(SHA256.HashData(Installer));
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent($"{hash}  {InstallerName}\n") });
+            string zipHash = ChecksumOverride ?? Convert.ToHexStringLower(SHA256.HashData(Portable));
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent($"{hash}  {InstallerName}\n{zipHash}  {PortableName}\n") });
         }
 
         if (url == $"https://example.test/{InstallerName}")
         {
             InstallerRequests++;
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(Installer) });
+        }
+
+        if (url == $"https://example.test/{PortableName}")
+        {
+            PortableRequests++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(Portable) });
         }
 
         return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
@@ -86,13 +103,28 @@ internal sealed class RecordingInstaller : IUpdateInstaller
 {
     public bool CanInstallUpdates { get; set; } = true;
 
+    public UpdatePackageKind PackageKind { get; set; } = UpdatePackageKind.Installer;
+
     public bool Result { get; set; } = true;
+
+    public bool PrepareResult { get; set; } = true;
+
+    public List<(string Path, byte[] Content)> Prepared { get; } = [];
 
     public List<(string Path, UpdateInstallOptions Options, byte[] Content)> Launches { get; } = [];
 
-    public bool LaunchInstallerAndExit(VerifiedInstaller installer, UpdateInstallOptions options)
+    public bool Prepare(VerifiedPackage package)
     {
-        Launches.Add((installer.Path, options, File.ReadAllBytes(installer.Path)));
+        using var stream = package.OpenRead();
+        var copy = new MemoryStream();
+        stream.CopyTo(copy);
+        Prepared.Add((package.Path, copy.ToArray()));
+        return PrepareResult;
+    }
+
+    public bool LaunchAndExit(VerifiedPackage package, UpdateInstallOptions options)
+    {
+        Launches.Add((package.Path, options, File.ReadAllBytes(package.Path)));
         return Result;
     }
 }
@@ -150,7 +182,7 @@ public sealed class UpdatesViewModelTests : IDisposable
             new HttpClient(_github), new PendingUpdateStore(Downloads), _trust, () => _now);
 
     [Fact]
-    public async Task AutomaticUpdate_DownloadsVerifiesAndWaits_ThenRestartInstallsIt()
+    public async Task AutomaticUpdate_DownloadsVerifiesAndWaits_ThenInstallUpdateInstallsIt()
     {
         var updates = Create();
         updates.InitializeFromDisk();
@@ -161,11 +193,12 @@ public sealed class UpdatesViewModelTests : IDisposable
 
         Assert.Equal(UpdatePhase.Ready, updates.Phase);
         Assert.True(updates.ShowBadge);
-        Assert.Equal("Restart to update", updates.BadgeText);
+        Assert.Equal("Install update", updates.BadgeText);
         Assert.Equal("Coreloom 1.1.0 is ready to install", updates.HeadlineText);
-        Assert.True(updates.ShowRestartButton);
+        Assert.True(updates.ShowInstallButton);
         Assert.Contains("next time Coreloom starts", updates.DetailText);
         Assert.Equal(1, _github.InstallerRequests);
+        Assert.Equal(0, _github.PortableRequests);
         Assert.Equal("1.1.0", new PendingUpdateStore(Downloads).LoadPending()!.Version);
         Assert.Equal("1.1.0", _trust.Load()!.Value.Version);
 
@@ -183,8 +216,9 @@ public sealed class UpdatesViewModelTests : IDisposable
         Assert.Equal("Fixed", summary.Items[2].Category);
         Assert.Null(summary.MoreText);
 
-        updates.InstallNowCommand.Execute(null);
+        await updates.InstallCommand.ExecuteAsync(null);
 
+        Assert.Equal(_github.Installer, Assert.Single(_installer.Prepared).Content);
         var launch = Assert.Single(_installer.Launches);
         Assert.Equal(Path.Combine(Downloads, _github.InstallerName), launch.Path);
         Assert.Equal(UpdateInstallOptions.Interactive, launch.Options);
@@ -194,7 +228,7 @@ public sealed class UpdatesViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task AutomaticUpdatesOff_OnlyAnnounces_UntilTheUserDownloads()
+    public async Task AutomaticUpdatesOff_OnlyAnnounces_UntilInstallUpdateDownloadsAndInstallsIt()
     {
         var updates = Create(Settings(s => s.Updates.AutoInstall = false));
         var notes = new List<UpdateNotification>();
@@ -206,14 +240,19 @@ public sealed class UpdatesViewModelTests : IDisposable
         Assert.Equal(0, _github.InstallerRequests);
         Assert.True(updates.ShowBadge);
         Assert.Equal("Update available", updates.BadgeText);
-        Assert.True(updates.ShowDownloadButton);
+        Assert.True(updates.ShowInstallButton);
+        Assert.Contains("closes Coreloom for a moment", updates.DetailText);
         Assert.Equal("Coreloom 1.1.0 is available", Assert.Single(notes).Title);
-
-        await updates.DownloadCommand.ExecuteAsync(null);
-
-        Assert.Equal(UpdatePhase.Ready, updates.Phase);
-        Assert.Equal("Restart Coreloom to install it.", updates.DetailText);
         Assert.False(updates.TryInstallAtStartup(startHidden: false)); // nothing installs by itself while it's off
+
+        await updates.InstallCommand.ExecuteAsync(null); // one click: download, verify, install
+
+        Assert.Equal(1, _github.InstallerRequests);
+        Assert.Equal(UpdatePhase.Installing, updates.Phase);
+        var launch = Assert.Single(_installer.Launches);
+        Assert.Equal(UpdateInstallOptions.Interactive, launch.Options);
+        Assert.Equal(_github.Installer, launch.Content);
+        Assert.Single(notes); // no "ready to install" toast for an update that installs right away
     }
 
     [Fact]
@@ -230,22 +269,78 @@ public sealed class UpdatesViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task PortableCopy_IsToldAboutUpdates_AndSentToGitHub()
+    public async Task PortableCopy_DownloadsThePortableZip_AndInstallsItInPlace()
     {
-        _installer.CanInstallUpdates = false;
+        _installer.PackageKind = UpdatePackageKind.PortableZip;
+        var settings = Settings();
+        var updates = Create(settings);
+        updates.InitializeFromDisk();
+
+        await updates.CheckAsync(userInitiated: false);
+
+        Assert.Equal(UpdatePhase.Ready, updates.Phase);
+        Assert.True(updates.ShowInstallButton);
+        Assert.Equal(1, _github.PortableRequests);
+        Assert.Equal(0, _github.InstallerRequests);
+        Assert.Equal(_github.PortableName, new PendingUpdateStore(Downloads).LoadPending()!.InstallerFileName);
+
+        // A restart keeps the downloaded zip, and the next start installs it.
+        var nextStart = Create(settings);
+        nextStart.InitializeFromDisk();
+        Assert.Equal(UpdatePhase.Ready, nextStart.Phase);
+        Assert.True(nextStart.TryInstallAtStartup(startHidden: false));
+
+        var prepared = Assert.Single(_installer.Prepared);
+        Assert.Equal(Path.Combine(Downloads, _github.PortableName), prepared.Path);
+        Assert.Equal(_github.Portable, prepared.Content);
+        Assert.Equal(UpdateInstallOptions.Interactive, Assert.Single(_installer.Launches).Options);
+        Assert.Empty(_shell.OpenedUrls); // never sent to GitHub
+    }
+
+    [Fact]
+    public async Task ADownloadForAnotherKindOfCopy_IsDiscarded()
+    {
+        var settings = Settings();
+        await Create(settings).CheckAsync(userInitiated: false); // downloaded the installer...
+
+        _installer.PackageKind = UpdatePackageKind.PortableZip; // ...but this copy installs from the zip
+        var updates = Create(settings);
+        updates.InitializeFromDisk();
+
+        Assert.Equal(UpdatePhase.Idle, updates.Phase);
+        Assert.Null(new PendingUpdateStore(Downloads).LoadPending());
+        Assert.False(updates.TryInstallAtStartup(startHidden: false));
+    }
+
+    [Fact]
+    public async Task AnUpdateThatCantBeUnpacked_StaysReady_AndExplains()
+    {
+        _installer.PackageKind = UpdatePackageKind.PortableZip;
+        _installer.PrepareResult = false;
+        var updates = Create();
+        await updates.CheckAsync(userInitiated: false);
+
+        await updates.InstallCommand.ExecuteAsync(null);
+
+        Assert.Single(_installer.Prepared);
+        Assert.Empty(_installer.Launches);
+        Assert.Equal(UpdatePhase.Ready, updates.Phase);
+        Assert.Contains("couldn't be unpacked", updates.DetailText);
+    }
+
+    [Fact]
+    public async Task AReleaseWithoutThePackageThisCopyNeeds_Explains()
+    {
+        _installer.PackageKind = UpdatePackageKind.PortableZip;
+        _github.IncludePortable = false;
         var updates = Create();
 
         await updates.CheckAsync(userInitiated: false);
 
         Assert.Equal(UpdatePhase.Available, updates.Phase);
-        Assert.True(updates.ShowGetFromGitHubButton);
-        Assert.False(updates.ShowDownloadButton);
-        Assert.Contains("can't update itself", updates.DetailText);
-
-        await updates.DownloadCommand.ExecuteAsync(null);
-
-        Assert.Equal(_github.ReleaseUrl, Assert.Single(_shell.OpenedUrls));
+        Assert.Contains("doesn't include the portable zip", updates.DetailText);
         Assert.Equal(0, _github.InstallerRequests);
+        Assert.Equal(0, _github.PortableRequests);
     }
 
     [Fact]
@@ -297,7 +392,7 @@ public sealed class UpdatesViewModelTests : IDisposable
         Assert.False(afterFailure.TryInstallAtStartup(startHidden: false));
         Assert.Empty(_installer.Launches);
 
-        afterFailure.InstallNowCommand.Execute(null); // the user can still try again
+        await afterFailure.InstallCommand.ExecuteAsync(null); // the user can still try again
         Assert.Single(_installer.Launches);
     }
 

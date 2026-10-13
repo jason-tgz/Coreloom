@@ -52,12 +52,13 @@ installs drivers or services, and never sends your data anywhere.
 - **Alerts.** Per-metric rules with a sustain time, hysteresis and a cooldown, delivered as Windows
   notifications.
 - **Automatic updates.** New versions come from GitHub Releases with no token needed.
-  - Installed copies download updates in the background and install them the next time Coreloom starts, while
-    the PC is idle, or right away with *Restart to update*. *Settings → Updates* has *Check for updates*, the
+  - Installed and portable copies alike download updates in the background and install them the next time
+    Coreloom starts, while the PC is idle, or right away with *Install update*, which closes Coreloom, installs
+    the new version over the old one and opens it again. *Settings → Updates* has *Check for updates*, the
     on/off switch and a short *What's new* summary of each release.
   - A badge in the sidebar and a notification say when a new version is available or ready.
-  - Downloads can resume and are SHA-256 verified before anything runs; the installer replaces files only after
-    Coreloom has exited.
+  - Downloads can resume and are SHA-256 verified before anything runs. Files are replaced only after Coreloom
+    has exited, by the installer or (portable copies) by the new version, and a failed update is rolled back.
 - **Low overhead.** Coreloom polls on a dedicated thread and does no UI work while minimized. It measures its
   own CPU and memory use and shows them in *Settings › Diagnostics*.
 
@@ -102,7 +103,7 @@ Download from the [Releases](../../releases) page:
   - Adds a Start menu entry.
   - Updates in place from inside Coreloom.
 - **`Coreloom-x.y.z-win-x64-Portable.zip`**: unzip anywhere and run `Coreloom.exe`. Settings and logs stay in a
-  `Data` folder next to it.
+  `Data` folder next to it. Updates in place from inside Coreloom too (the `Data` folder is kept).
 
 To verify a download, run the following and compare the result with `SHA256SUMS.txt` from the same
 release:

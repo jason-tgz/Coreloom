@@ -128,6 +128,25 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | Optional `pc.png` | Code review; loader decodes once, size-capped, errors fall back to the drawing | Loading a real file on Windows |
 | GPU specifications beside VRAM, sensors in two columns | Split logic unit-tested; XAML checks | The final look at your window size, and the wheel hand-off from the inner list to the page |
 
+### Install update for every copy (after 1.1.0)
+
+- **Core tests: 269 passed** (241 before, plus 28: `FolderUpdate` staging, applying and cleaning up, keeping `Data`
+  and `portable.txt`, zips with a top folder, unsafe paths and non-Coreloom zips refused with nothing left behind,
+  a failed copy undone file by file, links planted in the work folder, the helper's location and arguments, and
+  picking the installer or the zip per kind of copy).
+- **View-model tests: 53 passed** (50 before, plus 3, and the update tests rewritten for *Install update*: one click
+  downloads, verifies and installs; portable copies download the zip and install in place; a download for the
+  other kind of copy is discarded; an update that can't be unpacked stays ready and explains; a release without
+  the needed package explains).
+- **`Coreloom.App` compiles** against the WPF reference assembly with the helper mode, the per-copy registry key and
+  the new Settings card: 0 errors, 0 warnings. **XAML checks passed** (16 files, 153 keys, 453 bindings).
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| *Install update* (download if needed → install → reopen) | View-model tests against a fake GitHub | The whole round trip on Windows |
+| In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
+| Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
+
 ## Not verified yet (needs Windows and the real hardware)
 
 None of the following has been confirmed by the author. Don't treat any of it as working until the checklist in
