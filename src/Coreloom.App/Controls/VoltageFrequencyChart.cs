@@ -14,8 +14,10 @@ namespace Coreloom.App.Controls;
 /// </summary>
 public sealed class VoltageFrequencyChart : FrameworkElement
 {
+    // Typed as a list, not an array: the XAML compiler rejects array-typed properties inside templates
+    // ("Tags of type 'PropertyArrayStart' are not supported in template sections"), and this chart lives in one.
     public static readonly DependencyProperty PointsProperty = DependencyProperty.Register(
-        nameof(Points), typeof(VoltageFrequencyPoint[]), typeof(VoltageFrequencyChart),
+        nameof(Points), typeof(IReadOnlyList<VoltageFrequencyPoint>), typeof(VoltageFrequencyChart),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty CurrentClockProperty = DependencyProperty.Register(
@@ -49,9 +51,9 @@ public sealed class VoltageFrequencyChart : FrameworkElement
         Unloaded += (_, _) => Detach();
     }
 
-    public VoltageFrequencyPoint[]? Points
+    public IReadOnlyList<VoltageFrequencyPoint>? Points
     {
-        get => (VoltageFrequencyPoint[]?)GetValue(PointsProperty);
+        get => (IReadOnlyList<VoltageFrequencyPoint>?)GetValue(PointsProperty);
         set => SetValue(PointsProperty, value);
     }
 
@@ -80,7 +82,7 @@ public sealed class VoltageFrequencyChart : FrameworkElement
         var points = Points;
         double width = ActualWidth;
         double height = ActualHeight;
-        if (points is null || points.Length == 0 || width < 160 || height < 100)
+        if (points is null || points.Count == 0 || width < 160 || height < 100)
         {
             return;
         }
@@ -141,18 +143,18 @@ public sealed class VoltageFrequencyChart : FrameworkElement
         }
 
         // Band between the lowest and highest voltage seen at each clock.
-        if (points.Length > 1)
+        if (points.Count > 1)
         {
             var band = new StreamGeometry();
             using (var ctx = band.Open())
             {
                 ctx.BeginFigure(new Point(X(points[0].ClockMhz), Y(points[0].MaxVolts * 1000)), isFilled: true, isClosed: true);
-                for (int i = 1; i < points.Length; i++)
+                for (int i = 1; i < points.Count; i++)
                 {
                     ctx.LineTo(new Point(X(points[i].ClockMhz), Y(points[i].MaxVolts * 1000)), isStroked: false, isSmoothJoin: false);
                 }
 
-                for (int i = points.Length - 1; i >= 0; i--)
+                for (int i = points.Count - 1; i >= 0; i--)
                 {
                     ctx.LineTo(new Point(X(points[i].ClockMhz), Y(points[i].MinVolts * 1000)), isStroked: false, isSmoothJoin: false);
                 }
@@ -165,7 +167,7 @@ public sealed class VoltageFrequencyChart : FrameworkElement
             using (var ctx = mean.Open())
             {
                 ctx.BeginFigure(new Point(X(points[0].ClockMhz), Y(points[0].MeanVolts * 1000)), isFilled: false, isClosed: false);
-                for (int i = 1; i < points.Length; i++)
+                for (int i = 1; i < points.Count; i++)
                 {
                     ctx.LineTo(new Point(X(points[i].ClockMhz), Y(points[i].MeanVolts * 1000)), isStroked: true, isSmoothJoin: false);
                 }
@@ -175,7 +177,7 @@ public sealed class VoltageFrequencyChart : FrameworkElement
             dc.DrawGeometry(null, ChartColors.Pen(color, 2), mean);
         }
 
-        if (points.Length <= 90)
+        if (points.Count <= 90)
         {
             var fill = ChartColors.Solid(color);
             foreach (var p in points)

@@ -15,6 +15,7 @@ catch the common mistakes earlier and on any OS:
     or is a known WPF property (catches typos, not type mismatches)
   * icon keys referenced from view models exist, and pack URIs point at files embedded as Resource
   * windows that run on their own UI thread (the splash) never reference App.xaml resources
+  * no array-typed dependency properties (the XAML compiler rejects them inside templates)
 
 Usage: python3 build/check-xaml.py            (exit code 1 when problems are found)
 """
@@ -226,6 +227,18 @@ def main() -> int:
         for key in markup_refs(text, "DynamicResource"):
             if key not in all_keys and key not in local_keys:
                 problems.add(path, f"DynamicResource '{key}' is not defined anywhere (and not created by ThemeService)")
+
+    # ---- array-typed dependency properties ------------------------------------------------------
+    # The XAML compiler rejects array-typed properties inside DataTemplate/ControlTemplate sections ("Tags of type
+    # 'PropertyArrayStart' are not supported in template sections"), even when the value is a {Binding}. Custom
+    # controls therefore expose IReadOnlyList<T> (an array still binds to it).
+    for cs_path in sorted(APP.rglob("*.cs")):
+        if "/obj/" in str(cs_path) or "/bin/" in str(cs_path):
+            continue
+        cs_text = cs_path.read_text(encoding="utf-8")
+        for match in re.finditer(r"DependencyProperty\.Register(?:Attached)?\s*\(\s*(?:nameof\((\w+)\)|\"(\w+)\")\s*,\s*typeof\(([^()]*?\[\])\)", cs_text):
+            name = match.group(1) or match.group(2)
+            problems.add(cs_path, f"dependency property '{name}' is array-typed ({match.group(3)}); use IReadOnlyList<T> so it can be set inside templates")
 
     # ---- windows on their own UI thread --------------------------------------------------------
     for path in VIEWS:

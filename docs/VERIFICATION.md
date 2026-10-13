@@ -44,6 +44,13 @@ on the owner's PC: the CI build is green, and after the last fix the owner repor
 runs without errors. That settles that the XAML compiles and the app launches. It does **not** settle sensor
 accuracy, overhead, or the details below, and none of it was observed by the author.
 
+The first CI run with the vendor-mark, tuning and splash changes (run #6) failed in the Windows job's XAML compile:
+"Tags of type 'PropertyArrayStart' are not supported in template sections" at `Templates.xaml` line 522. The tuning
+chart's `Points` property was array-typed, which WPF can't set inside a template. It is now `IReadOnlyList<T>`, and
+`check-xaml.py` flags array-typed dependency properties. The errors reached that compile stage, which runs after
+the C# has been compiled into a temporary assembly, so the C# in those changes compiled on Windows. Whether the
+remaining XAML compiles is confirmed only by the next green run.
+
 ## Changes in this version and what backs them
 
 | Change | What was done here | Not verified here |
