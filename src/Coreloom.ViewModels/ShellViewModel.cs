@@ -78,12 +78,6 @@ public sealed class ShellViewModel : ObservableObject
 
         Pages = [Overview, Gpu, Cpu, Memory, Storage, Network, History];
         _currentPage = Overview;
-        Overview.CustomizeRequested += () =>
-        {
-            Settings.SelectedSection = "Dashboard";
-            Navigate(Settings);
-        };
-
         NavigateCommand = new RelayCommand<PageViewModel>(page =>
         {
             if (page is not null)

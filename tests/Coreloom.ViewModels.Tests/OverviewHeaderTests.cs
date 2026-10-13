@@ -249,3 +249,55 @@ public class SensorColumnsTests
             .Select(i => new SensorRowViewModel(new MetricDescriptor($"{name}/{i}", $"{name} {i}", MetricCategory.Gpu, MetricKind.Temperature)))
             .ToArray());
 }
+
+public class DashboardEditorTests
+{
+    [Fact]
+    public void Customize_OpensOnTheOverview_AndCloses()
+    {
+        var (monitor, settings, _) = Fixture.Create();
+        var overview = new OverviewViewModel(Fixture.Context(monitor, settings));
+        Assert.False(overview.Customize.IsOpen);
+
+        overview.CustomizeCommand.Execute(null);
+        Assert.True(overview.Customize.IsOpen);
+        Assert.Equal(settings.Current.Dashboard.Cards.Count, overview.Customize.Cards.Count);
+        Assert.Same(overview.Specs, overview.Customize.Specs); // the lighting colors are in the same card
+
+        overview.Customize.CloseCommand.Execute(null);
+        Assert.False(overview.Customize.IsOpen);
+        settings.Dispose();
+    }
+
+    [Fact]
+    public void Edits_ApplyToTheDashboardRightAway()
+    {
+        var (monitor, settings, _) = Fixture.Create();
+        var overview = new OverviewViewModel(Fixture.Context(monitor, settings));
+        settings.Changed += overview.OnSettingsChanged; // as the shell does for every page
+        overview.CustomizeCommand.Execute(null);
+        var editor = overview.Customize;
+
+        editor.Cards.First(c => c.Id == DashboardCatalog.GpuPower).IsVisible = false;
+        Assert.DoesNotContain(overview.SummaryCards, c => c.Id == DashboardCatalog.GpuPower);
+        Assert.False(settings.Current.Dashboard.Cards.First(c => c.Id == DashboardCatalog.GpuPower).Visible);
+
+        var cpu = editor.Cards.First(c => c.Id == DashboardCatalog.CpuLoad);
+        while (editor.Cards.IndexOf(cpu) > 0)
+        {
+            cpu.MoveUpCommand.Execute(null);
+        }
+
+        Assert.Equal(DashboardCatalog.CpuLoad, overview.SummaryCards[0].Id);
+        Assert.Equal(DashboardCatalog.CpuLoad, settings.Current.Dashboard.Cards[0].Id);
+
+        editor.ShowStatistics = false;
+        Assert.False(settings.Current.Dashboard.ShowStatistics);
+        Assert.False(overview.ShowStatisticsOnCards);
+
+        editor.ResetLayoutCommand.Execute(null);
+        Assert.Equal<string>(DashboardCatalog.Defaults().Select(c => c.Id), editor.Cards.Select(c => c.Id));
+        Assert.Contains(overview.SummaryCards, c => c.Id == DashboardCatalog.GpuPower);
+        settings.Dispose();
+    }
+}

@@ -7,6 +7,25 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.2.6] - 2026-10-13
+
+Customizing the Overview now happens right on the Overview.
+
+### Highlights
+
+- **Customize in place.** *Customize* opens a card over the Overview instead of taking you to Settings. Pick the PC's lighting, show, hide and reorder cards, and watch the dashboard change behind it.
+- **Lighting moved into Customize.** The glow colors (blue, purple, red, green, rainbow or your accent) now sit in the *PC lighting* section of the Customize card, so the header is cleaner.
+
+### In detail
+
+- Close the card with its X, *Done*, Esc or a click outside it. Every change is saved as you make it.
+- *Reset layout* brings back every card and panel in the default order.
+- The *Dashboard* section in Settings is gone; everything it had is in the Customize card.
+
+### Feedback
+
+Found a bug or a sensor that reads wrong? [Open an issue](https://github.com/jerryubah/Coreloom/issues) and attach a CoreloomDiag report.
+
 ## [1.2.5] - 2026-10-13
 
 The PC on the Overview gets a premium new look: pick its glow color and watch its fans turn with yours.

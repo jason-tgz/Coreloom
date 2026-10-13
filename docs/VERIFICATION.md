@@ -147,6 +147,15 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.2.6: Customize as a card on the Overview
+
+- **View-model tests: 67 passed** (2 new: the card opens and closes on the Overview and shares the lighting colors;
+  hiding, reordering, the min/max/avg switch and *Reset layout* apply to the dashboard immediately and are saved).
+  Core tests: 270 passed.
+- **`Coreloom.App` compiles** against the WPF reference assembly (0 errors, 0 warnings); **XAML checks passed** (16
+  files, 154 keys, 468 bindings).
+- Not verified here: the card's look and its fade-in on Windows, focus and Esc handling, and the drop shadow's cost.
+
 ### 1.2.5: the rendered PC, glow colors and turning fans
 
 - **Core tests: 270 passed** (one new: the glow setting's default, repair of unknown values and its JSON round trip).

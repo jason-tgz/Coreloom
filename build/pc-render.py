@@ -242,25 +242,20 @@ def text_xaml() -> str:
 PAGE = r'''<UserControl x:Class="Coreloom.App.Views.PcIllustration"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:pages="clr-namespace:Coreloom.ViewModels.Pages;assembly=Coreloom.ViewModels"
              AutomationProperties.Name="Picture of this PC"
              Focusable="False">
 
   <!--
     The PC in the Overview header (bound to SystemSummaryViewModel): a render split into layers by
     build/pc-render.py, which also writes this file (edit the script and regenerate rather than editing it). The base
-    picture has its glow taken out; the glow layer is filled with the chosen color (or cycles for Rainbow); each fan's
-    blades turn at a speed that follows the PC's fans; the pump screen and the card show live text.
+    picture has its glow taken out; the glow layer is filled with the color chosen under Customize (or cycles for
+    Rainbow); each fan's blades turn at a speed that follows the PC's fans; the pump screen and the card show live
+    text.
 
     A render or photo of the real build can replace it: pc.png in %AppData%\Coreloom (or Data next to a portable copy)
     or in assets/pc/ at build time. See assets/pc/README.md.
   -->
   <Grid>
-    <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="*" />
-      <ColumnDefinition Width="Auto" />
-    </Grid.ColumnDefinitions>
-
     <Grid x:Name="Picture" Background="Transparent" ToolTip="{Binding FanToolTip}" ToolTipService.InitialShowDelay="900">
       <Viewbox x:Name="Art" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality">
         <Grid Width="{width}" Height="{height}">
@@ -284,51 +279,6 @@ PAGE = r'''<UserControl x:Class="Coreloom.App.Views.PcIllustration"
       </Viewbox>
       <Image x:Name="CustomImage" Stretch="Uniform" Visibility="Collapsed" RenderOptions.BitmapScalingMode="HighQuality" />
     </Grid>
-
-    <!-- Lighting color -->
-    <ItemsControl x:Name="GlowPicker" Grid.Column="1" ItemsSource="{Binding GlowOptions}" VerticalAlignment="Center" Margin="4,0,0,0"
-                  Focusable="False" AutomationProperties.Name="Lighting color">
-      <ItemsControl.ItemTemplate>
-        <DataTemplate DataType="{x:Type pages:GlowOptionViewModel}">
-          <Button Width="22" Height="22" Margin="0,1" Cursor="Hand" ToolTip="{Binding Name}" AutomationProperties.Name="{Binding Name}"
-                  Command="{Binding DataContext.SelectGlowCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                  CommandParameter="{Binding}">
-            <Button.Template>
-              <ControlTemplate TargetType="Button">
-                <Grid Background="Transparent">
-                  <Ellipse StrokeThickness="1.5" Stroke="{DynamicResource Brush.Text}"
-                           Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}" />
-                  <Grid x:Name="Dot" Margin="6">
-                    <Ellipse Fill="{Binding Hex, Converter={StaticResource HexToBrush}}" />
-                    <Ellipse Visibility="{Binding IsRainbow, Converter={StaticResource BoolToVisibility}}">
-                      <Ellipse.Fill>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                          <GradientStop Offset="0" Color="#FF2933" />
-                          <GradientStop Offset="0.25" Color="#FFC21A" />
-                          <GradientStop Offset="0.5" Color="#1AD96B" />
-                          <GradientStop Offset="0.75" Color="#0D6BFF" />
-                          <GradientStop Offset="1" Color="#9E4DFF" />
-                        </LinearGradientBrush>
-                      </Ellipse.Fill>
-                    </Ellipse>
-                    <Ellipse Fill="{DynamicResource Brush.Accent}" Visibility="{Binding IsAccent, Converter={StaticResource BoolToVisibility}}" />
-                    <Ellipse Stroke="#40FFFFFF" StrokeThickness="1" Visibility="{Binding IsAccent, Converter={StaticResource BoolToVisibility}}" />
-                  </Grid>
-                </Grid>
-                <ControlTemplate.Triggers>
-                  <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Dot" Property="Margin" Value="5" />
-                  </Trigger>
-                  <Trigger Property="IsKeyboardFocused" Value="True">
-                    <Setter TargetName="Dot" Property="Margin" Value="5" />
-                  </Trigger>
-                </ControlTemplate.Triggers>
-              </ControlTemplate>
-            </Button.Template>
-          </Button>
-        </DataTemplate>
-      </ItemsControl.ItemTemplate>
-    </ItemsControl>
   </Grid>
 </UserControl>
 '''

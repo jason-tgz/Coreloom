@@ -121,7 +121,6 @@ public partial class PcIllustration : UserControl
         CustomImage.Source = image;
         CustomImage.Visibility = _custom ? Visibility.Visible : Visibility.Collapsed;
         Art.Visibility = _custom ? Visibility.Collapsed : Visibility.Visible;
-        GlowPicker.Visibility = _custom ? Visibility.Collapsed : Visibility.Visible; // a photo has its own lighting
         if (_custom)
         {
             Picture.ToolTip = null; // the fan readings don't describe a still picture

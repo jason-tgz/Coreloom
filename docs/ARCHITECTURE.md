@@ -99,7 +99,7 @@ layer calls Windows sensor APIs, so most of the logic is testable on any OS.
 
 `SystemSummaryViewModel` (owned by `OverviewViewModel`) holds the board name (title), the graphics card (subtitle), two
 columns of specs and what the PC picture needs: the card's model badge, the pump-screen text, the lighting color
-(`PcGlow`, saved in `Dashboard.PcGlow`) and the fans' speeds. `SystemDescriptions` (Core, unit-tested) turns raw SMBIOS
+(`PcGlow`, saved in `Dashboard.PcGlow` and picked in the Customize card) and the fans' speeds. `SystemDescriptions` (Core, unit-tested) turns raw SMBIOS
 and driver strings into readable ones: board vendor names ("ASUSTeK COMPUTER INC." → "ASUS"), the memory line, the
 model badge and whether the card is discrete (integrated graphics get no badge).
 
@@ -127,7 +127,13 @@ are no jumps. Clocks exist only while the picture is visible (not on another pag
 Reduce motion on); otherwise they are removed and the blades keep their angle, so a hidden Overview renders nothing.
 
 `pc.png`/`pc.jpg` in the settings folder, or `assets/pc/pc.png` embedded at build time, replaces the picture
-(`PcImages`, decoded once at most 800 px wide); the color picker is hidden then.
+(`PcImages`, decoded once at most 800 px wide); the lighting color doesn't apply to it.
+
+**Customize** is a card over the Overview (`DashboardEditorViewModel`, owned by `OverviewViewModel`): the lighting
+color, the min/max/avg switch, and which cards and panels show in what order. Every change goes through
+`SettingsService.Update("Dashboard", …)`, so the shell's settings fan-out re-lays out the dashboard behind the card
+immediately. It closes with its X, *Done*, Esc or a click on the scrim (`Brush.Scrim`). Settings no longer has a
+Dashboard section.
 
 ## Sensor columns and nested scrolling
 

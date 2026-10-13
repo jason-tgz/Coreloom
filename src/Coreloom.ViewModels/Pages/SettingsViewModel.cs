@@ -18,46 +18,6 @@ public sealed record Option<T>(T Value, string Label) : StaticRecord;
 
 public sealed record AccentOption(string Name, string Hex) : StaticRecord;
 
-/// <summary>Dashboard card visibility/order editor row.</summary>
-public sealed class DashboardCardSettingViewModel : ObservableObject
-{
-    private readonly SettingsViewModel _owner;
-    private bool _isVisible;
-
-    public DashboardCardSettingViewModel(SettingsViewModel owner, string id, bool visible)
-    {
-        _owner = owner;
-        Id = id;
-        _isVisible = visible;
-        Name = DashboardCatalog.NameOf(id);
-        Kind = DashboardCatalog.IsSummary(id) ? "Summary card" : "Panel";
-        MoveUpCommand = new RelayCommand(() => _owner.MoveCard(this, -1));
-        MoveDownCommand = new RelayCommand(() => _owner.MoveCard(this, +1));
-    }
-
-    public string Id { get; }
-
-    public string Name { get; }
-
-    public string Kind { get; }
-
-    public bool IsVisible
-    {
-        get => _isVisible;
-        set
-        {
-            if (SetProperty(ref _isVisible, value))
-            {
-                _owner.SaveCards();
-            }
-        }
-    }
-
-    public IRelayCommand MoveUpCommand { get; }
-
-    public IRelayCommand MoveDownCommand { get; }
-}
-
 /// <summary>Editable alert rule. Thresholds are shown in display units (°F when selected) and stored in base units.</summary>
 public sealed class AlertRuleViewModel : ObservableObject
 {
@@ -282,7 +242,6 @@ public sealed class SettingsViewModel : PageViewModel
                 OnPropertyChanged(nameof(CustomAccent));
             }
         });
-        ResetLayoutCommand = new RelayCommand(ResetLayout);
         AddRuleCommand = new RelayCommand<AlertMetricOption>(AddRule);
         ExportReportCommand = new RelayCommand(ExportReport);
         OpenLogsCommand = new RelayCommand(() => _deps.Shell.OpenFolder(_deps.Diagnostics.LogDirectory));
@@ -293,13 +252,12 @@ public sealed class SettingsViewModel : PageViewModel
         SelectSectionCommand = new RelayCommand<string>(s => SelectedSection = s);
         OpenNoticesCommand = new RelayCommand(() => _deps.Shell.OpenFile(Path.Combine(AppContext.BaseDirectory, "THIRD-PARTY-NOTICES.md")));
 
-        LoadCards();
         LoadRules();
     }
 
     // ---- Navigation within settings ----------------------------------------------------------
 
-    public IReadOnlyList<string> Sections { get; } = ["Appearance", "Monitoring", "Dashboard", "Desktop", "Alerts", "Updates", "Diagnostics", "About"];
+    public IReadOnlyList<string> Sections { get; } = ["Appearance", "Monitoring", "Desktop", "Alerts", "Updates", "Diagnostics", "About"];
 
     public string? SelectedSection
     {
@@ -490,51 +448,6 @@ public sealed class SettingsViewModel : PageViewModel
     }
 
     public IRelayCommand RestartCommand { get; }
-
-    // ---- Dashboard -------------------------------------------------------------------------------
-
-    public ObservableCollection<DashboardCardSettingViewModel> Cards { get; } = [];
-
-    public bool ShowStatisticsSetting
-    {
-        get => Settings.Current.Dashboard.ShowStatistics;
-        set => Change("Dashboard", s => s.Dashboard.ShowStatistics = value);
-    }
-
-    public IRelayCommand ResetLayoutCommand { get; }
-
-    internal void MoveCard(DashboardCardSettingViewModel card, int delta)
-    {
-        int index = Cards.IndexOf(card);
-        int target = index + delta;
-        if (index < 0 || target < 0 || target >= Cards.Count)
-        {
-            return;
-        }
-
-        Cards.Move(index, target);
-        SaveCards();
-    }
-
-    internal void SaveCards()
-    {
-        Settings.Update("Dashboard", s => s.Dashboard.Cards = Cards.Select(c => new DashboardCardSetting { Id = c.Id, Visible = c.IsVisible }).ToList());
-    }
-
-    private void LoadCards()
-    {
-        Cards.Clear();
-        foreach (var card in Settings.Current.Dashboard.Cards)
-        {
-            Cards.Add(new DashboardCardSettingViewModel(this, card.Id, card.Visible));
-        }
-    }
-
-    private void ResetLayout()
-    {
-        Settings.Update("Dashboard", s => s.Dashboard.Cards = DashboardCatalog.Defaults());
-        LoadCards();
-    }
 
     // ---- Desktop ---------------------------------------------------------------------------------
 
@@ -839,7 +752,6 @@ public sealed class SettingsViewModel : PageViewModel
     {
         if (section == "All")
         {
-            LoadCards();
             LoadRules();
             OnPropertyChanged(string.Empty);
         }

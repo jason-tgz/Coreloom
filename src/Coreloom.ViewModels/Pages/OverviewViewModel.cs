@@ -281,7 +281,8 @@ public sealed class OverviewViewModel : PageViewModel
         _panels[DashboardCatalog.StorageDonut] = _storage;
         _panels[DashboardCatalog.Network] = _network;
 
-        CustomizeCommand = new RelayCommand(() => CustomizeRequested?.Invoke());
+        Customize = new DashboardEditorViewModel(Settings, Specs);
+        CustomizeCommand = Customize.OpenCommand;
         ApplyLayout();
 
         Specs.LoadGlow(Settings.Current.Dashboard.PcGlow);
@@ -289,14 +290,15 @@ public sealed class OverviewViewModel : PageViewModel
         Specs.GlowChanged += glow => Settings.Update("Dashboard", s => s.Dashboard.PcGlow = glow);
     }
 
-    /// <summary>Raised when the user wants to edit the dashboard (the shell opens Settings › Dashboard).</summary>
-    public event Action? CustomizeRequested;
-
     public ObservableCollection<SummaryCardViewModel> SummaryCards { get; } = [];
 
     public ObservableCollection<DashboardPanelViewModel> Panels { get; } = [];
 
+    /// <summary>Opens the Customize card on the Overview.</summary>
     public IRelayCommand CustomizeCommand { get; }
+
+    /// <summary>The Customize card: lighting color, cards and their order.</summary>
+    public DashboardEditorViewModel Customize { get; }
 
     public bool ShowStatisticsOnCards => ShowStatistics;
 
@@ -316,6 +318,11 @@ public sealed class OverviewViewModel : PageViewModel
             _cards[DashboardCatalog.GpuTemperature].Metric.Thresholds = gpuTemp;
             ApplyLayout();
             OnPropertyChanged(nameof(ShowStatisticsOnCards));
+        }
+
+        if (section == "All")
+        {
+            Customize.Reload();
         }
     }
 

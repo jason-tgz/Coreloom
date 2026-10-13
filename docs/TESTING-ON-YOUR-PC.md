@@ -133,8 +133,10 @@ Work through each area and tick what works.
       driver, Windows version and BIOS. Values match *Settings → Diagnostics* and Task Manager.
 - [ ] The PC picture shows your GPU model on the card and the CPU temperature on the pump screen, both crisp and
       sitting where the render's text was.
-- [ ] The dots beside the picture change the glow: Blue, Purple, Red, Green, Rainbow (cycles slowly through the
-      colors) and Accent color (follows *Settings → Appearance*). The choice is kept after a restart.
+- [ ] *Customize* opens a card over the Overview (no page change). Its *PC lighting* swatches change the glow behind
+      it: Blue, Purple, Red, Green, Rainbow (cycles slowly through the colors) and Accent color (follows *Settings →
+      Appearance*). The choice is kept after a restart.
+- [ ] The card closes with its X, *Done*, Esc or a click outside it.
 - [ ] The fans turn. Hover the picture: the tooltip says which fan readings they follow. Speed up your fans (a stress
       test or a fan curve) and the picture's fans speed up within a few seconds, their blades blurring more as they go
       faster. Without fan readings the tooltip says so and the fans idle.
@@ -145,7 +147,9 @@ Work through each area and tick what works.
 - [ ] Narrow the window: the two spec columns stack into one and nothing overlaps.
 - [ ] The six cards show live values with gauges and sparklines.
 - [ ] The numbers match the NVIDIA overlay and Task Manager within the usual tolerances.
-- [ ] *Customize* (or *Settings → Dashboard*): hiding and reordering cards persists after a restart.
+- [ ] *Customize*: hiding and reordering cards and the min/max/avg switch update the dashboard behind the card right
+      away and persist after a restart. *Reset layout* brings back every card in the default order. *Settings* no
+      longer has a *Dashboard* section.
 
 **Detail pages**
 
