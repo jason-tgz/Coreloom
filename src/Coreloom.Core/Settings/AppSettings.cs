@@ -68,6 +68,11 @@ public sealed class AppSettings
         }
 
         Dashboard.Cards = DashboardCatalog.Normalize(Dashboard.Cards);
+        if (!Enum.IsDefined(Dashboard.PcGlow))
+        {
+            Dashboard.PcGlow = PcGlow.Blue;
+        }
+
         Alerts.CooldownMinutes = Math.Clamp(Alerts.CooldownMinutes, 1, 24 * 60);
         Alerts.Rules ??= AlertSettings.DefaultRules();
         foreach (var rule in Alerts.Rules)
@@ -164,6 +169,24 @@ public sealed class DashboardSettings
     public List<DashboardCardSetting> Cards { get; set; } = DashboardCatalog.Defaults();
 
     public bool ShowStatistics { get; set; } = true;
+
+    /// <summary>Lighting color of the PC picture in the Overview header.</summary>
+    public PcGlow PcGlow { get; set; } = PcGlow.Blue;
+}
+
+/// <summary>Lighting colors for the PC picture in the Overview header.</summary>
+public enum PcGlow
+{
+    Blue,
+    Purple,
+    Red,
+    Green,
+
+    /// <summary>Slowly cycles through the colors.</summary>
+    Rainbow,
+
+    /// <summary>Follows the app's accent color.</summary>
+    Accent,
 }
 
 public sealed class DashboardCardSetting

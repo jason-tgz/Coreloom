@@ -1,9 +1,9 @@
 # Picture of your PC (optional)
 
 The Overview page opens with a header for this PC: the motherboard name, the graphics card and the key specs, next
-to a picture of the build. By default that picture is a **drawn illustration** that follows the detected hardware
-(two or four memory sticks, a large or medium graphics card with its model name, the CPU temperature on the pump
-screen) and lights up in your accent color. It contains no brand logos or product photos.
+to a picture of the build. By default that picture is Coreloom's PC render (see `assets/pc-render/`): it shows your
+graphics card's model and the CPU temperature, glows in the color you pick next to it, and its fans turn with your
+PC's fan speeds.
 
 You can replace it with a picture of your own build, for example a 3D render or a photo.
 
@@ -23,4 +23,4 @@ program) and restart Coreloom. A file there wins over an embedded one.
 ## For every build
 
 Save it as `pc.png` in this folder (`assets/pc/`), commit and push; the next build embeds it and every install shows
-it instead of the drawing.
+it instead of the render. A custom picture is shown as it is: no color picker and no turning fans.

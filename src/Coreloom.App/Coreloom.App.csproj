@@ -43,6 +43,8 @@
     <Resource Include="..\..\assets\vendors\*.png" Link="Assets\Vendors\%(Filename)%(Extension)" />
     <!-- Optional picture of the build for the Overview header (assets/pc/README.md); the drawn PC is used without it. -->
     <Resource Include="..\..\assets\pc\*.png" Link="Assets\PC\%(Filename)%(Extension)" />
+    <!-- The PC picture's layers, generated from assets/pc-render/render.png by build/pc-render.py. -->
+    <Resource Include="Assets\PcRender\*.png" />
     <!-- Inter and JetBrains Mono (SIL Open Font License 1.1); the license texts ship next to the app. -->
     <Resource Include="Fonts\*.ttf" />
     <None Include="Fonts\LICENSE-*.txt">

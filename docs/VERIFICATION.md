@@ -147,6 +147,25 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.2.5: the rendered PC, glow colors and turning fans
+
+- **Core tests: 270 passed** (one new: the glow setting's default, repair of unknown values and its JSON round trip).
+- **View-model tests: 65 passed** (12 new: the glow loaded from and saved to settings, Reduce motion stopping the fans,
+  fan speeds from board fan readings through the Overview, idling without readings, `PcFans` speed mapping, CPU/case
+  classification with pumps dropped, unnamed fans following the average).
+- **`Coreloom.App` compiles** against the WPF reference assembly (0 errors, 0 warnings). **XAML checks passed** (16
+  files, 153 keys, 461 bindings); a mutation test caught a misspelt binding and a misspelt layer file (the checker now
+  verifies files referenced from XAML even when they're embedded with a wildcard).
+- The layers were recomposed in Python the way WPF blends them: Blue matches the render (text aside), Purple, Red,
+  Green and a Rainbow cycle relight it plausibly, and turning the blade layers looked right at several angles and with
+  the blurred copy. A 7-second clip of the turning fans and the rainbow was rendered from the shipped layers.
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Rendered PC with relightable glow | Layer split checked by recomposition; XAML generated from the same numbers | How WPF renders the opacity mask and scales the 552 × 660 layers down to 196 × 234 DIP (moiré on the mesh, sharpness at your scaling) |
+| Turning fans | Speed mapping and fan classification unit-tested; animation code compiles | The real motion: smoothness at 60 fps, `SpeedRatio` changes without jumps, pausing when hidden, CPU/GPU cost |
+| Fan sensors | Classification by LibreHardwareMonitor's names (CPU/AIO/Radiator; pumps dropped; empty headers ignored) | Which names your board reports, so which fans the picture follows (the tooltip shows it) |
+
 ## Not verified yet (needs Windows and the real hardware)
 
 None of the following has been confirmed by the author. Don't treat any of it as working until the checklist in

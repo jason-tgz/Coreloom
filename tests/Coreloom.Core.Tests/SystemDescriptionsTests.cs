@@ -68,7 +68,6 @@ public class SystemDescriptionsTests
         var modules = new[] { Module("DIMM A2", 32, 6000), Module("DIMM B2", 32, 6000) };
 
         Assert.Equal("64 GB DDR5-6000 · 2 × 32 GB", SystemDescriptions.MemoryLine(64 * GiB, modules, Formatter));
-        Assert.False(SystemDescriptions.HasFourMemorySticks(modules));
     }
 
     [Fact]
@@ -77,7 +76,6 @@ public class SystemDescriptionsTests
         var modules = new[] { Module("A1", 16, 3200, "DDR4"), Module("A2", 8, 3200, "DDR4"), Module("B1", 16, 3200, "DDR4"), Module("B2", 0, 0, "Unknown") };
 
         Assert.Equal("40 GB DDR4-3200 · 3 modules", SystemDescriptions.MemoryLine(40 * GiB, modules, Formatter));
-        Assert.True(SystemDescriptions.HasFourMemorySticks(modules));
     }
 
     [Fact]

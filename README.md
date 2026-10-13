@@ -17,8 +17,9 @@ installs drivers or services, and never sends your data anywhere.
 
 ## Features
 
-- **Overview dashboard.** A header for your PC (motherboard, graphics card and key specs next to a drawing of the
-  build in your accent color, or a render of your own build). Six summary cards (GPU utilization, GPU
+- **Overview dashboard.** A header for your PC: motherboard, graphics card and key specs next to a rendered PC whose
+  lighting color you choose (blue, purple, red, green, rainbow or your accent) and whose fans turn with your real fan
+  speeds; or a render of your own build. Six summary cards (GPU utilization, GPU
   temperature, CPU utilization, CPU temperature, RAM, GPU power), each with a radial gauge, a sparkline,
   threshold colors and min/max/avg.
   Below them are large charts and memory, storage and network panels. Cards can be hidden and reordered,

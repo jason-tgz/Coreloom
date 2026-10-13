@@ -131,10 +131,17 @@ Work through each area and tick what works.
 - [ ] The header shows your motherboard name as the title (for example *ASRock X870E Nova WiFi*), the graphics card
       underneath, and the specs: processor, cores, memory (size, type and speed, modules), storage, graphics memory,
       driver, Windows version and BIOS. Values match *Settings → Diagnostics* and Task Manager.
-- [ ] The drawn PC shows a large card labelled with your GPU model, the right number of memory sticks, lights in
-      your accent color (change the accent and watch it follow) and the CPU temperature on the pump screen.
+- [ ] The PC picture shows your GPU model on the card and the CPU temperature on the pump screen, both crisp and
+      sitting where the render's text was.
+- [ ] The dots beside the picture change the glow: Blue, Purple, Red, Green, Rainbow (cycles slowly through the
+      colors) and Accent color (follows *Settings → Appearance*). The choice is kept after a restart.
+- [ ] The fans turn. Hover the picture: the tooltip says which fan readings they follow. Speed up your fans (a stress
+      test or a fan curve) and the picture's fans speed up within a few seconds, their blades blurring more as they go
+      faster. Without fan readings the tooltip says so and the fans idle.
+- [ ] *Settings → Appearance → Reduce motion* stops the fans. Minimizing, closing to the tray or switching pages
+      stops all animation (Task Manager: Coreloom's GPU use drops to about zero).
 - [ ] (Optional) Save a render of your build as `pc.png` in `%AppData%\Coreloom`, restart, and check it replaces the
-      drawing and looks sharp; delete it to get the drawing back.
+      picture (no color dots) and looks sharp; delete it to get the render back.
 - [ ] Narrow the window: the two spec columns stack into one and nothing overlaps.
 - [ ] The six cards show live values with gauges and sparklines.
 - [ ] The numbers match the NVIDIA overlay and Task Manager within the usual tolerances.

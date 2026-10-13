@@ -71,7 +71,7 @@ internal sealed class NullProcessSampler : IProcessSampler
 
 internal static class Fixture
 {
-    public static (MonitorContext Monitor, SettingsService Settings, ScriptedProvider Provider) Create(string? settingsDir = null)
+    public static (MonitorContext Monitor, SettingsService Settings, ScriptedProvider Provider) Create(string? settingsDir = null, Func<ScriptedProvider, ScriptedProvider>? extra = null)
     {
         var provider = new ScriptedProvider()
             .Define(MetricIds.CpuLoad, MetricCategory.Cpu, MetricKind.Load, 12.4)
@@ -83,6 +83,7 @@ internal static class Fixture
             .Define(MetricIds.MemoryAvailable, MetricCategory.Memory, MetricKind.Data, 40d * 1024 * 1024 * 1024)
             .Define(MetricIds.MemoryTotal, MetricCategory.Memory, MetricKind.Data, 64d * 1024 * 1024 * 1024)
             .Define(MetricIds.MemoryLoad, MetricCategory.Memory, MetricKind.Load, 37.5);
+        provider = extra?.Invoke(provider) ?? provider;
 
         var engine = new TelemetryEngine([provider], new MetricCatalog(), new DeviceRegistry(), new HistoryStore(256), SystemCapabilities.Unknown);
         engine.InitializeAll();

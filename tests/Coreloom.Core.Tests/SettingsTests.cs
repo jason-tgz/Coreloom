@@ -30,6 +30,7 @@ public sealed class SettingsStoreTests : IDisposable
         settings.Monitoring.TemperatureUnit = TemperatureUnit.Fahrenheit;
         settings.Monitoring.DefaultWindow = HistoryWindow.Minutes15;
         settings.Dashboard.Cards[0].Visible = false;
+        settings.Dashboard.PcGlow = PcGlow.Rainbow;
         settings.Alerts.Rules[0].Threshold = 77;
         settings.Window = new WindowPlacement { Left = 10, Top = 20, Width = 1400, Height = 900, Maximized = true };
 
@@ -42,9 +43,21 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(TemperatureUnit.Fahrenheit, loaded.Monitoring.TemperatureUnit);
         Assert.Equal(HistoryWindow.Minutes15, loaded.Monitoring.DefaultWindow);
         Assert.False(loaded.Dashboard.Cards[0].Visible);
+        Assert.Equal(PcGlow.Rainbow, loaded.Dashboard.PcGlow);
+        Assert.Contains("\"pcGlow\": \"Rainbow\"", File.ReadAllText(FilePath));
         Assert.Equal(77, loaded.Alerts.Rules[0].Threshold);
         Assert.True(loaded.Window!.Maximized);
         Assert.False(File.Exists(FilePath + ".tmp"));
+    }
+
+    [Fact]
+    public void PcGlow_DefaultsToBlue_AndUnknownValuesAreRepaired()
+    {
+        Assert.Equal(PcGlow.Blue, new AppSettings().Dashboard.PcGlow);
+        var settings = new AppSettings();
+        settings.Dashboard.PcGlow = (PcGlow)42;
+
+        Assert.Equal(PcGlow.Blue, settings.Normalize().Dashboard.PcGlow);
     }
 
     [Fact]

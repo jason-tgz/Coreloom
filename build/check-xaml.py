@@ -380,10 +380,17 @@ def main() -> int:
         win = rel.replace("/", chr(92))
         return next(((pub, src) for pub, src in resources if fnmatch.fnmatch(win, pub)), None)
 
+    xaml_text = "\n".join(p.read_text(encoding="utf-8") for p in trees)
+
     def source_exists(rel: str, entry) -> bool:
         pub, src = entry
         if "*" in src:
-            return True  # glob include: covered by the directory checks
+            # A wildcard include: files referenced from XAML must exist (code may probe for optional ones, such as a
+            # vendor logo or pc.png, before using them).
+            if f"pack://application:,,,/{rel}" not in xaml_text:
+                return True
+            folder = src.replace(chr(92), "/").rsplit("/", 1)[0]
+            return (APP / folder / rel.rsplit("/", 1)[-1]).resolve().exists()
         return (APP / src.replace(chr(92), "/")).resolve().exists()
 
     for uri in set(re.findall(r"pack://application:,,,/([\w/.-]+?)(?=[\s\"'#,)]|$)", everything)):

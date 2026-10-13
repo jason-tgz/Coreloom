@@ -238,6 +238,9 @@ public sealed class OverviewViewModel : PageViewModel
     private IReadOnlyList<KeyValueItem> _leftSpecs = [];
     private IReadOnlyList<KeyValueItem> _rightSpecs = [];
     private int _driveCount;
+    private int _fanCatalogVersion = -1;
+    private IReadOnlyList<PcFanSensor> _cpuFans = [];
+    private IReadOnlyList<PcFanSensor> _caseFans = [];
 
     public OverviewViewModel(PageContext context)
         : base("overview", "Overview", "Icon.Overview", context)
@@ -280,6 +283,10 @@ public sealed class OverviewViewModel : PageViewModel
 
         CustomizeCommand = new RelayCommand(() => CustomizeRequested?.Invoke());
         ApplyLayout();
+
+        Specs.LoadGlow(Settings.Current.Dashboard.PcGlow);
+        Specs.AnimateFans = !Settings.Current.Appearance.ReducedMotion;
+        Specs.GlowChanged += glow => Settings.Update("Dashboard", s => s.Dashboard.PcGlow = glow);
     }
 
     /// <summary>Raised when the user wants to edit the dashboard (the shell opens Settings › Dashboard).</summary>
@@ -293,12 +300,14 @@ public sealed class OverviewViewModel : PageViewModel
 
     public bool ShowStatisticsOnCards => ShowStatistics;
 
-    /// <summary>The header at the top of the page: board, graphics card, key specs and the PC illustration.</summary>
+    /// <summary>The header at the top of the page: board, graphics card, key specs and the PC picture.</summary>
     public SystemSummaryViewModel Specs { get; } = new();
 
     public override void OnSettingsChanged(string section)
     {
         _deviceVersion = -1; // header text follows unit settings (GB vs GiB)
+        Specs.LoadGlow(Settings.Current.Dashboard.PcGlow);
+        Specs.AnimateFans = !Settings.Current.Appearance.ReducedMotion;
         if (section is "Dashboard" or "Alerts" or "All")
         {
             var cpuTemp = AlertThresholds("cpu-temp", Thresholds.CpuTemperature, 10);
@@ -482,7 +491,6 @@ public sealed class OverviewViewModel : PageViewModel
         Specs.SetIdentity(
             SystemDescriptions.BoardName(summary.Motherboard) ?? summary.ComputerName,
             gpuName ?? cpuName,
-            SystemDescriptions.HasFourMemorySticks(summary.MemoryModules),
             SystemDescriptions.GpuSizeFor(gpuName, integrated),
             SystemDescriptions.GpuBadge(gpuName));
 
@@ -519,7 +527,10 @@ public sealed class OverviewViewModel : PageViewModel
         }
     }
 
-    /// <summary>The live parts of the header: storage total (volumes report their size with the first frame) and the pump screen.</summary>
+    /// <summary>
+    /// The live parts of the header: storage total (volumes report their size with the first frame), the pump screen
+    /// and the fans' speed.
+    /// </summary>
     private void UpdateSpecs(TelemetryFrame frame, UnitFormatter f)
     {
         double total = 0;
@@ -557,6 +568,16 @@ public sealed class OverviewViewModel : PageViewModel
         {
             Specs.SetScreen("—", "CPU");
         }
+
+        if (Catalog.Version != _fanCatalogVersion)
+        {
+            _fanCatalogVersion = Catalog.Version;
+            (_cpuFans, _caseFans) = PcFans.Classify(Catalog
+                .Where(d => d.Kind == MetricKind.Fan && d.Id.StartsWith("board/fan/", StringComparison.Ordinal))
+                .Select(d => new PcFanSensor(d.Id, d.Name)));
+        }
+
+        Specs.SetFans(PcFans.Read(_cpuFans, _caseFans, id => frame.TryGetValue(id, out double rpm) ? rpm : null, f));
     }
 
     private static string DriveCount(int count) => count == 1 ? "1 drive" : $"{count} drives";

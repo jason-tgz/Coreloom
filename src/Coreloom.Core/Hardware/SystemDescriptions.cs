@@ -4,7 +4,7 @@ using Coreloom.Core.Formatting;
 
 namespace Coreloom.Core.Hardware;
 
-/// <summary>How big a graphics card the Overview illustration draws.</summary>
+/// <summary>What kind of graphics card the PC has (the Overview picture labels only a discrete one).</summary>
 public enum GpuSize
 {
     /// <summary>No discrete card (integrated graphics or none detected).</summary>
@@ -15,7 +15,7 @@ public enum GpuSize
 
 /// <summary>
 /// Short, human descriptions of the machine for the Overview header: a clean board name, the memory line, the
-/// model badge on the drawn graphics card and how large that card is.
+/// model badge on the pictured graphics card and the card's class.
 /// </summary>
 public static partial class SystemDescriptions
 {
@@ -200,9 +200,6 @@ public static partial class SystemDescriptions
             : $"{populated.Length.ToString(CultureInfo.InvariantCulture)} modules";
         return $"{size}{kind} · {layout}";
     }
-
-    /// <summary>True when three or more memory slots are populated (the illustration then draws four sticks).</summary>
-    public static bool HasFourMemorySticks(IReadOnlyList<MemoryModuleInfo> modules) => modules.Count(m => m.SizeBytes > 0) >= 3;
 
     /// <summary>"16 cores · 32 threads" (or just the thread count when the core count is unknown).</summary>
     public static string CoresLine(int physicalCores, int logicalProcessors)

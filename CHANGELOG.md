@@ -7,6 +7,30 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-10-13
+
+The PC on the Overview gets a premium new look: pick its glow color and watch its fans turn with yours.
+
+### Highlights
+
+- **A new PC picture.** The Overview header now shows a rendered PC with glass, mesh and lit fans, with your graphics card's model on the card and your CPU temperature on the pump screen.
+- **Pick the glow.** Use the dots next to the PC to light it blue, purple, red or green, cycle through a rainbow, or match your accent color.
+- **Fans that follow yours.** The PC's fans turn with your real fan speeds: the top fans follow your CPU fan, the bottom ones your case fans.
+
+### In detail
+
+- The fans speed up and slow down with the readings, blur as they go faster and stop when your fans stop. Hover the PC to see which readings they follow.
+- Fan speeds come from the motherboard and need PawnIO. Without them, the fans turn at an idle pace.
+- The fans only turn while the Overview is on screen and stand still with *Reduce motion* on, so Coreloom stays light in the background.
+
+### Good to know
+
+- A picture of your own build (`pc.png` in `%AppData%\Coreloom`) still replaces the render. It's shown as it is, without the color picker or turning fans.
+
+### Feedback
+
+Found a bug or a sensor that reads wrong? [Open an issue](https://github.com/jerryubah/Coreloom/issues) and attach a CoreloomDiag report.
+
 ## [1.2.0] - 2026-10-13
 
 Updating Coreloom now takes one click, and portable copies can update themselves too.
