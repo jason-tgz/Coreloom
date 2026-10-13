@@ -20,20 +20,19 @@ Releases are built entirely by GitHub Actions from a version tag. Nothing is upl
 
 ## Cutting a release
 
-1. Add a section for the version in `CHANGELOG.md`, for example `## [1.0.0]`, and commit it. The release
-   notes are taken from that section, and Coreloom builds its in-app *What's new* summary from them (see
+1. In `CHANGELOG.md`, turn the *Unreleased* notes into a section for the new version, for example
+   `## [1.3.0] - 2026-11-03` (keep an empty `## [Unreleased]` above it). The release notes are taken from that
+   section, and Coreloom builds its in-app *What's new* summary from them (see
    [Writing release notes](#writing-release-notes-for-the-whats-new-summary) below).
-2. Tag and push:
+2. Commit and push to `main`. That's all: when a push to `main` changes `CHANGELOG.md` and its newest version
+   heading has no tag yet, the **Release** workflow creates the tag (`v1.3.0`) on that commit and publishes the
+   release. Pushes that don't add a new version heading are checked and skipped.
 
-   ```powershell
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-
-   A tag with a suffix, such as `v1.1.0-beta.1`, becomes a **pre-release**. Users only see it when they
-   enabled *Include pre-release versions*.
+   You can still release by pushing a tag yourself instead (`git tag v1.3.0`, `git push origin v1.3.0`, or
+   *Create Tag* in GitHub Desktop). A version with a suffix, such as `1.3.0-beta.1`, becomes a **pre-release**.
+   Users only see it when they enabled *Include pre-release versions*.
 3. The **Release** workflow:
-   - reads the version from the tag;
+   - works out the version (from the new changelog heading or the pushed tag);
    - installs Inno Setup;
    - runs `build/build.ps1 -Package`, which restores, builds, tests, publishes self-contained `win-x64`
      (`Coreloom.exe` + `CoreloomDiag.exe`), builds the installer, zips the portable build and writes

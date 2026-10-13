@@ -1,11 +1,18 @@
 name: Release
 
-# Push a tag like v1.2.0 (or v1.3.0-beta.1 for a pre-release) to build, test, package and publish a
-# GitHub release with the installer, the portable zip and SHA256SUMS.txt. If a release for the tag already
-# exists (e.g. it was created on GitHub's website), the files are added to it and its title and text are kept.
-# "Run workflow" on the Actions tab re-publishes the files for an existing tag.
+# Builds, tests and packages Coreloom, then publishes a GitHub release with the installer, the portable zip and
+# SHA256SUMS.txt. Three ways to start it:
+# - Push to main with a new version heading in CHANGELOG.md (e.g. "## [1.3.0] - 2026-11-03"): if that version has
+#   no tag yet, this workflow creates the tag on the pushed commit and publishes the release. This is the usual way.
+# - Push a tag like v1.2.0 (or v1.3.0-beta.1 for a pre-release).
+# - "Run workflow" on the Actions tab with an existing tag re-publishes the files for it.
+# If a release for the tag already exists (e.g. it was created on GitHub's website), the files are added to it and
+# its title and text are kept.
 on:
   push:
+    branches: [main]
+    # Branch pushes only start a release check when the changelog (or this file) changed; tag pushes always run.
+    paths: ['CHANGELOG.md', '.github/workflows/release.yml']
     tags: ['v*']
   workflow_dispatch:
     inputs:
@@ -14,35 +21,54 @@ on:
         required: true
 
 permissions:
-  contents: write   # create the release and upload assets
+  contents: write   # create the tag and release, upload assets
 
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  release:
-    runs-on: windows-latest
-    timeout-minutes: 45
+  decide:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      skip: ${{ steps.decide.outputs.skip }}
+      tag: ${{ steps.decide.outputs.tag }}
+      version: ${{ steps.decide.outputs.version }}
+      prerelease: ${{ steps.decide.outputs.prerelease }}
+      ref: ${{ steps.decide.outputs.ref }}
+      new_tag: ${{ steps.decide.outputs.new_tag }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
 
+      - name: Decide what to release
+        id: decide
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: bash ./build/release-decide.sh
+
+  release:
+    needs: decide
+    if: needs.decide.outputs.skip != 'true'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    concurrency:
+      group: release-${{ needs.decide.outputs.tag }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.decide.outputs.ref }}
+
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
-
-      - name: Read version from tag
-        id: version
-        shell: pwsh
-        run: |
-          $tag = '${{ inputs.tag || github.ref_name }}'
-          if ($tag -notmatch '^v(\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?)$') { throw "Tag '$tag' is not a version tag like v1.2.3" }
-          $version = $Matches[1]
-          "tag=$tag" >> $env:GITHUB_OUTPUT
-          "version=$version" >> $env:GITHUB_OUTPUT
-          "prerelease=$(if ($version.Contains('-')) { 'true' } else { 'false' })" >> $env:GITHUB_OUTPUT
 
       - name: Install Inno Setup
         shell: pwsh
@@ -53,7 +79,7 @@ jobs:
 
       - name: Build, test and package
         shell: pwsh
-        run: ./build/build.ps1 -Version ${{ steps.version.outputs.version }} -Repository ${{ github.repository }} -Package -RequireInstaller
+        run: ./build/build.ps1 -Version ${{ needs.decide.outputs.version }} -Repository ${{ github.repository }} -Package -RequireInstaller
 
       # Hosted runners have no GPU or PawnIO; a failure here is reported but doesn't block the release
       # (CI runs the same check strictly on every push).
@@ -64,14 +90,14 @@ jobs:
 
       - name: Release notes
         shell: pwsh
-        run: ./build/release-notes.ps1 -Version ${{ steps.version.outputs.version }} -OutFile artifacts/release-notes.md
+        run: ./build/release-notes.ps1 -Version ${{ needs.decide.outputs.version }} -OutFile artifacts/release-notes.md
 
       - name: Create GitHub release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = '${{ steps.version.outputs.tag }}'
+          $tag = '${{ needs.decide.outputs.tag }}'
           $assets = @(Get-ChildItem artifacts/release -File | ForEach-Object { $_.FullName })
           $existing = @(gh release list --limit 100 --json tagName --jq '.[].tagName')
           if ($LASTEXITCODE -ne 0) { throw "gh release list failed ($LASTEXITCODE)" }
@@ -88,9 +114,16 @@ jobs:
             }
           }
           else {
-            $ghArgs = @('release', 'create', $tag, '--title', 'Coreloom ${{ steps.version.outputs.version }}',
-                        '--notes-file', 'artifacts/release-notes.md', '--verify-tag')
-            if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $ghArgs += '--prerelease' }
+            $ghArgs = @('release', 'create', $tag, '--title', 'Coreloom ${{ needs.decide.outputs.version }}',
+                        '--notes-file', 'artifacts/release-notes.md')
+            if ('${{ needs.decide.outputs.new_tag }}' -eq 'true') {
+              # Started by a changelog push to main: the tag doesn't exist yet, so gh creates it on that commit.
+              $ghArgs += @('--target', '${{ needs.decide.outputs.ref }}')
+            }
+            else {
+              $ghArgs += '--verify-tag'
+            }
+            if ('${{ needs.decide.outputs.prerelease }}' -eq 'true') { $ghArgs += '--prerelease' }
             gh @ghArgs @assets
             if ($LASTEXITCODE -ne 0) { throw "gh release create failed ($LASTEXITCODE)" }
           }
@@ -99,7 +132,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: release-${{ steps.version.outputs.version }}
+          name: release-${{ needs.decide.outputs.version }}
           path: |
             artifacts/release/
             artifacts/test-results/
