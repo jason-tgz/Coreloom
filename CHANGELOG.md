@@ -7,9 +7,30 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
-### Changed
-- **One-click updates.** When a new version is out, *Settings › Updates* and the tray menu offer *Install update*: Coreloom downloads and checks the update, closes, installs it over the old version and opens again. No more trips to GitHub.
-- **Portable copies update themselves.** Copies from the portable zip now update in place like installed ones and keep their settings in the `Data` folder. If a file can't be replaced, every change is undone and the previous version opens again. Portable copies of 1.1.0 or earlier need one last update by hand.
+## [1.2.0] - 2026-10-13
+
+Updating Coreloom now takes one click, and portable copies can update themselves too.
+
+### Highlights
+
+- **One-click updates.** When a new version is out, click *Install update* in *Settings › Updates* or the tray menu and Coreloom does the rest.
+- **Portable copies update themselves.** Copies from the portable zip now update in place and keep their settings in the `Data` folder.
+
+### In detail
+
+- *Install update* downloads the new version, checks it against the release's SHA-256 checksums, closes Coreloom, installs the new version over the old one and opens it again. No more trips to GitHub.
+- Automatic updates now work the same way for installed and portable copies: they download in the background and install the next time Coreloom starts or while your PC is idle.
+- If an update can't replace a file, every change is undone and the previous version opens again.
+
+### Good to know
+
+- **Installed copies of 1.1.0** pick up this update on their own, or right away with *Check for updates*.
+- **Portable copies of 1.1.0 or earlier need one last update by hand.** Replace the folder's files with the new portable zip below, keeping the `Data` folder. After that, *Install update* works for them too.
+- Portable copies unpack updates into a hidden `.coreloom-update` folder next to `Coreloom.exe`, so keep yours in a folder you can write to.
+
+### Feedback
+
+Found a bug or a sensor that reads wrong? [Open an issue](https://github.com/jerryubah/Coreloom/issues) and attach a CoreloomDiag report.
 
 ## [1.1.0] - 2026-10-13
 
