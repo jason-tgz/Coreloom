@@ -7,6 +7,28 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.3.4] - 2026-10-14
+
+The Devices page lines everything up on one grid and sorts wired devices more sensibly, and the Smart Optimize banner gets a vivid accent gradient with a ring you can actually see.
+
+### Highlights
+
+- **Wired devices line up.** Each group of wired devices (keyboards and mice, audio, displays, lighting, storage…) is now a column on the same grid as the Bluetooth cards above, and groups stack under each other to fill the width instead of leaving most of the page empty.
+- **Smarter grouping.** A device is only listed under *Controllers* when it's really a game controller, so RGB "LED controllers" go under the new *Lighting* group (with lights like a Litra Beam), a monitor's USB link goes under *Other devices*, audio interfaces like a Scarlett go under *Audio*, and USB controller cards aren't listed as devices at all. Devices that report a garbled name get a readable one.
+- **Bluetooth switch and search.** The Bluetooth switch sits right next to the Bluetooth title. The search box is wider, the text you type starts right after the magnifier, and clicking anywhere outside the box (or pressing Esc) leaves it. The same goes for every text box in the app.
+- **Smart Optimize banner.** The banner washes in your accent color as a gradient, and the ring is drawn as a glowing sweep from a lighter shade through your accent to a warmer one. The ring is lit before you scan, a bright comet circles it while working, and it turns green, orange or red with the result. The main button shares the gradient.
+
+### In detail
+
+- The gradients are made from the accent color you pick in Settings, so they follow it and the light and dark themes.
+- *Scan again* steps back to a plain button when it sits next to *Clean up and optimize*.
+- The word under "Ready when you are" in the ring is gone; it only repeated the headline.
+- The Eject button on a drive is now a compact icon button (with a tooltip), leaving more room for the drive's name.
+
+### Feedback
+
+Found a bug or a device that's listed wrong? [Open an issue](https://github.com/jerryubah/Coreloom/issues) and attach a CoreloomDiag report.
+
 ## [1.3.3] - 2026-10-14
 
 The Bluetooth cards on the Devices page are now compact, so more of your devices fit on screen at once.

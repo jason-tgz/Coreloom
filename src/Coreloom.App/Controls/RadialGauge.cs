@@ -7,6 +7,19 @@ using Coreloom.Core.Formatting;
 
 namespace Coreloom.App.Controls;
 
+/// <summary>How a <see cref="RadialGauge"/>'s arc is colored along its length.</summary>
+public enum GaugeGradient
+{
+    /// <summary>One color (<see cref="RadialGauge.Fill"/> or the scale's).</summary>
+    None,
+
+    /// <summary>The accent sweeping from its cooler, lighter neighbour through the accent to its warmer one.</summary>
+    Accent,
+
+    /// <summary>The arc's color, starting a shade lighter.</summary>
+    Shade,
+}
+
 /// <summary>
 /// 270° ring gauge with rounded caps. <see cref="Value"/> is a 0–1 fraction; changes ease over ~450 ms
 /// at the display refresh rate unless reduced motion is on. With <see cref="ToneScale"/> the arc takes its color from the
@@ -55,6 +68,12 @@ public sealed class RadialGauge : FrameworkElement
     private static readonly DependencyProperty DisplayToneProperty = DependencyProperty.Register(
         "DisplayTone", typeof(double), typeof(RadialGauge), new FrameworkPropertyMetadata(double.NaN, FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty GradientProperty = DependencyProperty.Register(
+        nameof(Gradient), typeof(GaugeGradient), typeof(RadialGauge), new FrameworkPropertyMetadata(GaugeGradient.None, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty FadeTailProperty = DependencyProperty.Register(
+        nameof(FadeTail), typeof(bool), typeof(RadialGauge), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+
     private bool _themeHooked;
 
     public RadialGauge()
@@ -62,6 +81,23 @@ public sealed class RadialGauge : FrameworkElement
         IsHitTestVisible = false;
         Loaded += (_, _) => HookTheme(true);
         Unloaded += (_, _) => HookTheme(false);
+    }
+
+    /// <summary>
+    /// Colors the arc along its length. The colors are fixed to positions on the ring (not to the arc's end), so the
+    /// gradient stays put while the arc grows.
+    /// </summary>
+    public GaugeGradient Gradient
+    {
+        get => (GaugeGradient)GetValue(GradientProperty);
+        set => SetValue(GradientProperty, value);
+    }
+
+    /// <summary>The arc fades out toward its start, like a comet's tail (for a short spinning arc).</summary>
+    public bool FadeTail
+    {
+        get => (bool)GetValue(FadeTailProperty);
+        set => SetValue(FadeTailProperty, value);
     }
 
     /// <summary>Color the arc from the four-color scale instead of <see cref="Fill"/>.</summary>
@@ -200,10 +236,84 @@ public sealed class RadialGauge : FrameworkElement
         }
 
         double tone = (double)GetValue(DisplayToneProperty);
-        var brush = !ToneScale ? Fill
-            : double.IsFinite(tone) ? ChartColors.Solid(ScaleColor(tone))
-            : ChartColors.Solid(ToneColor(value));
-        dc.DrawGeometry(null, RoundPen(brush, thickness), Arc(center, radius, start, sweep * Math.Clamp(value, 0, 1)));
+        double arcSweep = sweep * Math.Clamp(value, 0, 1);
+        var gradient = Gradient;
+        if (gradient == GaugeGradient.None && !FadeTail)
+        {
+            var brush = !ToneScale ? Fill
+                : double.IsFinite(tone) ? ChartColors.Solid(ScaleColor(tone))
+                : ChartColors.Solid(ToneColor(value));
+            dc.DrawGeometry(null, RoundPen(brush, thickness), Arc(center, radius, start, arcSweep));
+            return;
+        }
+
+        Color color = ToneScale ? (double.IsFinite(tone) ? ScaleColor(tone) : ToneColor(value))
+            : Fill is SolidColorBrush solid ? solid.Color
+            : Colors.DodgerBlue;
+        if (FadeTail)
+        {
+            DrawTail(dc, center, radius, thickness, start, arcSweep, gradient == GaugeGradient.None ? color : Lighter(color));
+            return;
+        }
+
+        Func<double, Color> colorAt;
+        if (gradient == GaugeGradient.Accent)
+        {
+            var accent = ThemeService.Instance?.AccentColor ?? color;
+            var (cool, warm) = ThemeService.AccentNeighbours(accent);
+            colorAt = t => t < 0.5 ? Lerp(cool, accent, t * 2) : Lerp(accent, warm, (t - 0.5) * 2);
+        }
+        else
+        {
+            var light = Lighter(color);
+            colorAt = t => Lerp(light, color, t);
+        }
+
+        DrawSweep(dc, center, radius, thickness, start, sweep, arcSweep, colorAt);
+    }
+
+    private static Color Lighter(Color color) => ThemePalette.Shift(color, 0, 0.14);
+
+    /// <summary>
+    /// Draws the arc as short pieces, each in the color for its place on the ring (a sweep gradient, which WPF doesn't
+    /// have). Neighbouring pieces overlap a hair so no seam shows; only the two ends are rounded.
+    /// </summary>
+    private static void DrawSweep(DrawingContext dc, Point center, double radius, double thickness, double start, double fullSweep, double arcSweep, Func<double, Color> colorAt)
+    {
+        int pieces = Math.Clamp((int)Math.Ceiling(arcSweep / 3.0), 1, 120);
+        double step = arcSweep / pieces;
+        for (int i = 0; i < pieces; i++)
+        {
+            bool last = i == pieces - 1;
+            var color = colorAt(Math.Clamp(((i + 0.5) * step) / fullSweep, 0, 1));
+            var pen = new Pen(new SolidColorBrush(color), thickness)
+            {
+                StartLineCap = i == 0 ? PenLineCap.Round : PenLineCap.Flat,
+                EndLineCap = last ? PenLineCap.Round : PenLineCap.Flat,
+            };
+            pen.Freeze();
+            double overlap = !last && color.A == 255 ? 0.6 : 0;
+            dc.DrawGeometry(null, pen, Arc(center, radius, start + (i * step), step + overlap));
+        }
+    }
+
+    /// <summary>A short arc fading from clear at its start to <paramref name="color"/> at its head, in one piece.</summary>
+    private static void DrawTail(DrawingContext dc, Point center, double radius, double thickness, double start, double arcSweep, Color color)
+    {
+        double a0 = start * Math.PI / 180;
+        double a1 = (start + arcSweep) * Math.PI / 180;
+        var tail = new Point(center.X + (radius * Math.Cos(a0)), center.Y + (radius * Math.Sin(a0)));
+        var head = new Point(center.X + (radius * Math.Cos(a1)), center.Y + (radius * Math.Sin(a1)));
+        var brush = new LinearGradientBrush
+        {
+            MappingMode = BrushMappingMode.Absolute,
+            StartPoint = tail,
+            EndPoint = head,
+            GradientStops = { new GradientStop(ThemePalette.WithAlpha(color, 0), 0), new GradientStop(color, 1) },
+        };
+        var pen = new Pen(brush, thickness) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Round };
+        pen.Freeze();
+        dc.DrawGeometry(null, pen, Arc(center, radius, start, arcSweep));
     }
 
     /// <summary>The scale's color for a gauge fraction, blended between the theme's success, info, elevated and critical colors.</summary>

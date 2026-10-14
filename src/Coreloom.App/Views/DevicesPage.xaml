@@ -134,9 +134,9 @@
       </DataTemplate.Triggers>
     </DataTemplate>
 
-    <!-- A device plugged in by wire. -->
+    <!-- A device plugged in by wire: a compact card, the same width as the Bluetooth cards above. -->
     <DataTemplate x:Key="WiredCard" DataType="{x:Type pages:WiredDeviceViewModel}">
-      <Border Style="{StaticResource Card.Inset}" Padding="12,11">
+      <Border Style="{StaticResource Card}" Padding="12,11">
         <Grid>
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
@@ -148,9 +148,9 @@
             <Path Style="{StaticResource IconPath}" Width="16" Height="16" Data="{Binding IconKey, Converter={StaticResource IconKeyToGeometry}}"
                   Stroke="{DynamicResource Brush.Accent}" />
           </Grid>
-          <StackPanel Grid.Column="1" Margin="11,0,8,0" VerticalAlignment="Center">
+          <StackPanel Grid.Column="1" Margin="11,0,6,0" VerticalAlignment="Center">
             <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
-            <TextBlock Text="{Binding Detail}" Style="{StaticResource Text.Caption}" Margin="0,1,0,0" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding Detail}" Style="{StaticResource Text.Caption}" Margin="0,1,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding Detail}" />
             <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Visibility="{Binding HasProblem, Converter={StaticResource BoolToVisibility}}">
               <Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Warning}" Stroke="{DynamicResource Brush.Elevated}" />
               <TextBlock Text="{Binding ProblemText}" FontSize="11.5" Foreground="{DynamicResource Brush.Elevated}" Margin="5,0,0,0" TextTrimming="CharacterEllipsis" />
@@ -159,15 +159,14 @@
                        b:Pop.Trigger="{Binding Message, Converter={StaticResource HasValueToBool}}"
                        Visibility="{Binding Message, Converter={StaticResource HasValueToVisibility}}" />
           </StackPanel>
-          <Button Grid.Column="2" Style="{StaticResource Button.Secondary}" Padding="10,5" VerticalAlignment="Top" Command="{Binding EjectCommand}"
-                  ToolTip="Safely remove" Visibility="{Binding CanEject, Converter={StaticResource BoolToVisibility}}">
-            <StackPanel Orientation="Horizontal">
-              <Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Eject}"
+          <Button Grid.Column="2" Style="{StaticResource Button.Secondary}" Width="32" Height="32" Padding="0" VerticalAlignment="Center" Command="{Binding EjectCommand}"
+                  ToolTip="Eject (safely remove)" AutomationProperties.Name="Eject" Visibility="{Binding CanEject, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+              <Path Style="{StaticResource IconPath}" Width="13" Height="13" Data="{StaticResource Icon.Eject}"
                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
-              <c:RadialGauge Style="{StaticResource DeviceSpinner}" Width="12" Height="12" b:Spin.IsSpinning="{Binding IsBusy}"
+              <c:RadialGauge Style="{StaticResource DeviceSpinner}" Width="13" Height="13" b:Spin.IsSpinning="{Binding IsBusy}"
                              Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
-              <TextBlock Text="Eject" Margin="6,0,0,0" FontSize="12" />
-            </StackPanel>
+            </Grid>
           </Button>
         </Grid>
       </Border>
@@ -178,10 +177,10 @@
       </DataTemplate.Triggers>
     </DataTemplate>
 
-    <!-- A group of wired devices. -->
+    <!-- A group of wired devices: a heading and its cards stacked in one column. -->
     <DataTemplate x:Key="WiredGroup" DataType="{x:Type pages:DeviceGroupViewModel}">
-      <StackPanel Margin="0,0,0,16">
-        <StackPanel Orientation="Horizontal" Margin="2,0,0,9">
+      <StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="2,0,0,10">
           <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{Binding IconKey, Converter={StaticResource IconKeyToGeometry}}"
                 Stroke="{DynamicResource Brush.TextSecondary}" VerticalAlignment="Center" />
           <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextSecondary}" Margin="8,0,0,0" VerticalAlignment="Center" />
@@ -192,7 +191,7 @@
         <ItemsControl ItemsSource="{Binding Devices}" ItemTemplate="{StaticResource WiredCard}" Focusable="False">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <c:AdaptiveGrid MinColumnWidth="250" MaxColumnWidth="320" MaxColumns="12" Spacing="12" UniformRowHeight="True" />
+              <c:AdaptiveGrid MinColumnWidth="1" MaxColumns="1" Spacing="10" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
@@ -231,22 +230,23 @@
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="Auto" />
-                  <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <Grid Width="48" Height="48">
                   <Ellipse x:Name="RadioHalo" Fill="{DynamicResource Brush.Accent}" Opacity="0.18" />
                   <Path Style="{StaticResource IconPath}" Width="22" Height="22" Data="{StaticResource Icon.Wireless}" Stroke="{DynamicResource Brush.Accent}" />
                 </Grid>
-                <StackPanel Grid.Column="1" Margin="14,0,12,0" VerticalAlignment="Center">
+                <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
                   <TextBlock Text="Bluetooth" Style="{StaticResource Text.Section}" />
                   <TextBlock Text="{Binding RadioText}" Style="{StaticResource Text.Secondary}" Margin="0,2,0,0" />
                 </StackPanel>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                  <c:RadialGauge Style="{StaticResource DeviceSpinner}" Margin="0,0,10,0" b:Spin.IsSpinning="{Binding IsRadioBusy}"
-                                 Visibility="{Binding IsRadioBusy, Converter={StaticResource BoolToVisibility}}" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="22,0,0,0">
                   <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding IsRadioOn}" IsEnabled="{Binding CanToggleRadio}"
                             AutomationProperties.Name="Bluetooth" ToolTip="Turn Bluetooth on or off" />
+                  <c:RadialGauge Style="{StaticResource DeviceSpinner}" Margin="10,0,0,0" b:Spin.IsSpinning="{Binding IsRadioBusy}"
+                                 Visibility="{Binding IsRadioBusy, Converter={StaticResource BoolToVisibility}}" />
                 </StackPanel>
               </Grid>
 
@@ -315,12 +315,15 @@
       </Border>
 
       <!-- Search -->
-      <Grid Margin="0,16,0,0" MaxWidth="420" HorizontalAlignment="Left">
-        <TextBox Style="{StaticResource TextBox.Default}" Padding="34,7,32,7" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
-                 AutomationProperties.Name="Search devices" />
+      <!-- Typed text and the placeholder start at the same spot, right after the icon (1 border + 32 padding + 2 the text
+           box keeps before its first character). Clicking anywhere outside the box, or Esc, leaves it (TextBoxFocus). -->
+      <Grid Margin="0,16,0,0" Width="440" HorizontalAlignment="Left">
+        <TextBox Style="{StaticResource TextBox.Default}" Padding="32,8,34,8" HorizontalContentAlignment="Left" TextAlignment="Left"
+                 Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search devices" />
         <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Search}" Margin="12,0,0,0" HorizontalAlignment="Left"
               VerticalAlignment="Center" IsHitTestVisible="False" Stroke="{DynamicResource Brush.TextTertiary}" />
-        <TextBlock Text="Search devices" Margin="35,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" Foreground="{DynamicResource Brush.TextTertiary}" FontSize="13"
+        <TextBlock Text="Search devices by name or type" Margin="35,0,40,0" VerticalAlignment="Center" IsHitTestVisible="False" Foreground="{DynamicResource Brush.TextTertiary}"
+                   FontSize="13" TextTrimming="CharacterEllipsis"
                    Visibility="{Binding Search, Converter={StaticResource HasValueToVisibility}, ConverterParameter=Invert}" />
         <Button Style="{StaticResource Button.Icon}" Width="26" Height="26" HorizontalAlignment="Right" Margin="0,0,4,0" Command="{Binding ClearSearchCommand}"
                 ToolTip="Clear" AutomationProperties.Name="Clear search" Visibility="{Binding Search, Converter={StaticResource HasValueToVisibility}}">
@@ -358,24 +361,25 @@
       <!-- ============================================================ -->
       <!-- Wired devices                                                -->
       <!-- ============================================================ -->
-      <Border Style="{StaticResource Card}" Margin="0,24,0,0" Padding="20,18,20,4">
-        <StackPanel>
-          <Grid Margin="0,0,0,16">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <Border Width="38" Height="38" CornerRadius="11" Background="{DynamicResource Brush.AccentSoft}">
-              <Path Style="{StaticResource IconPath}" Width="18" Height="18" Data="{StaticResource Icon.Plug}" Stroke="{DynamicResource Brush.Accent}" />
-            </Border>
-            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-              <TextBlock Text="Wired and USB devices" Style="{StaticResource Text.CardTitle}" />
-              <TextBlock Text="{Binding WiredSummary}" Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
-            </StackPanel>
-          </Grid>
-          <ItemsControl ItemsSource="{Binding WiredGroups}" ItemTemplate="{StaticResource WiredGroup}" Focusable="False" />
-          <TextBlock Text="{Binding WiredEmptyText}" Style="{StaticResource Text.Secondary}" Margin="0,0,0,16"
-                     Visibility="{Binding HasWiredDevices, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
+      <StackPanel Orientation="Horizontal" Margin="2,30,0,12">
+        <TextBlock Text="Wired and USB devices" Style="{StaticResource Text.CardTitle}" VerticalAlignment="Center" />
+        <Border Style="{StaticResource Badge}" Margin="10,0,0,0">
+          <TextBlock Text="{Binding WiredCount}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextSecondary}" />
+        </Border>
+      </StackPanel>
+      <!-- Same column widths and gaps as the Bluetooth cards, so the two sections line up; each group stacks under the
+           shortest column. -->
+      <ItemsControl ItemsSource="{Binding WiredGroups}" ItemTemplate="{StaticResource WiredGroup}" Focusable="False">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <c:StackedColumns MinColumnWidth="270" MaxColumnWidth="330" MaxColumns="12" Spacing="12" RowSpacing="22" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+      <Border Style="{StaticResource Card.Inset}" Padding="16,14" Visibility="{Binding HasWiredDevices, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
+        <StackPanel Orientation="Horizontal">
+          <Path Style="{StaticResource IconPath}" Width="16" Height="16" Data="{StaticResource Icon.Plug}" Stroke="{DynamicResource Brush.TextTertiary}" />
+          <TextBlock Text="{Binding WiredEmptyText}" Style="{StaticResource Text.Secondary}" Margin="10,0,0,0" VerticalAlignment="Center" />
         </StackPanel>
       </Border>
     </StackPanel>

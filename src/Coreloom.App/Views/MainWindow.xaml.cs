@@ -32,6 +32,7 @@ public partial class MainWindow : Window
         _shell = shell;
         DataContext = shell;
         InitializeComponent();
+        TextBoxFocus.Attach(this); // clicking outside a text box (or Esc) leaves it
 
         SettingsNav.ItemsSource = new[] { shell.Settings };
         SyncNavigationSelection();

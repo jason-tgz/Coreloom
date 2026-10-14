@@ -33,6 +33,8 @@ public enum DeviceKind
     Network,
     CardReader,
     Hub,
+    Light,
+    Accessory,
 }
 
 /// <summary>Groups of the wired devices list, in display order.</summary>
@@ -43,6 +45,7 @@ public enum DeviceGroup
     Audio,
     Displays,
     Cameras,
+    Lighting,
     Storage,
     Printers,
     Network,
@@ -81,6 +84,8 @@ public static class DeviceKinds
         DeviceKind.Network => "Network adapter",
         DeviceKind.CardReader => "Card reader",
         DeviceKind.Hub => "USB hub",
+        DeviceKind.Light => "Light",
+        DeviceKind.Accessory => "Accessory",
         _ => "Device",
     };
 
@@ -103,7 +108,8 @@ public static class DeviceKinds
         DeviceKind.Storage or DeviceKind.CardReader => "Icon.UsbDrive",
         DeviceKind.Printer => "Icon.Printer",
         DeviceKind.Network => "Icon.Network",
-        DeviceKind.Hub => "Icon.Plug",
+        DeviceKind.Hub or DeviceKind.Accessory => "Icon.Plug",
+        DeviceKind.Light => "Icon.Light",
         _ => "Icon.Devices",
     };
 
@@ -114,6 +120,7 @@ public static class DeviceKinds
         DeviceKind.Headphones or DeviceKind.Earbuds or DeviceKind.Headset or DeviceKind.Speaker or DeviceKind.Microphone or DeviceKind.Audio or DeviceKind.CarAudio => DeviceGroup.Audio,
         DeviceKind.Display => DeviceGroup.Displays,
         DeviceKind.Camera => DeviceGroup.Cameras,
+        DeviceKind.Light => DeviceGroup.Lighting,
         DeviceKind.Storage or DeviceKind.CardReader => DeviceGroup.Storage,
         DeviceKind.Printer => DeviceGroup.Printers,
         DeviceKind.Network => DeviceGroup.Network,
@@ -128,6 +135,7 @@ public static class DeviceKinds
         DeviceGroup.Audio => "Audio",
         DeviceGroup.Displays => "Displays",
         DeviceGroup.Cameras => "Cameras",
+        DeviceGroup.Lighting => "Lighting",
         DeviceGroup.Storage => "Storage",
         DeviceGroup.Printers => "Printers and scanners",
         DeviceGroup.Network => "Network",
@@ -142,6 +150,7 @@ public static class DeviceKinds
         DeviceGroup.Audio => "Icon.Headphones",
         DeviceGroup.Displays => "Icon.Display",
         DeviceGroup.Cameras => "Icon.Camera",
+        DeviceGroup.Lighting => "Icon.Light",
         DeviceGroup.Storage => "Icon.UsbDrive",
         DeviceGroup.Printers => "Icon.Printer",
         DeviceGroup.Network => "Icon.Network",
@@ -151,6 +160,17 @@ public static class DeviceKinds
 
     /// <summary>Is it something you listen with or to (connects through the audio stack)?</summary>
     public static bool IsAudio(DeviceKind kind) => GroupOf(kind) == DeviceGroup.Audio;
+
+    // Words that mean a game controller on their own; "controller" alone also names LED, USB and monitor controllers.
+    private static readonly string[] GamepadWords =
+    [
+        "gamepad", "game controller", "joystick", "dualsense", "dualshock", "joy-con", "xbox", "8bitdo", "wireless controller", "pro controller",
+        "steam controller", "arcade stick", "fight stick", "racing wheel",
+    ];
+
+    /// <summary>Does the name say it's a game controller (not just any "controller")?</summary>
+    public static bool IsGamepadName(string? name) =>
+        !string.IsNullOrWhiteSpace(name) && GamepadWords.Any(w => name.Contains(w, StringComparison.OrdinalIgnoreCase));
 
     // Most specific first: "airpods max" are headphones, "galaxy buds" earbuds rather than a phone.
     private static readonly (string Word, DeviceKind Kind)[] NameHints =
@@ -171,6 +191,20 @@ public static class DeviceKinds
         ("speaker", DeviceKind.Speaker),
         ("soundlink", DeviceKind.Speaker),
         ("microphone", DeviceKind.Microphone),
+        ("scarlett", DeviceKind.Audio),
+        ("focusrite", DeviceKind.Audio),
+        ("audio interface", DeviceKind.Audio),
+        ("goxlr", DeviceKind.Audio),
+        ("rodecaster", DeviceKind.Audio),
+        ("audient", DeviceKind.Audio),
+        ("presonus", DeviceKind.Audio),
+        ("led controller", DeviceKind.Light),
+        ("lighting", DeviceKind.Light),
+        ("mystic light", DeviceKind.Light),
+        ("polychrome", DeviceKind.Light),
+        ("litra", DeviceKind.Light),
+        ("key light", DeviceKind.Light),
+        ("ring light", DeviceKind.Light),
         ("receiver", DeviceKind.Receiver),
         ("dongle", DeviceKind.Receiver),
         ("unifying", DeviceKind.Receiver),
@@ -327,7 +361,7 @@ public static class DeviceKinds
 
         return kind switch
         {
-            DeviceKind.Unknown or DeviceKind.Input or DeviceKind.Audio => hinted,
+            DeviceKind.Unknown or DeviceKind.Input or DeviceKind.Audio or DeviceKind.Accessory => hinted,
             DeviceKind.Headset or DeviceKind.Headphones when hinted is DeviceKind.Earbuds or DeviceKind.Headphones or DeviceKind.Headset => hinted,
             DeviceKind.KeyboardAndMouse when hinted is DeviceKind.Keyboard or DeviceKind.Mouse => hinted,
             _ => kind,

@@ -147,7 +147,24 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
-### 1.3.3: compact device cards
+### 1.3.4: aligned device groups, grouping fixes, search, Smart Optimize banner
+
+- **Core tests: 392 passed** (5 new: `CardColumns.Fit` capped and uncapped, every width 600–3,000 px within range,
+  `CardColumns.Stack` into the shortest column; wired grouping of an LED controller, a desk light, a monitor's USB
+  link, a USB controller card without a driver, an audio interface, a garbled product string and a real gamepad).
+  **View-model tests: 99 passed.** **`Coreloom.App` compiles** (0 errors, 0 warnings); **XAML checks passed** (19
+  files, 211 shared keys, 913 bindings).
+- HTML mock-ups at the owner's page width (≈1,540 DIP) were rendered of the Devices page (wired columns line up with
+  the Bluetooth cards) and the Smart Optimize banner (idle, scanning, result), using the same hue-shift math as
+  `ThemePalette.Shift`. The WPF pages themselves were not rendered here.
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Wired groups on the Bluetooth grid | Column and stacking math unit-tested | The look in WPF at his size and scaling |
+| Grouping fixes | Unit-tested with device trees modelled on his list | His real device tree (names, classes) |
+| Leaving text boxes | Compiles; logic reviewed (clicks in pop-ups and in the box ignored) | Behaviour in the app, Esc in Customize |
+| Banner gradient and ring | Mock-up rendered | WPF rendering of the sweep (seams), blur glow, light theme |
+
 
 - `AdaptiveGrid` gained `MaxColumnWidth`: with it set, the grid uses the fewest columns that keep each one between the
   minimum and maximum width (as many as fit at the minimum, otherwise capped and left-aligned), and keeps that column

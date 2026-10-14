@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using Coreloom.Core.Dashboard;
 
 namespace Coreloom.App.Controls;
 
@@ -61,8 +62,6 @@ public sealed class AdaptiveGrid : Panel
         set => SetValue(MaxColumnWidthProperty, value);
     }
 
-    private bool IsCapped => !double.IsNaN(MaxColumnWidth) && !double.IsInfinity(MaxColumnWidth) && MaxColumnWidth > 0;
-
     public int MaxColumns
     {
         get => (int)GetValue(MaxColumnsProperty);
@@ -104,22 +103,9 @@ public sealed class AdaptiveGrid : Panel
         double width = double.IsInfinity(availableSize.Width) ? (MinColumnWidth * Math.Max(1, Math.Min(MaxColumns, visible.Count))) + (Spacing * Math.Max(0, Math.Min(MaxColumns, visible.Count) - 1)) : availableSize.Width;
         double spacing = Spacing;
 
-        int columns = (int)Math.Floor((width + spacing) / (Math.Max(1, MinColumnWidth) + spacing));
-        if (IsCapped)
-        {
-            // Fewest columns that keep each one within the cap, as long as they stay at least the minimum wide.
-            int fill = (int)Math.Ceiling((width + spacing) / (Math.Max(1, MaxColumnWidth) + spacing));
-            columns = Math.Min(columns, fill);
-        }
-
-        columns = Math.Clamp(columns, 1, Math.Max(1, MaxColumns));
-        if (visible.Count > 0 && !IsCapped)
-        {
-            columns = Math.Min(columns, visible.Count);
-        }
-
+        var (columns, columnWidth) = CardColumns.Fit(width, spacing, MinColumnWidth, MaxColumnWidth, MaxColumns, visible.Count);
         _columns = columns;
-        _columnWidth = ColumnWidth(width, spacing, columns);
+        _columnWidth = columnWidth;
 
         foreach (UIElement child in InternalChildren)
         {
@@ -148,7 +134,7 @@ public sealed class AdaptiveGrid : Panel
     {
         double spacing = Spacing;
         double rowSpacing = EffectiveRowSpacing;
-        double columnWidth = ColumnWidth(finalSize.Width, spacing, _columns);
+        double columnWidth = CardColumns.ColumnWidth(finalSize.Width, spacing, _columns, MaxColumnWidth);
         double extra = 0;
         if (StretchRows && _rowHeights.Length > 0)
         {
@@ -179,11 +165,5 @@ public sealed class AdaptiveGrid : Panel
         }
 
         return finalSize;
-    }
-
-    private double ColumnWidth(double width, double spacing, int columns)
-    {
-        double fill = Math.Max(0, (width - (spacing * (columns - 1))) / columns);
-        return IsCapped ? Math.Min(fill, MaxColumnWidth) : fill;
     }
 }

@@ -39,7 +39,7 @@ installs drivers or services, and never sends your data anywhere.
   off and on, flush DNS or optimize drives.
 - **Devices.** A page with your Bluetooth devices as cards (type icon, connected indicator, battery where reported,
   Connect and Disconnect, which also brings back headphones that switched to your phone) and the devices plugged in by
-  USB or display cable, grouped by type, with *Eject* for drives and driver problems flagged. Bluetooth can be turned
+  USB or display cable, grouped by type on the same grid as the Bluetooth cards, with *Eject* for drives and driver problems flagged. Bluetooth can be turned
   on and off there, and *Pair a new device* opens Windows' Bluetooth settings.
 - **Drive speed test** on the Storage page: sequential and random read and write speeds (like CrystalDiskMark) on a
   temporary file that is deleted afterwards.

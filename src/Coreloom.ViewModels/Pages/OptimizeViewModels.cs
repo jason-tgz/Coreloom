@@ -1170,14 +1170,14 @@ public sealed class OptimizeViewModel : PageViewModel
     /// <summary>"Idle", "Scanning", "Ready", "Running", "Done" (templates switch on it).</summary>
     public string StageKey => _stage.ToString();
 
-    /// <summary>A word under the headline in the ring.</summary>
+    /// <summary>A word under the headline in the ring (none before the first scan).</summary>
     public string StageText => _stage switch
     {
         OptimizeStage.Scanning => "scanning",
         OptimizeStage.Ready => "found",
         OptimizeStage.Running => "optimizing",
         OptimizeStage.Done => "finished",
-        _ => "ready",
+        _ => string.Empty, // the headline says it ("Ready when you are")
     };
 
     public bool IsWorking => _stage is OptimizeStage.Scanning or OptimizeStage.Running;

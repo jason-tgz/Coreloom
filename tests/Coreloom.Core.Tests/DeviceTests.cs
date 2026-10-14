@@ -173,4 +173,61 @@ public class WiredDeviceTests
         Assert.True(WiredDevices.IsGeneric("HID-compliant consumer control device"));
         Assert.False(WiredDevices.IsGeneric("USB Receiver"));
     }
+
+    [Fact]
+    public void ControllersNeedToBeGameControllers_PlumbingLeftOut_LightsAndAudioInterfacesGrouped()
+    {
+        var led = Guid.NewGuid();
+        var litra = Guid.NewGuid();
+        var monitorLink = Guid.NewGuid();
+        var hostController = Guid.NewGuid();
+        var scarlett = Guid.NewGuid();
+        var garbled = Guid.NewGuid();
+        var pad = Guid.NewGuid();
+        var nodes = new List<DevNode>
+        {
+            // A motherboard RGB controller on an internal USB header.
+            Node(@"USB\VID_26CE&PID_01A2\A", null, led, "USB", description: "USB Input Device", bus: "LED Controller"),
+            Node(@"HID\VID_26CE&PID_01A2\B", @"USB\VID_26CE&PID_01A2\A", led, "HIDClass", "HID-compliant vendor-defined device"),
+            // A desk light.
+            Node(@"USB\VID_046D&PID_C901\A", null, litra, "USB", description: "USB Input Device", bus: "Litra Beam"),
+            Node(@"HID\VID_046D&PID_C901\B", @"USB\VID_046D&PID_C901\A", litra, "HIDClass", "HID-compliant vendor-defined device"),
+            // A monitor's USB control link.
+            Node(@"USB\VID_1462&PID_3FA4\A", null, monitorLink, "USB", description: "USB Input Device", bus: "MSI Gaming Controller"),
+            Node(@"HID\VID_1462&PID_3FA4\B", @"USB\VID_1462&PID_3FA4\A", monitorLink, "HIDClass", "HID-compliant consumer control device"),
+            // A USB controller card without its driver.
+            Node(@"PCI\VEN_1B21&DEV_3241\4", null, hostController, "USB", "Universal Serial Bus (USB) Controller") with { Problem = 28 },
+            // An audio interface with its own driver class.
+            Node(@"USB\VID_1235&PID_8210\A", null, scarlett, "FocusriteUSB", description: "Focusrite USB Audio", bus: "Scarlett 2i2 USB"),
+            // A device whose product string came back broken.
+            Node(@"USB\VID_1A2C&PID_0E24\A", null, garbled, "USB", description: "USB Input Device", bus: "\u0409"),
+            Node(@"HID\VID_1A2C&PID_0E24\B", @"USB\VID_1A2C&PID_0E24\A", garbled, "HIDClass", "HID-compliant vendor-defined device"),
+            // A real gamepad: Windows set it up as a game controller.
+            Node(@"USB\VID_054C&PID_0DF2\A", null, pad, "USB", description: "USB Composite Device", bus: "Wireless Controller"),
+            Node(@"HID\VID_054C&PID_0DF2\B", @"USB\VID_054C&PID_0DF2\A", pad, "HIDClass", "HID-compliant game controller"),
+        };
+
+        var devices = WiredDevices.Build(nodes).ToDictionary(d => Guid.Parse(d.Id));
+
+        Assert.DoesNotContain(hostController, devices.Keys); // plumbing, not a device
+        Assert.Equal(DeviceKind.Light, devices[led].Kind);
+        Assert.Equal(DeviceGroup.Lighting, devices[led].Group);
+        Assert.Equal(DeviceKind.Light, devices[litra].Kind);
+        Assert.Equal(DeviceKind.Accessory, devices[monitorLink].Kind);
+        Assert.Equal(DeviceGroup.Other, devices[monitorLink].Group);
+        Assert.Equal("MSI Gaming Controller", devices[monitorLink].Name);
+        Assert.Equal(DeviceKind.Audio, devices[scarlett].Kind);
+        Assert.Equal("Scarlett 2i2 USB", devices[scarlett].Name);
+        Assert.Equal(DeviceKind.Accessory, devices[garbled].Kind);
+        Assert.Equal("USB Input Device", devices[garbled].Name); // the readable generic name beats the broken one
+        Assert.Equal(DeviceKind.Controller, devices[pad].Kind);
+        Assert.Equal(DeviceGroup.Controllers, devices[pad].Group);
+
+        Assert.False(WiredDevices.IsReadable("\u0409"));
+        Assert.True(WiredDevices.IsReadable("K7"));
+        Assert.True(DeviceKinds.IsGamepadName("DualSense Edge Wireless Controller"));
+        Assert.False(DeviceKinds.IsGamepadName("LED Controller"));
+        Assert.Equal("Lighting", DeviceKinds.GroupText(DeviceGroup.Lighting));
+        Assert.Equal("Icon.Light", DeviceKinds.IconKey(DeviceKind.Light));
+    }
 }

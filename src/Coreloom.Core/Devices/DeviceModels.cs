@@ -151,11 +151,15 @@ public static class WiredDevices
             var (kind, primary) = Classify(members, root);
             if (kind == DeviceKind.Hub)
             {
-                continue; // a hub on its own isn't something you use; what's plugged into it is listed
+                continue; // a hub or a USB controller on its own isn't something you use; what's plugged into it is listed
             }
 
             string name = Name(members, root, primary, kind);
-            kind = DeviceKinds.Refine(kind, name);
+            var refined = DeviceKinds.Refine(kind, name);
+            if (refined != DeviceKind.Controller || kind == DeviceKind.Controller || IsGamepad(members, name))
+            {
+                kind = refined; // "LED Controller" or "MSI Gaming Controller" doesn't become a game controller by its name alone
+            }
             string? maker = new[] { root.Manufacturer, primary.Manufacturer }.FirstOrDefault(m => !string.IsNullOrWhiteSpace(m) && !GenericMakers.Any(g => m!.StartsWith(g, StringComparison.OrdinalIgnoreCase)));
             int problem = root.Problem != 0 ? root.Problem : members.Select(n => n.Problem).FirstOrDefault(p => p != 0);
             string? eject = kind is DeviceKind.Storage or DeviceKind.CardReader or DeviceKind.Phone
@@ -181,7 +185,13 @@ public static class WiredDevices
     {
         DevNode? Find(params string[] classes) => members.FirstOrDefault(n => n.ClassName is { } c && classes.Contains(c, StringComparer.OrdinalIgnoreCase));
 
-        var named = DeviceKinds.FromName(root.BusDescription ?? root.FriendlyName);
+        string? rootName = root.BusDescription ?? root.FriendlyName;
+        var named = DeviceKinds.FromName(rootName);
+        if (named == DeviceKind.Controller && !IsGamepad(members, rootName))
+        {
+            named = DeviceKind.Unknown; // the word "controller" alone: an LED, USB or monitor controller, decided below
+        }
+
         if (named is DeviceKind.Mouse or DeviceKind.Keyboard or DeviceKind.Controller or DeviceKind.Receiver or DeviceKind.Headset or DeviceKind.Headphones or DeviceKind.Speaker or DeviceKind.Phone)
         {
             return (named, root);
@@ -251,12 +261,32 @@ public static class WiredDevices
 
         if (Find("HIDClass") is { } hid)
         {
-            return (named == DeviceKind.Unknown ? DeviceKind.Input : named, hid);
+            // Not a keyboard or a mouse: a light, a stream deck, a UPS, a monitor's control link…
+            return (named == DeviceKind.Unknown ? DeviceKind.Accessory : named, hid);
         }
 
-        bool onlyHubs = members.Where(n => WiredBuses.Contains(n.Enumerator))
-            .All(n => (n.FriendlyName ?? n.Description ?? string.Empty).Contains("hub", StringComparison.OrdinalIgnoreCase));
-        return (onlyHubs ? DeviceKind.Hub : named, root);
+        bool onlyInfrastructure = members.Where(n => WiredBuses.Contains(n.Enumerator)).All(IsInfrastructure);
+        return (onlyInfrastructure ? DeviceKind.Hub : named, root);
+    }
+
+    /// <summary>A game controller: named like one, or Windows set it up as one (an Xbox driver or a HID game controller).</summary>
+    private static bool IsGamepad(List<DevNode> members, string? name) =>
+        DeviceKinds.IsGamepadName(name)
+        || members.Any(n => n.ClassName is "XnaComposite" or "XboxComposite"
+            || DeviceKinds.IsGamepadName(n.FriendlyName) || DeviceKinds.IsGamepadName(n.Description));
+
+    private static readonly string[] InfrastructureWords =
+    [
+        "hub", "host controller", "universal serial bus", "usb controller", "usb4", "root port", "pci express", "pci-to-pci", "pci bridge",
+        "thunderbolt controller", "upstream port", "downstream port",
+    ];
+
+    /// <summary>Hubs, USB host controllers and PCIe bridges: plumbing that devices plug into, not devices.</summary>
+    private static bool IsInfrastructure(DevNode node)
+    {
+        string text = $"{node.FriendlyName} {node.Description} {node.BusDescription}";
+        return InfrastructureWords.Any(w => text.Contains(w, StringComparison.OrdinalIgnoreCase))
+            || (node.Enumerator == "PCI" && node.ClassName is "USB" or "System" or null);
     }
 
     private static string Name(List<DevNode> members, DevNode root, DevNode primary, DeviceKind kind)
@@ -271,10 +301,25 @@ public static class WiredDevices
         }.Concat(members.Select(n => n.BusDescription)).Concat(members.Select(n => n.FriendlyName))
          .Where(n => !string.IsNullOrWhiteSpace(n))
          .Select(n => n!.Trim())
+         .Where(IsReadable)
          .ToList();
 
-        return candidates.FirstOrDefault(n => !IsGeneric(n)) ?? candidates.FirstOrDefault() ?? "Unknown device";
+        // Generic names last, and the device's own ("USB Input Device") before its parts' ("HID-compliant …").
+        return candidates.FirstOrDefault(n => !IsGeneric(n))
+            ?? candidates.FirstOrDefault(n => !n.StartsWith("hid-", StringComparison.OrdinalIgnoreCase))
+            ?? candidates.FirstOrDefault()
+            ?? DeviceKinds.Text(kind) switch
+        {
+            "Device" => "USB device",
+            var text => "USB " + text.ToLowerInvariant(),
+        };
     }
+
+    /// <summary>
+    /// A name worth showing: at least two letters or digits. Some devices report a broken product string (a stray
+    /// character, a run of symbols); the next best name is used instead.
+    /// </summary>
+    public static bool IsReadable(string name) => name.Count(char.IsLetterOrDigit) >= 2;
 
     private static string TrimSuffix(string text, string suffix) =>
         text.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) ? text[..^suffix.Length].TrimEnd() : text;

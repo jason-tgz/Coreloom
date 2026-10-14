@@ -228,13 +228,20 @@ Work through each area and tick what works.
 - [ ] *Wired and USB devices* lists your keyboard, mouse, monitors, webcam, USB drives… with sensible names and groups,
       and nothing from inside the PC. Plug in a USB drive: it appears within ~15 s; *Eject* says it can be unplugged, and
       with a file open from it, says it's in use.
-- [ ] Search narrows both lists; the × clears it.
+- [ ] Search narrows both lists; the × clears it. The box is wide, typed text starts right after the magnifier, and
+      clicking anywhere outside the box (or Esc) stops typing in it.
+- [ ] The Bluetooth switch sits right next to "Bluetooth / Bluetooth is on".
+- [ ] Wired groups are columns on the same grid as the Bluetooth cards (left edges line up), stacking under each other
+      to fill the width. Only real gamepads are under *Controllers*; RGB/LED controllers and lights are under
+      *Lighting*; USB controller cards aren't listed; no device shows a garbled name.
 - [ ] Cards are compact (roughly 270–330 px wide) and keep that width as you resize the window or search; they wrap
       onto new rows instead of stretching. Long names end in "…" and show in full on hover.
 
 **Smart Optimize**
 
 - [ ] *Smart Optimize* sits below *Performance History* in the sidebar.
+- [ ] The banner shows your accent as a gradient (try another accent in Settings: it follows), with a lit, glowing ring
+      before the first scan and no word repeated under "Ready when you are". Light theme looks right too.
 - [ ] *Smart Scan*: the ring fills while the comet circles; the four tiles fill in one after another (Cleanup,
       Protection, Memory, Speed). The headline shows how much junk was found.
 - [ ] Compare the Cleanup sizes with Disk Cleanup / Storage Sense where they overlap. *Clean up and optimize* frees

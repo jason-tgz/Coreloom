@@ -95,6 +95,8 @@ public sealed class ThemeService : IThemeService
         SetColor("Brush.AccentSoft", ThemePalette.WithAlpha(AccentColor, (byte)(_isDark ? 0x2E : 0x24)), duration);
         SetColor("Brush.AccentHover", Blend(AccentColor, _isDark ? Colors.White : Colors.Black, 0.12), duration);
         SetColor("Brush.OnAccent", ThemePalette.ContrastingText(AccentColor), duration);
+        SetColor("Brush.AccentTrack", ThemePalette.WithAlpha(AccentColor, (byte)(_isDark ? 0x33 : 0x29)), duration);
+        PublishAccentGradients(palette);
         byte soft = (byte)(_isDark ? 0x26 : 0x1C); // tinted backgrounds for notices and results
         SetColor("Brush.SuccessSoft", ThemePalette.WithAlpha(palette["Success"], soft), duration);
         SetColor("Brush.InfoSoft", ThemePalette.WithAlpha(palette["Info"], soft), duration);
@@ -121,6 +123,53 @@ public sealed class ThemeService : IThemeService
         }
 
         ThemeChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>The accent's cooler, lighter neighbour (sky for a blue) and its warmer one (violet for a blue).</summary>
+    public static (Color Cool, Color Warm) AccentNeighbours(Color accent) =>
+        (ThemePalette.Shift(accent, -24, 0.06), ThemePalette.Shift(accent, 42, 0));
+
+    /// <summary>
+    /// Gradient brushes made from the accent, for highlighted surfaces such as the Smart Optimize banner: a wash for the
+    /// background, a bloom behind a ring, a lit edge for the card and a gradient for its main button. They're rebuilt
+    /// (not cross-faded) when the theme or accent changes.
+    /// </summary>
+    private void PublishAccentGradients(IReadOnlyDictionary<string, Color> palette)
+    {
+        var accent = AccentColor;
+        var (cool, warm) = AccentNeighbours(accent);
+        Color A(Color c, int dark, int light) => ThemePalette.WithAlpha(c, (byte)(_isDark ? dark : light));
+
+        Publish("Brush.AccentWash", Linear(new Point(0, 0), new Point(1, 1),
+            (A(accent, 0x4C, 0x30), 0), (A(warm, 0x24, 0x16), 0.5), (A(warm, 0, 0), 0.95)));
+        Publish("Brush.AccentBloom", new RadialGradientBrush(new GradientStopCollection
+        {
+            new(A(accent, 0x52, 0x34), 0),
+            new(A(accent, 0x2A, 0x1C), 0.4),
+            new(A(warm, 0x10, 0x0A), 0.72),
+            new(A(warm, 0, 0), 1),
+        }));
+        Publish("Brush.AccentEdge", Linear(new Point(0, 0), new Point(1, 0.7),
+            (A(cool, 0xA0, 0x90), 0), (A(accent, 0x50, 0x40), 0.3), (palette["CardBorder"], 0.7)));
+        Publish("Brush.AccentGradient", Linear(new Point(0, 0), new Point(1, 0.4),
+            (cool, 0), (accent, 0.5), (warm, 1)));
+
+        static LinearGradientBrush Linear(Point start, Point end, params (Color Color, double Offset)[] stops)
+        {
+            var brush = new LinearGradientBrush { StartPoint = start, EndPoint = end };
+            foreach (var (color, offset) in stops)
+            {
+                brush.GradientStops.Add(new GradientStop(color, offset));
+            }
+
+            return brush;
+        }
+    }
+
+    private void Publish(string key, Brush brush)
+    {
+        brush.Freeze();
+        _resources[key] = brush;
     }
 
     /// <summary>Applies DWM attributes to a newly created window.</summary>

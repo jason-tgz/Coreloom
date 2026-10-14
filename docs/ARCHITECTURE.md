@@ -236,7 +236,12 @@ out of ReadyToRun to keep downloads small. `WindowsDeviceService`:
 - **Wired devices**: every present node from `CM_Get_Device_ID_List`, with container, class, names, parent, problem
   code and `DN_REMOVABLE` (nodes inside the PC are skipped after reading their container). `WiredDevices.Build` keeps
   containers other than the PC's own that have a USB, HID, display, SCSI or PCI node and no Bluetooth node, names them
-  from the USB product string or the most telling node, and leaves out hubs on their own.
+  from the USB product string or the most telling readable node, and leaves out hubs, USB host controllers and PCIe
+  bridges on their own. "Controller" in a name only makes a game controller when the name or the device tree says so
+  (an Xbox driver, a HID game controller); other HID-only devices are *Accessory*, lights go under *Lighting*.
+- **Layout**: Bluetooth cards sit in an `AdaptiveGrid` and wired groups in `StackedColumns`, both with 270–330 px
+  columns, so the two sections share one grid; the column math (`CardColumns.Fit`) and the stacking into the shortest
+  column (`CardColumns.Stack`) live in Core and are unit-tested.
 - **Eject**: `CM_Request_Device_EjectW` on the removable node with a veto buffer (so Windows shows no dialog); vetoes
   become "an app is using it".
 
