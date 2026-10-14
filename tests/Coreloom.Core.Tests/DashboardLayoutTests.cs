@@ -165,13 +165,16 @@ public class DashboardCardSizeTests
         };
 
         var normalized = DashboardCatalog.Normalize(cards);
+        var cpu = normalized.First(c => c.Id == DashboardCatalog.CpuLoad);
+        var network = normalized.First(c => c.Id == DashboardCatalog.Network);
+        var memory = normalized.First(c => c.Id == DashboardCatalog.Memory);
 
-        Assert.Equal((3, 4), (normalized[0].Columns, normalized[0].Rows));
-        Assert.Null(normalized[1].Columns); // panels are at least two columns, which is their default
-        Assert.Equal(DashboardCatalog.MaxRows, normalized[1].Rows);
-        Assert.Null(normalized[2].Columns);
-        Assert.Null(normalized[2].Rows);
-        Assert.Equal((2, 8), DashboardCatalog.SizeOf(normalized[1]));
+        Assert.Equal((3, 4), (cpu.Columns, cpu.Rows));
+        Assert.Null(network.Columns); // panels are at least two columns, which is their default
+        Assert.Equal(DashboardCatalog.MaxRows, network.Rows);
+        Assert.Null(memory.Columns);
+        Assert.Null(memory.Rows);
+        Assert.Equal((2, 8), DashboardCatalog.SizeOf(network));
     }
 
     [Fact]

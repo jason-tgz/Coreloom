@@ -1,0 +1,11 @@
+<Window x:Class="Coreloom.App.Views.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Coreloom overlay"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
+        ShowInTaskbar="False" ShowActivated="False" Topmost="True" Focusable="False" IsHitTestVisible="False"
+        SizeToContent="WidthAndHeight" UseLayoutRounding="True" Left="-32000" Top="-32000">
+  <!-- Click-through, never focused, not in Alt+Tab (see the code-behind). The content is the same template as the
+       preview in the overlay's settings. -->
+  <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource OverlayContent}" />
+</Window>

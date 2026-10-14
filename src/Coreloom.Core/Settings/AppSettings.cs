@@ -35,6 +35,8 @@ public sealed class AppSettings
 
     public DashboardSettings Dashboard { get; set; } = new();
 
+    public OverlaySettings Overlay { get; set; } = new();
+
     public DesktopSettings Desktop { get; set; } = new();
 
     public AlertSettings Alerts { get; set; } = new();
@@ -52,6 +54,7 @@ public sealed class AppSettings
         Appearance ??= new AppearanceSettings();
         Monitoring ??= new MonitoringSettings();
         Dashboard ??= new DashboardSettings();
+        Overlay ??= new OverlaySettings();
         Desktop ??= new DesktopSettings();
         Alerts ??= new AlertSettings();
         Updates ??= new UpdateSettings();
@@ -74,6 +77,7 @@ public sealed class AppSettings
             Dashboard.PcGlow = PcGlow.Blue;
         }
 
+        Overlay.Normalize();
         Alerts.CooldownMinutes = Math.Clamp(Alerts.CooldownMinutes, 1, 24 * 60);
         Alerts.Rules ??= AlertSettings.DefaultRules();
         foreach (var rule in Alerts.Rules)

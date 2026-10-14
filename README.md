@@ -25,6 +25,11 @@ installs drivers or services, and never sends your data anywhere.
   Below them are large charts and memory, storage and network panels, all on one grid: drag a card to move it and
   drag its corner to resize it. *Customize* opens a card right on the Overview to show or hide the PC picture, pick
   its lighting, and hide and reorder cards; the layout is saved.
+- **In-game overlay.** FPS, frame time and 1% lows with GPU, CPU and RAM readings on top of your games, measured from
+  Windows' graphics events (nothing is injected into games). Turned on from the Graphics page or with a hotkey (End by
+  default); choose what it shows, where, and its text, colors, opacity and corners.
+- **Health cards** on the Overview, Graphics and Processor pages: Excellent, Good or Needs attention, from the last
+  minute of temperatures, clock slowdowns, fans, memory and drives, with the reasons.
 - **Detail pages** for the GPU, CPU, memory, storage and network:
   - per-thread CPU graphs and a per-core table;
   - top processes;

@@ -31,6 +31,9 @@
         <ContentPresenter Content="{Binding Clock}" ContentTemplate="{StaticResource GaugeCard}" />
       </c:AdaptiveGrid>
 
+      <!-- Health of the processor -->
+      <ContentPresenter Content="{Binding Health}" ContentTemplate="{StaticResource HealthCard}" Margin="0,16,0,0" />
+
       <ItemsControl ItemsSource="{Binding Details}" ItemTemplate="{StaticResource MetricTile}" Margin="0,16,0,0" Focusable="False">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>

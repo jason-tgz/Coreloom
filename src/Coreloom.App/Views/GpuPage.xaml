@@ -2,8 +2,64 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="clr-namespace:Coreloom.App.Controls"
-             xmlns:b="clr-namespace:Coreloom.App.Behaviors">
+             xmlns:b="clr-namespace:Coreloom.App.Behaviors"
+             xmlns:overlay="clr-namespace:Coreloom.ViewModels.Overlay;assembly=Coreloom.ViewModels">
 
+  <UserControl.Resources>
+    <!-- A color dot in the overlay settings (text or background). -->
+    <DataTemplate x:Key="OverlaySwatch" DataType="{x:Type overlay:OverlayColorOption}">
+      <Button Width="28" Height="28" Margin="0,0,6,6" Cursor="Hand" ToolTip="{Binding Name}" AutomationProperties.Name="{Binding Name}"
+              Command="{Binding SelectCommand}">
+        <Button.Template>
+          <ControlTemplate TargetType="Button">
+            <Grid Background="Transparent">
+              <Ellipse x:Name="Ring" StrokeThickness="2" Stroke="{DynamicResource Brush.Text}"
+                       Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}" />
+              <Ellipse x:Name="Swatch" Margin="4" Fill="{Binding Hex, Converter={StaticResource HexToBrush}}" Stroke="#33FFFFFF" StrokeThickness="1" />
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Swatch" Property="Margin" Value="3" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Button.Template>
+      </Button>
+    </DataTemplate>
+
+    <!-- A cell of the position picker. -->
+    <DataTemplate x:Key="OverlayPositionCell" DataType="{x:Type overlay:OverlayPositionOptionViewModel}">
+      <Button Command="{Binding SelectCommand}" ToolTip="{Binding Name}" AutomationProperties.Name="{Binding Name}" Cursor="Hand" Margin="2">
+        <Button.Template>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Cell" CornerRadius="4" Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.InputBorder}" BorderThickness="1">
+              <Border x:Name="Dot" Width="12" Height="6" CornerRadius="2" Background="{DynamicResource Brush.TextTertiary}" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Cell" Property="Background" Value="{DynamicResource Brush.InputHover}" />
+              </Trigger>
+              <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                <Setter TargetName="Cell" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                <Setter TargetName="Cell" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+                <Setter TargetName="Dot" Property="Background" Value="{DynamicResource Brush.Accent}" />
+              </DataTrigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Button.Template>
+      </Button>
+    </DataTemplate>
+
+    <Style x:Key="OverlaySection" TargetType="TextBlock" BasedOn="{StaticResource Text.Label}">
+      <Setter Property="Margin" Value="0,0,0,10" />
+    </Style>
+  </UserControl.Resources>
+
+  <UserControl.InputBindings>
+    <KeyBinding Key="Escape" Command="{Binding OverlaySettings.CloseCommand}" />
+  </UserControl.InputBindings>
+
+  <Grid>
   <ScrollViewer Style="{StaticResource ScrollViewer.Window}">
     <StackPanel Margin="32,14,28,32" b:Motion.Entrance="True">
 
@@ -32,15 +88,49 @@
         <ContentPresenter Content="{Binding MemoryLoad}" ContentTemplate="{StaticResource GaugeCard}" />
       </c:AdaptiveGrid>
 
-      <!-- Clock limit reasons -->
-      <Border Style="{StaticResource Card.Inset}" Margin="0,16,0,0" Visibility="{Binding ClockReasons, Converter={StaticResource HasValueToVisibility}}"
-              ToolTip="Why the GPU is not running at its maximum clocks right now (reported by the NVIDIA driver).">
-        <StackPanel Orientation="Horizontal">
-          <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Info}" />
-          <TextBlock Text="Clock limits:" Style="{StaticResource Text.Label}" Margin="8,0,6,0" VerticalAlignment="Center" />
-          <TextBlock Text="{Binding ClockReasons}" FontSize="12.5" VerticalAlignment="Center" />
-        </StackPanel>
-      </Border>
+      <!-- Health of the card -->
+      <ContentPresenter Content="{Binding Health}" ContentTemplate="{StaticResource HealthCard}" Margin="0,16,0,0" />
+
+      <!-- Clock limit reasons, and the in-game overlay switch beside them (the reasons wrap to make room) -->
+      <Grid Margin="0,16,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <Border Style="{StaticResource Card.Inset}" Margin="0,0,12,0" Visibility="{Binding ClockReasons, Converter={StaticResource HasValueToVisibility}}"
+                ToolTip="Why the GPU is not running at its maximum clocks right now (reported by the NVIDIA driver).">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Info}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="Clock limits:" Style="{StaticResource Text.Label}" Margin="8,0,6,0" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2" Text="{Binding ClockReasons}" FontSize="12.5" VerticalAlignment="Center" TextWrapping="Wrap" />
+          </Grid>
+        </Border>
+
+        <Border Grid.Column="1" Style="{StaticResource Card.Inset}" Padding="14,4,6,4" VerticalAlignment="Stretch"
+                ToolTip="{Binding OverlaySettings.HotkeyHint}">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding OverlaySettings.Enabled}" AutomationProperties.Name="In-game overlay">
+              <TextBlock Text="In-game overlay" FontSize="12.5" FontWeight="Medium" Foreground="{DynamicResource Brush.Text}" />
+            </CheckBox>
+            <Border Style="{StaticResource Badge}" Margin="10,0,0,0" Padding="7,2" BorderBrush="{DynamicResource Brush.InputBorder}" BorderThickness="1"
+                    Visibility="{Binding OverlaySettings.HasHotkey, Converter={StaticResource BoolToVisibility}}">
+              <TextBlock Text="{Binding OverlaySettings.HotkeyText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextSecondary}" />
+            </Border>
+            <Button Style="{StaticResource Button.Subtle}" Margin="6,0,0,0" Padding="9,5" Command="{Binding OverlaySettings.OpenCommand}"
+                    ToolTip="What the overlay shows, where, and how it looks" AutomationProperties.Name="Customize the overlay">
+              <StackPanel Orientation="Horizontal">
+                <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Edit}" />
+                <TextBlock Text="Customize" Margin="7,0,0,0" FontSize="12.5" Foreground="{DynamicResource Brush.TextSecondary}" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Border>
+      </Grid>
 
       <!-- Secondary metrics -->
       <ItemsControl ItemsSource="{Binding Details}" ItemTemplate="{StaticResource MetricTile}" Margin="0,16,0,0" Focusable="False">
@@ -88,4 +178,332 @@
       <ContentPresenter Content="{Binding Sensors}" ContentTemplate="{StaticResource SensorColumns}" />
     </StackPanel>
   </ScrollViewer>
+
+    <!-- In-game overlay settings: a card over the page; every change applies right away (preview and overlay) -->
+    <Grid Visibility="{Binding OverlaySettings.IsOpen, Converter={StaticResource BoolToVisibility}}">
+      <Grid.Style>
+        <Style TargetType="Grid">
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding OverlaySettings.IsOpen}" Value="True">
+              <DataTrigger.EnterActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.16" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </DataTrigger.EnterActions>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Grid.Style>
+
+      <Border Background="{DynamicResource Brush.Scrim}">
+        <Border.InputBindings>
+          <MouseBinding MouseAction="LeftClick" Command="{Binding OverlaySettings.CloseCommand}" />
+        </Border.InputBindings>
+      </Border>
+
+      <Border Style="{StaticResource Card}" Width="660" Margin="32" Padding="0" HorizontalAlignment="Center" VerticalAlignment="Center"
+              AutomationProperties.Name="In-game overlay settings" DataContext="{Binding OverlaySettings}">
+        <Border.Effect>
+          <DropShadowEffect BlurRadius="40" ShadowDepth="10" Direction="270" Opacity="0.35" Color="#000000" />
+        </Border.Effect>
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <Grid Margin="22,18,14,6">
+            <StackPanel Margin="0,0,40,0">
+              <TextBlock Style="{StaticResource Text.CardTitle}" Text="In-game overlay" FontSize="16" />
+              <TextBlock Style="{StaticResource Text.Caption}" Text="Your frame rate and sensors on top of games and apps. Changes apply right away." TextWrapping="Wrap" Margin="0,3,0,0" />
+            </StackPanel>
+            <Button Style="{StaticResource Button.Icon}" HorizontalAlignment="Right" VerticalAlignment="Top" Width="32" Height="32"
+                    Command="{Binding CloseCommand}" ToolTip="Close" AutomationProperties.Name="Close">
+              <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Close}" />
+            </Button>
+          </Grid>
+
+          <ScrollViewer Grid.Row="1" Style="{StaticResource ScrollViewer.Page}">
+            <StackPanel Margin="22,10,22,8">
+
+              <!-- On/off and hotkey -->
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Enabled}" HorizontalAlignment="Left">
+                  <TextBlock Text="Show the overlay" FontSize="13.5" Foreground="{DynamicResource Brush.Text}" />
+                </CheckBox>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                  <TextBlock Text="Hotkey" Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                  <Button x:Name="HotkeyButton" MinWidth="120" Padding="12,6" Command="{Binding ChangeHotkeyCommand}"
+                          PreviewKeyDown="OnHotkeyKeyDown" LostKeyboardFocus="OnHotkeyLostFocus"
+                          ToolTip="Click, then press the key or combination to use" AutomationProperties.Name="Hotkey">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
+                        <Setter Property="Content" Value="{Binding HotkeyText}" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsCapturingHotkey}" Value="True">
+                            <Setter Property="Content" Value="Press a key…" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                  <Button Style="{StaticResource Button.Subtle}" Content="End" Margin="6,0,0,0" Padding="9,6" Command="{Binding ResetHotkeyCommand}"
+                          ToolTip="Use the End key (the default)" />
+                  <Button Style="{StaticResource Button.Subtle}" Content="None" Padding="9,6" Command="{Binding ClearHotkeyCommand}"
+                          ToolTip="No hotkey" />
+                </StackPanel>
+              </Grid>
+              <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                         Text="The hotkey shows or hides the overlay from anywhere, also inside games, and the key still reaches the game. A key on its own also works while you type in other apps; pick a combination like Alt + R if that gets in the way."
+                         Visibility="{Binding HotkeyIsSingleKey, Converter={StaticResource BoolToVisibility}}" />
+
+              <!-- Live preview -->
+              <Border CornerRadius="10" Height="190" Margin="0,16,0,0" ClipToBounds="True">
+                <Border.Background>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Offset="0" Color="#2B3A52" />
+                    <GradientStop Offset="0.55" Color="#16202E" />
+                    <GradientStop Offset="1" Color="#0B0E14" />
+                  </LinearGradientBrush>
+                </Border.Background>
+                <Grid>
+                  <TextBlock Text="Preview" FontSize="11" Foreground="#80FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  <ContentPresenter Content="{Binding Preview}" ContentTemplate="{StaticResource OverlayContent}" Margin="12">
+                    <ContentPresenter.Style>
+                      <Style TargetType="ContentPresenter">
+                        <Setter Property="HorizontalAlignment" Value="Left" />
+                        <Setter Property="VerticalAlignment" Value="Top" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Position}" Value="TopCenter">
+                            <Setter Property="HorizontalAlignment" Value="Center" />
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding Position}" Value="TopRight">
+                            <Setter Property="HorizontalAlignment" Value="Right" />
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding Position}" Value="MiddleLeft">
+                            <Setter Property="VerticalAlignment" Value="Center" />
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding Position}" Value="MiddleRight">
+                            <Setter Property="HorizontalAlignment" Value="Right" />
+                            <Setter Property="VerticalAlignment" Value="Center" />
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding Position}" Value="BottomLeft">
+                            <Setter Property="VerticalAlignment" Value="Bottom" />
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding Position}" Value="BottomCenter">
+                            <Setter Property="HorizontalAlignment" Value="Center" />
+                            <Setter Property="VerticalAlignment" Value="Bottom" />
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding Position}" Value="BottomRight">
+                            <Setter Property="HorizontalAlignment" Value="Right" />
+                            <Setter Property="VerticalAlignment" Value="Bottom" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </ContentPresenter.Style>
+                  </ContentPresenter>
+                </Grid>
+              </Border>
+              <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding FrameRateNote}" TextWrapping="Wrap" Margin="0,6,0,0"
+                         Foreground="{DynamicResource Brush.Elevated}" Visibility="{Binding FrameRateNote, Converter={StaticResource HasValueToVisibility}}" />
+
+              <Border Style="{StaticResource Divider}" Margin="0,18,0,16" />
+
+              <!-- What it shows -->
+              <TextBlock Style="{StaticResource OverlaySection}" Text="Show" />
+              <ItemsControl ItemsSource="{Binding ItemGroups}" Focusable="False">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <c:AdaptiveGrid MinColumnWidth="140" MaxColumns="4" Spacing="16" RowSpacing="12" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="{x:Type overlay:OverlayItemGroupViewModel}">
+                    <StackPanel>
+                      <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}" Margin="0,0,0,4" />
+                      <ItemsControl ItemsSource="{Binding Items}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate DataType="{x:Type overlay:OverlayItemOptionViewModel}">
+                            <CheckBox Style="{StaticResource CheckBox.Compact}" IsChecked="{Binding IsShown}" Margin="0,1">
+                              <TextBlock Text="{Binding Name}" FontSize="12.5" TextTrimming="CharacterEllipsis" />
+                            </CheckBox>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,10,0,0"
+                         Text="Readings your PC doesn't report are left out. Frame rates work in DirectX 9 to 12 games, and in Vulkan and OpenGL games when the graphics driver presents them through DirectX (NVIDIA's default)." />
+
+              <Border Style="{StaticResource Divider}" Margin="0,18,0,16" />
+
+              <!-- Where -->
+              <TextBlock Style="{StaticResource OverlaySection}" Text="Position" />
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <ItemsControl ItemsSource="{Binding Positions}" ItemTemplate="{StaticResource OverlayPositionCell}" Width="132" Height="84" Focusable="False">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <!-- Three by three with the middle left empty (that's the game) -->
+                      <Grid>
+                        <Grid.RowDefinitions>
+                          <RowDefinition Height="*" />
+                          <RowDefinition Height="*" />
+                          <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                      </Grid>
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                      <Setter Property="Grid.Row" Value="{Binding Row}" />
+                      <Setter Property="Grid.Column" Value="{Binding Column}" />
+                    </Style>
+                  </ItemsControl.ItemContainerStyle>
+                </ItemsControl>
+                <StackPanel Grid.Column="1" Margin="24,0,0,0">
+                  <Grid>
+                    <TextBlock Text="Layout" Style="{StaticResource Text.Label}" VerticalAlignment="Center" />
+                    <ListBox Style="{StaticResource Segmented}" HorizontalAlignment="Right" ItemsSource="{Binding LayoutOptions}" SelectedItem="{Binding SelectedLayout}"
+                             DisplayMemberPath="Label" AutomationProperties.Name="Layout" />
+                  </Grid>
+                  <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="130" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="54" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Distance from edge" Style="{StaticResource Text.Label}" VerticalAlignment="Center" />
+                    <Slider Grid.Column="1" Style="{StaticResource Slider.Default}" Minimum="0" Maximum="160" TickFrequency="4"
+                            Value="{Binding EdgeMargin, Converter={StaticResource IntToDouble}}" AutomationProperties.Name="Distance from edge" />
+                    <TextBlock Grid.Column="2" Text="{Binding EdgeMargin, StringFormat={}{0} px}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                  </Grid>
+                  <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowLabels}" Margin="0,10,0,0" HorizontalAlignment="Left">
+                    <TextBlock Text="Labels (FPS, GPU, CPU, RAM)" FontSize="12.5" Foreground="{DynamicResource Brush.Text}" />
+                  </CheckBox>
+                </StackPanel>
+              </Grid>
+
+              <Border Style="{StaticResource Divider}" Margin="0,18,0,16" />
+
+              <!-- Text -->
+              <TextBlock Style="{StaticResource OverlaySection}" Text="Text" />
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="130" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="54" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Size" Style="{StaticResource Text.Label}" VerticalAlignment="Center" />
+                <Slider Grid.Column="1" Style="{StaticResource Slider.Default}" Minimum="10" Maximum="32" Value="{Binding FontSize}" AutomationProperties.Name="Text size" />
+                <TextBlock Grid.Column="2" Text="{Binding FontSize, StringFormat={}{0:0} px}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                <TextBlock Grid.Row="1" Text="Thickness" Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,12,0,0" />
+                <ListBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Style="{StaticResource Segmented}" HorizontalAlignment="Left" Margin="0,12,0,0"
+                         ItemsSource="{Binding WeightOptions}" SelectedItem="{Binding SelectedWeight}" DisplayMemberPath="Label" AutomationProperties.Name="Text thickness" />
+
+                <TextBlock Grid.Row="2" Text="Color" Style="{StaticResource Text.Label}" VerticalAlignment="Top" Margin="0,18,0,0" />
+                <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,12,0,0">
+                  <ItemsControl ItemsSource="{Binding TextColors}" ItemTemplate="{StaticResource OverlaySwatch}" Focusable="False" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <WrapPanel />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                  </ItemsControl>
+                  <TextBox Style="{StaticResource TextBox.Default}" Width="96" Margin="6,0,0,6" VerticalAlignment="Center" Text="{Binding TextColor}"
+                           ToolTip="Any color as #RRGGBB. Press Enter or Tab to apply." AutomationProperties.Name="Text color" KeyDown="OnCommitOnEnter" />
+                </StackPanel>
+
+                <TextBlock Grid.Row="3" Text="Opacity" Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,6,0,0" />
+                <Slider Grid.Row="3" Grid.Column="1" Style="{StaticResource Slider.Default}" Minimum="20" Maximum="100" TickFrequency="5" Margin="0,6,0,0"
+                        Value="{Binding TextOpacity, Converter={StaticResource IntToDouble}}" AutomationProperties.Name="Text opacity" />
+                <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding TextOpacity, StringFormat={}{0} %}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0" />
+              </Grid>
+              <StackPanel Orientation="Horizontal" Margin="130,10,0,0">
+                <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ColorWarnings}" ToolTip="Temperatures and load turn amber, then red, at their warning levels">
+                  <TextBlock Text="Warning colors" FontSize="12.5" Foreground="{DynamicResource Brush.Text}" />
+                </CheckBox>
+                <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding TextShadow}" Margin="24,0,0,0" ToolTip="Keeps the text readable on bright scenes">
+                  <TextBlock Text="Shadow" FontSize="12.5" Foreground="{DynamicResource Brush.Text}" />
+                </CheckBox>
+              </StackPanel>
+
+              <Border Style="{StaticResource Divider}" Margin="0,18,0,16" />
+
+              <!-- Background -->
+              <TextBlock Style="{StaticResource OverlaySection}" Text="Background" />
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="130" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="54" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Color" Style="{StaticResource Text.Label}" VerticalAlignment="Top" Margin="0,6,0,0" />
+                <StackPanel Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal">
+                <ItemsControl ItemsSource="{Binding BackgroundColors}" ItemTemplate="{StaticResource OverlaySwatch}" Focusable="False" VerticalAlignment="Center">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                </ItemsControl>
+                <TextBox Style="{StaticResource TextBox.Default}" Width="96" Margin="6,0,0,6" VerticalAlignment="Center" Text="{Binding BackgroundColor}"
+                         ToolTip="Any color as #RRGGBB. Press Enter or Tab to apply." AutomationProperties.Name="Background color" KeyDown="OnCommitOnEnter" />
+                </StackPanel>
+
+                <TextBlock Grid.Row="1" Text="Opacity" Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,6,0,0" />
+                <Slider Grid.Row="1" Grid.Column="1" Style="{StaticResource Slider.Default}" Minimum="0" Maximum="100" TickFrequency="5" Margin="0,6,0,0"
+                        Value="{Binding BackgroundOpacity, Converter={StaticResource IntToDouble}}" AutomationProperties.Name="Background opacity" />
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding BackgroundOpacity, StringFormat={}{0} %}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0" />
+
+                <TextBlock Grid.Row="2" Text="Corner radius" Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,12,0,0" />
+                <Slider Grid.Row="2" Grid.Column="1" Style="{StaticResource Slider.Default}" Minimum="0" Maximum="24" Margin="0,12,0,0"
+                        Value="{Binding CornerRadius, Converter={StaticResource IntToDouble}}" AutomationProperties.Name="Corner radius" />
+                <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding CornerRadius, StringFormat={}{0} px}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,12,0,0" />
+              </Grid>
+            </StackPanel>
+          </ScrollViewer>
+
+          <Border Grid.Row="2" BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,1,0,0" Padding="22,12">
+            <Grid>
+              <Button Style="{StaticResource Button.Secondary}" Content="Reset look" HorizontalAlignment="Left"
+                      Command="{Binding ResetCommand}" ToolTip="Default readings, position and look (keeps the switch and the hotkey)" />
+              <Button Style="{StaticResource Button.Primary}" Content="Done" HorizontalAlignment="Right" MinWidth="80"
+                      Command="{Binding CloseCommand}" />
+            </Grid>
+          </Border>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
 </UserControl>

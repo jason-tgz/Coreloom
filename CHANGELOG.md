@@ -7,6 +7,30 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-13
+
+A new in-game overlay shows your frame rate and sensors on top of games, and health cards tell you at a glance how your PC is doing.
+
+### Highlights
+
+- **In-game overlay.** See FPS, frame time and 1% lows next to GPU load, temperature, power and fan speed, CPU load and temperature, RAM and more, on top of your games, much like the NVIDIA or Steam overlay.
+- **On from the Graphics page.** The overlay switch sits next to the clock limits. *Customize* picks what it shows, where it sits and how it looks: text size, thickness, color and opacity, background color and opacity, and rounded corners, with a live preview.
+- **A hotkey.** Press End, or a key or combination of your choice, to show or hide the overlay, also in the middle of a game.
+- **Health at a glance.** New health cards on the Overview, Graphics and Processor pages rate the graphics card, processor, and memory and drives as Excellent, Good or Needs attention, and say why.
+
+### In detail
+
+- Frame rates come from Windows' own graphics events, the way PresentMon and the Xbox Game Bar measure them, so nothing is injected into games and anti-cheat isn't involved. They work in DirectX 9 to 12 games, and in Vulkan and OpenGL games when the graphics driver presents them through DirectX (NVIDIA's default).
+- Eight positions (corners, top and bottom center, left and right middle), stacked lines or a single line, labels on or off, distance from the edge, warning colors for temperatures and load, and a text shadow.
+- The overlay appears on the screen of the game you're playing, lets clicks through to the game and never takes focus. It shows over windowed and borderless games and most fullscreen ones; if a game in true exclusive fullscreen hides it, switch the game to borderless.
+- The hotkey starts working once you've turned the overlay on for the first time, so End does nothing for people who don't use it. The key still reaches the game.
+- Health looks at the last minute, so a brief spike doesn't change it: temperatures against your alert levels, clock slowdowns from heat or power problems, hot spot and memory temperatures, fans that stop while warm, memory and disk space, and drive wear.
+- The Overview's *System health* card can be moved, resized or hidden like the other cards.
+
+### Feedback
+
+Found a bug or a sensor that reads wrong? [Open an issue](https://github.com/jerryubah/Coreloom/issues) and attach a CoreloomDiag report.
+
 ## [1.2.7] - 2026-10-13
 
 Arrange the Overview your way: move and resize its cards right on the dashboard.

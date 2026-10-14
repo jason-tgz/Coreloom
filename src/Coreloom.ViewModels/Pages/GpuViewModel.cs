@@ -3,6 +3,7 @@ using Coreloom.Core.Formatting;
 using Coreloom.Core.Hardware;
 using Coreloom.Core.Telemetry;
 using Coreloom.ViewModels.Infrastructure;
+using Coreloom.ViewModels.Overlay;
 
 namespace Coreloom.ViewModels.Pages;
 
@@ -77,7 +78,14 @@ public sealed class GpuViewModel : PageViewModel
             new ChartSeriesViewModel(MetricIds.GpuMemoryUsed(0), "Used", ColorKeys.Memory, ValueStyle.Bytes));
 
         Sensors = new SensorTableViewModel(d => d.Category == MetricCategory.Gpu && d.DeviceId == MetricIds.GpuDeviceId(_slot < 0 ? 0 : _slot));
+        OverlaySettings = new OverlaySettingsViewModel(Settings, context.Overlay);
     }
+
+    /// <summary>The graphics card's health card.</summary>
+    public HealthReportViewModel Health => Context.Health.Gpu;
+
+    /// <summary>The in-game overlay: its switch next to the clock limits, and its settings card.</summary>
+    public OverlaySettingsViewModel OverlaySettings { get; }
 
     public ObservableCollection<GpuChoice> Gpus { get; } = [];
 

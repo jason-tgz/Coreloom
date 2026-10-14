@@ -50,6 +50,7 @@ public partial class App : Application
     private ShellViewModel? _shell;
     private MainWindow? _window;
     private TrayIconService? _tray;
+    private Overlay.OverlayService? _overlay;
     private HttpClient? _http;
     private UpdatesViewModel? _updates;
     private DispatcherTimer? _updateTimer;
@@ -92,6 +93,7 @@ public partial class App : Application
             _exiting = true;
             try
             {
+                _overlay?.Dispose();
                 _tray?.Dispose();
                 _host?.Dispose();
             }
@@ -370,6 +372,17 @@ public partial class App : Application
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
 
         host.Engine.Start();
+
+        // The in-game overlay (off until turned on; its hotkey works from the start).
+        try
+        {
+            _overlay = new Overlay.OverlayService(shell, settingsService, Dispatcher);
+            _overlay.Start();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Overlay", "Starting the in-game overlay failed.", ex);
+        }
 
         if (startHidden)
         {
@@ -713,6 +726,8 @@ public partial class App : Application
             }
 
             _settings?.Flush();
+            _overlay?.Dispose();
+            _overlay = null;
             _tray?.Dispose();
             _tray = null;
 

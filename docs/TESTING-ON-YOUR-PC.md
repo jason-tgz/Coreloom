@@ -170,6 +170,37 @@ Work through each area and tick what works.
       appearing, also when maximized. Pointing at it widens it; using the mouse wheel over it slims it again until the
       mouse moves. Dragging the window's right edge still resizes the window.
 
+**Health**
+
+- [ ] The Overview shows a *System health* card under the summary cards (also after updating from 1.2.7), with the
+      graphics card, processor, and memory and drives side by side. It says *Checking…* for a few seconds after start.
+- [ ] The Graphics and Processor pages show a health card under the gauges. A cool, idle PC reads *Excellent*; without
+      PawnIO the processor reads *Good* with "Temperature not available".
+- [ ] Under a long stress test the graphics card stays *Excellent* unless it gets warm (it then says *Good* and
+      "Running warm"). Clock slowdowns from heat show up there; power-limit slowdowns don't.
+- [ ] The health card can be moved, resized and hidden like the other dashboard cards.
+
+**In-game overlay**
+
+- [ ] *Graphics*: the *In-game overlay* switch sits on the same line as *Clock limits*; the clock limits text wraps when
+      the window is narrow. The switch turns the overlay on and off, and the End badge shows the hotkey.
+- [ ] Turned on, the overlay appears in the top-left corner with FPS, GPU, CPU and RAM lines and a rounded, see-through
+      background. It never takes focus, clicks pass through it, and it's not in the taskbar or Alt+Tab.
+- [ ] Start a DirectX 11 or 12 game (windowed or borderless): FPS, frame time and 1% low match the game's own counter
+      or the NVIDIA overlay within a few percent. Alt+Tab to the desktop: FPS turns to "—".
+- [ ] Try a Vulkan game and an exclusive-fullscreen game; note whether FPS and the overlay show.
+- [ ] Press End in the game: the overlay hides; again: it shows. The game still receives End. Before the overlay was
+      ever turned on, End did nothing.
+- [ ] *Customize*: every checkbox, position (eight cells), layout, slider, color dot and hex box changes the preview and
+      the real overlay right away; the choices are kept after a restart. *Reset look* restores the defaults but keeps
+      the switch and hotkey.
+- [ ] Hotkey: click the hotkey button, press Ctrl+Shift+O; it shows "Ctrl + Shift + O" and works in a game. Esc while
+      waiting cancels; *None* turns the hotkey off; *End* brings it back.
+- [ ] With two monitors, the overlay follows the game to the monitor it runs on, and keeps its distance from the edge
+      at different scaling.
+- [ ] With the overlay on, Coreloom's CPU use stays low (Settings › Diagnostics), and turning it off stops the
+      "Coreloom-FrameRate" trace session (`logman query -ets` doesn't list it).
+
 **Detail pages**
 
 - [ ] The GPU, CPU, Memory, Storage and Network pages are populated, and *Raw sensors* lists

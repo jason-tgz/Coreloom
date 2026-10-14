@@ -171,6 +171,9 @@ public abstract partial class PageViewModel : ObservableObject
 /// <summary>Services shared by all pages.</summary>
 public sealed class PageContext
 {
+    private SystemHealthViewModel? _health;
+    private Overlay.OverlayViewModel? _overlay;
+
     public required MonitorContext Monitor { get; init; }
 
     public required SettingsService Settings { get; init; }
@@ -181,4 +184,10 @@ public sealed class PageContext
     public int GpuSlot => Settings.Current.Monitoring.PreferredGpuSlot is int slot && Monitor.Gpus().Any(g => g.Slot == slot)
         ? slot
         : Monitor.PrimaryGpuSlot();
+
+    /// <summary>Health of the graphics card, processor, memory and drives (shared by the Overview, Graphics and Processor pages).</summary>
+    public SystemHealthViewModel Health => _health ??= new SystemHealthViewModel(this);
+
+    /// <summary>The in-game overlay's content and look (shared by the overlay window and its settings).</summary>
+    public Overlay.OverlayViewModel Overlay => _overlay ??= new Overlay.OverlayViewModel(this);
 }

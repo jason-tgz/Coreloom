@@ -284,6 +284,7 @@ public sealed class OverviewViewModel : PageViewModel
         _panels[DashboardCatalog.MemoryDonut] = _memory;
         _panels[DashboardCatalog.StorageDonut] = _storage;
         _panels[DashboardCatalog.Network] = _network;
+        _panels[DashboardCatalog.Health] = new HealthPanelViewModel(context.Health);
 
         foreach (var (id, _, summary) in DashboardCatalog.All)
         {

@@ -177,7 +177,7 @@ public class OverviewViewModelTests
 
         Assert.Equal(DashboardCatalog.CpuLoad, overview.SummaryCards[0].Id);
         Assert.DoesNotContain(overview.SummaryCards, c => c.Id == DashboardCatalog.GpuPower);
-        Assert.Equal(6, overview.Panels.Count);
+        Assert.Equal(DashboardCatalog.All.Count(c => !c.IsSummaryCard), overview.Panels.Count);
         settings.Dispose();
     }
 

@@ -44,6 +44,7 @@ public sealed class ShellDependencies
 public sealed class ShellViewModel : ObservableObject
 {
     private readonly ShellDependencies _deps;
+    private readonly PageContext _context;
     private PageViewModel _currentPage;
     private bool _isLive;
     private bool _isWindowVisible = true;
@@ -56,6 +57,7 @@ public sealed class ShellViewModel : ObservableObject
         _deps = deps;
         Timeline = new TimelineViewModel(deps.Monitor.Engine.History);
         var context = new PageContext { Monitor = deps.Monitor, Settings = deps.Settings, Timeline = Timeline };
+        _context = context;
 
         Overview = new OverviewViewModel(context);
         Gpu = new GpuViewModel(context);
@@ -144,6 +146,12 @@ public sealed class ShellViewModel : ObservableObject
     public SettingsViewModel Settings { get; }
 
     public UpdatesViewModel Updates => _deps.Updates;
+
+    /// <summary>The in-game overlay's content (the app shows it in its own window over games).</summary>
+    public Overlay.OverlayViewModel Overlay => _context.Overlay;
+
+    /// <summary>Health of the graphics card, processor, memory and drives.</summary>
+    public SystemHealthViewModel Health => _context.Health;
 
     /// <summary>Navigation pages (Settings is shown separately at the bottom of the sidebar).</summary>
     public ObservableCollection<PageViewModel> Pages { get; }
@@ -318,6 +326,10 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         UpdateTrayText(frame);
+
+        // Health and the overlay are kept current while the window is hidden: you're in a game.
+        _context.Health.Update(frame);
+        _context.Overlay.OnFrame(frame);
         if (!_isWindowVisible)
         {
             return;
@@ -370,7 +382,10 @@ public sealed class ShellViewModel : ObservableObject
             page.OnSettingsChanged(section);
         }
 
-        RefreshCurrentPage();
+        if (section != "Overlay")
+        {
+            RefreshCurrentPage(); // overlay sliders change settings many times a second; pages don't show them
+        }
     }
 
     /// <summary>Applies settings to the engine, alert engine, theme and timeline.</summary>

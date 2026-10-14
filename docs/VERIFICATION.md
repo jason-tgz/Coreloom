@@ -147,6 +147,31 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.3.0: in-game overlay and health cards
+
+- **Core tests: 320 passed** (25 new: overlay settings defaults, repairs and JSON round trip, hotkey names and
+  modifier-only keys; frame rates for steady frames, stutters pulling the 1% low down, out-of-order frames and a
+  process that stops drawing; health of the graphics card (cool, warm, hot, near the driver's slowdown temperature,
+  brief spikes, thermal and hardware slowdowns, stopped fans, hot spot gap), processor (missing temperature, fan) and
+  system (memory, full drive, worn drive); the worst report; the health card's place and size, and its insertion into
+  older layouts).
+- **View-model tests: 83 passed** (9 new: health shared by the pages and rated per part; checks updated in place,
+  problems first; overlay lines grouped by part leaving out missing readings; frame rates of the program in front;
+  appearance and warning colors from settings; the settings card's switch, items, position, layout and look; hotkey
+  capture (Esc, modifier on its own, combination, none, End); hex colors; reset; the frame-rate note).
+- **ETW struct layouts** compiled and measured on .NET 10: `EVENT_TRACE_PROPERTIES` 120 bytes, `EVENT_TRACE_LOGFILEW`
+  448 (callback at 424), `TRACE_LOGFILE_HEADER` 280, `EVENT_HEADER` 80 (provider id at 24), matching the Windows SDK
+  for x64; the app checks the same sizes before starting a session.
+- **`Coreloom.App` compiles** against the WPF reference assembly (0 errors, 0 warnings). **XAML checks passed** (17
+  files, 166 keys, 612 bindings).
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Frame rates from ETW | Tracker math unit-tested; struct sizes checked; provider and event ids from the DXGI and D3D9 manifests | A real session on Windows: that events arrive, the 100 ms flush, FPS against a game's own counter, Vulkan/OpenGL games, the stale-session cleanup |
+| Overlay window | Code review | Click-through, no focus, topmost over borderless and fullscreen games, placement on each monitor and DPI, flicker, CPU/GPU cost |
+| Hotkey (low-level keyboard hook) | Capture and arming logic unit-tested | The hook in games (raw input, anti-cheat), that keys still reach the game, modifier matching |
+| Health cards | Rules and view models unit-tested | The real readings on your PC and how the cards look |
+
 ### 1.2.7: moving and resizing dashboard cards, the page scroll bar and the picture switch
 
 - **Core tests: 295 passed** (25 new: column counts for widths, placement of the default dashboard at six and four

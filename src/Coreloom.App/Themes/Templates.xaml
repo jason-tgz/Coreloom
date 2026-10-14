@@ -3,7 +3,8 @@
                     xmlns:c="clr-namespace:Coreloom.App.Controls"
                     xmlns:b="clr-namespace:Coreloom.App.Behaviors"
                     xmlns:inf="clr-namespace:Coreloom.ViewModels.Infrastructure;assembly=Coreloom.ViewModels"
-                    xmlns:pages="clr-namespace:Coreloom.ViewModels.Pages;assembly=Coreloom.ViewModels">
+                    xmlns:pages="clr-namespace:Coreloom.ViewModels.Pages;assembly=Coreloom.ViewModels"
+                    xmlns:overlay="clr-namespace:Coreloom.ViewModels.Overlay;assembly=Coreloom.ViewModels">
 
   <ResourceDictionary.MergedDictionaries>
     <ResourceDictionary Source="Icons.xaml" />
@@ -386,6 +387,192 @@
           <Run Text="{Binding UsedText, Mode=OneWay}" /><Run Text=" used · " /><Run Text="{Binding FreeText, Mode=OneWay}" /><Run Text=" free of " /><Run Text="{Binding CapacityText, Mode=OneWay}" />
         </TextBlock>
       </StackPanel>
+    </Grid>
+  </DataTemplate>
+  <!-- ================================================================================= -->
+  <!-- Health (Graphics and Processor pages, and the Overview's health card)              -->
+  <!-- ================================================================================= -->
+
+  <!-- One check: an icon by state, the title and its detail underneath. -->
+  <DataTemplate x:Key="HealthCheckRow" DataType="{x:Type pages:HealthCheckViewModel}">
+    <Grid Background="Transparent" ToolTip="{Binding Detail}">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <Path x:Name="Icon" Style="{StaticResource IconPath}" Width="15" Height="15" VerticalAlignment="Top" Margin="0,1,9,0"
+            Data="{StaticResource Icon.Check}" Stroke="{DynamicResource Brush.Success}" />
+      <StackPanel Grid.Column="1">
+        <TextBlock Text="{Binding Title}" FontSize="13" Foreground="{DynamicResource Brush.Text}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Text="{Binding Detail}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0" />
+      </StackPanel>
+    </Grid>
+    <DataTemplate.Triggers>
+      <DataTrigger Binding="{Binding StateKey}" Value="Notice">
+        <Setter TargetName="Icon" Property="Data" Value="{StaticResource Icon.Info}" />
+        <Setter TargetName="Icon" Property="Stroke" Value="{DynamicResource Brush.Elevated}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding StateKey}" Value="Problem">
+        <Setter TargetName="Icon" Property="Data" Value="{StaticResource Icon.Warning}" />
+        <Setter TargetName="Icon" Property="Stroke" Value="{DynamicResource Brush.Critical}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding StateKey}" Value="Unknown">
+        <Setter TargetName="Icon" Property="Data" Value="{StaticResource Icon.Info}" />
+        <Setter TargetName="Icon" Property="Stroke" Value="{DynamicResource Brush.TextTertiary}" />
+      </DataTrigger>
+    </DataTemplate.Triggers>
+  </DataTemplate>
+
+  <!-- A check on one line (the Overview's health card is short). -->
+  <DataTemplate x:Key="HealthCheckLine" DataType="{x:Type pages:HealthCheckViewModel}">
+    <Grid Background="Transparent" Margin="0,2" ToolTip="{Binding Detail}">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <Path x:Name="Icon" Style="{StaticResource IconPath}" Width="13" Height="13" Margin="0,0,7,0" VerticalAlignment="Center"
+            Data="{StaticResource Icon.Check}" Stroke="{DynamicResource Brush.Success}" />
+      <TextBlock Grid.Column="1" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontSize="12.5">
+        <Run Text="{Binding Title, Mode=OneWay}" Foreground="{DynamicResource Brush.Text}" /><Run Text=" · " Foreground="{DynamicResource Brush.TextTertiary}" /><Run Text="{Binding Detail, Mode=OneWay}" Foreground="{DynamicResource Brush.TextSecondary}" />
+      </TextBlock>
+    </Grid>
+    <DataTemplate.Triggers>
+      <DataTrigger Binding="{Binding StateKey}" Value="Notice">
+        <Setter TargetName="Icon" Property="Data" Value="{StaticResource Icon.Info}" />
+        <Setter TargetName="Icon" Property="Stroke" Value="{DynamicResource Brush.Elevated}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding StateKey}" Value="Problem">
+        <Setter TargetName="Icon" Property="Data" Value="{StaticResource Icon.Warning}" />
+        <Setter TargetName="Icon" Property="Stroke" Value="{DynamicResource Brush.Critical}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding StateKey}" Value="Unknown">
+        <Setter TargetName="Icon" Property="Data" Value="{StaticResource Icon.Info}" />
+        <Setter TargetName="Icon" Property="Stroke" Value="{DynamicResource Brush.TextTertiary}" />
+      </DataTrigger>
+    </DataTemplate.Triggers>
+  </DataTemplate>
+
+  <!-- A part's health across the page: shield and status on the left, the checks on the right.
+       Excellent is green, Good blue, Needs attention red. -->
+  <DataTemplate x:Key="HealthCard" DataType="{x:Type pages:HealthReportViewModel}">
+    <Border Style="{StaticResource Card}" Padding="18,14">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,28,0" MinWidth="230">
+          <Grid Width="46" Height="46" VerticalAlignment="Center">
+            <Ellipse x:Name="Halo" Fill="{DynamicResource Brush.TextTertiary}" Opacity="0.14" />
+            <Path x:Name="Shield" Style="{StaticResource IconPath}" Width="22" Height="22" Data="{StaticResource Icon.Shield}"
+                  Stroke="{DynamicResource Brush.TextTertiary}" StrokeThickness="1.8" />
+          </Grid>
+          <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+            <TextBlock Style="{StaticResource Text.Label}" Text="{Binding Name, StringFormat={}{0} health}" />
+            <TextBlock x:Name="Status" Text="{Binding StatusText}" FontSize="20" FontWeight="SemiBold" Margin="0,1,0,0"
+                       Foreground="{DynamicResource Brush.TextSecondary}" />
+            <TextBlock Text="{Binding Summary}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" MaxWidth="260" />
+          </StackPanel>
+        </StackPanel>
+        <ItemsControl Grid.Column="1" ItemsSource="{Binding Checks}" ItemTemplate="{StaticResource HealthCheckRow}" Focusable="False"
+                      VerticalAlignment="Center">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <c:AdaptiveGrid MinColumnWidth="200" MaxColumns="3" Spacing="20" RowSpacing="10" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </Grid>
+    </Border>
+    <DataTemplate.Triggers>
+      <DataTrigger Binding="{Binding StatusKey}" Value="Excellent">
+        <Setter TargetName="Halo" Property="Fill" Value="{DynamicResource Brush.Success}" />
+        <Setter TargetName="Shield" Property="Stroke" Value="{DynamicResource Brush.Success}" />
+        <Setter TargetName="Status" Property="Foreground" Value="{DynamicResource Brush.Success}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding StatusKey}" Value="Good">
+        <Setter TargetName="Halo" Property="Fill" Value="{DynamicResource Brush.Info}" />
+        <Setter TargetName="Shield" Property="Stroke" Value="{DynamicResource Brush.Info}" />
+        <Setter TargetName="Status" Property="Foreground" Value="{DynamicResource Brush.Info}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding StatusKey}" Value="Attention">
+        <Setter TargetName="Halo" Property="Fill" Value="{DynamicResource Brush.Critical}" />
+        <Setter TargetName="Shield" Property="Stroke" Value="{DynamicResource Brush.Critical}" />
+        <Setter TargetName="Status" Property="Foreground" Value="{DynamicResource Brush.Critical}" />
+      </DataTrigger>
+    </DataTemplate.Triggers>
+  </DataTemplate>
+
+  <!-- ================================================================================= -->
+  <!-- In-game overlay (the overlay window and its preview in the settings card)          -->
+  <!-- ================================================================================= -->
+
+  <!-- A value: the number, then a smaller unit on the same baseline. -->
+  <DataTemplate x:Key="OverlayValue" DataType="{x:Type overlay:OverlayValueViewModel}">
+    <TextBlock Margin="{Binding Overlay.ValueSpacing}" Foreground="{Binding Color, Converter={StaticResource HexToBrush}}">
+      <Run Text="{Binding Number, Mode=OneWay}" /><Run Text="{Binding Unit, Mode=OneWay, StringFormat={}&#x2009;{0}}" FontSize="{Binding Overlay.SmallFontSize, Mode=OneWay}" />
+    </TextBlock>
+  </DataTemplate>
+
+  <!-- A line: "GPU  97 %  72 °C  350 W". Labels line up in a column when stacked. -->
+  <DataTemplate x:Key="OverlayGroup" DataType="{x:Type overlay:OverlayGroupViewModel}">
+    <Grid Margin="{Binding Overlay.GroupSpacing}">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" SharedSizeGroup="OverlayLabel" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="{Binding Label}" Opacity="0.6" Margin="{Binding Overlay.LabelSpacing}"
+                 Visibility="{Binding Overlay.ShowLabels, Converter={StaticResource BoolToVisibility}}" />
+      <ItemsControl Grid.Column="1" ItemsSource="{Binding Values}" ItemTemplate="{StaticResource OverlayValue}" Focusable="False">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </Grid>
+  </DataTemplate>
+
+  <!-- The overlay: a rounded box with its own background and text opacity, lines stacked or on one line. -->
+  <DataTemplate x:Key="OverlayContent" DataType="{x:Type overlay:OverlayViewModel}">
+    <Grid TextElement.FontFamily="{StaticResource UiFont}" TextElement.FontSize="{Binding FontSize}"
+          TextElement.FontWeight="{Binding FontWeight}" TextElement.Foreground="{Binding TextColor, Converter={StaticResource HexToBrush}}"
+          Typography.NumeralAlignment="Tabular" TextOptions.TextRenderingMode="Grayscale" TextOptions.TextFormattingMode="Ideal"
+          Visibility="{Binding HasContent, Converter={StaticResource BoolToVisibility}}">
+      <Border CornerRadius="{Binding CornerRadius}" Background="{Binding BackgroundColor, Converter={StaticResource HexToBrush}}"
+              Opacity="{Binding BackgroundOpacity}" />
+      <ItemsControl ItemsSource="{Binding Groups}" ItemTemplate="{StaticResource OverlayGroup}" Margin="{Binding Padding}"
+                    Opacity="{Binding TextOpacity}" Grid.IsSharedSizeScope="True" Focusable="False">
+        <ItemsControl.Style>
+          <Style TargetType="ItemsControl">
+            <Setter Property="ItemsPanel">
+              <Setter.Value>
+                <ItemsPanelTemplate>
+                  <StackPanel />
+                </ItemsPanelTemplate>
+              </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsHorizontal}" Value="True">
+                <Setter Property="ItemsPanel">
+                  <Setter.Value>
+                    <ItemsPanelTemplate>
+                      <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                  </Setter.Value>
+                </Setter>
+              </DataTrigger>
+              <DataTrigger Binding="{Binding TextShadow}" Value="True">
+                <Setter Property="Effect">
+                  <Setter.Value>
+                    <DropShadowEffect BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.85" Color="#000000" RenderingBias="Performance" />
+                  </Setter.Value>
+                </Setter>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </ItemsControl.Style>
+      </ItemsControl>
     </Grid>
   </DataTemplate>
 </ResourceDictionary>

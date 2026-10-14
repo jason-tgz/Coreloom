@@ -174,6 +174,9 @@ public sealed class CpuViewModel : PageViewModel
 
     public ObservableCollection<KeyValueItem> Specifications { get; } = [];
 
+    /// <summary>The processor's health card.</summary>
+    public HealthReportViewModel Health => Context.Health.Cpu;
+
     public MetricViewModel Load { get; }
 
     public MetricViewModel Temperature { get; }

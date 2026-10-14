@@ -165,6 +165,49 @@ Pages that scroll at the window's right edge use `ScrollViewer.Window`: a 24 px 
 margin whose right 6 px stay clear of the window's resize border (`ResizeBorderThickness`). `ScrollBarHover` widens
 its thumb from 8 to 14 px while the pointer is on the bar and narrows it again when the wheel is used.
 
+## Health
+
+`HealthMonitor` (Core, unit-tested) keeps the last 60 readings of each input it needs: the selected GPU's temperature,
+hot spot, memory junction, driver slowdown temperature, NVML clock event reasons and fan; the CPU temperature and fan
+(the board fans `PcFans` classifies as CPU/AIO/radiator); memory load; the fullest volume; drive wear, spare and
+temperature. `EvaluateGpu`, `EvaluateCpu` and `EvaluateSystem` turn them into a `HealthReport` of `HealthCheck`s:
+any Problem makes the status *Needs attention*, any Notice or unreadable check *Good*, otherwise *Excellent*.
+Temperature levels follow the user's alert rules (as on the Overview cards). Thermal slowdown counts from 25 % of the
+minute (a problem from 75 %); hardware slowdown or power brake from 5 %; power-limit slowdowns are normal and ignored.
+
+`SystemHealthViewModel` (one per app, `PageContext.Health`) is fed every frame by the shell, also while the window is
+hidden, and updates its `HealthReportViewModel`s in place. The Graphics and Processor pages show their part with the
+`HealthCard` template; the Overview's `health` dashboard card (`HealthPanelViewModel`, 6 × 2 by default, placed after
+the summary cards; older layouts get it there through `DashboardCatalog.Normalize`) shows all three.
+
+## In-game overlay
+
+Settings live in `Overlay` (`OverlaySettings`: on/off, hotkey as a virtual-key code with modifiers, shown items from
+`OverlayCatalog`, position, layout, text and background look). `OverlayViewModel` (`PageContext.Overlay`) groups the
+shown readings into lines (FPS, GPU, CPU, RAM), leaves out what the PC doesn't report, formats them with the usual
+`MetricViewModel`s and tints them at warning levels. It is fed every frame by the shell and ticked twice a second by
+the app for frame rates. `OverlaySettingsViewModel` is the Graphics page's settings card; its preview renders the same
+`OverlayContent` template as the overlay window.
+
+In the app, `OverlayService` owns the pieces:
+
+- `OverlayWindow`: a topmost, layered, transparent window with `WS_EX_TRANSPARENT` (clicks pass through),
+  `WS_EX_NOACTIVATE` and `WS_EX_TOOLWINDOW` (no focus, no taskbar or Alt+Tab). Every tick it is placed on the monitor
+  of the foreground window (`MonitorFromWindow`, per-monitor DPI for the margin) and re-asserted topmost every 2 s.
+- `EtwFrameRateSource`: a real-time ETW session ("Coreloom-FrameRate", performance-counter timestamps, one set of
+  buffers, 100 ms flush) with the Microsoft-Windows-DXGI (Present start, events 42 and 55) and Microsoft-Windows-D3D9
+  (event 1) providers. A background thread runs `ProcessTrace`; the callback hands each present's process id and
+  timestamp to `FrameRateTracker` (Core, unit-tested), which keeps 4096 frames per process and gives FPS over the
+  second up to the latest frame, the average frame time and the 1% low over ten seconds. It runs only while the
+  overlay is on and shows a frame-rate item; a stale session of the same name is stopped first. Struct layouts are
+  checked against the Windows SDK sizes before starting (`EtwNative.LayoutIsValid`).
+- `GlobalHotkey`: a `WH_KEYBOARD_LL` hook on its own thread with a message loop, so a busy UI never delays typing.
+  It never swallows keys (unlike `RegisterHotKey`), ignores auto-repeat, matches modifiers exactly, pauses while the
+  settings card captures a new hotkey, and is only installed once the overlay has been turned on
+  (`OverlaySettings.ActiveHotkey`).
+
+The foreground process comes from `GetForegroundWindow`; Coreloom itself shows no frame rate.
+
 ## Sensor columns and nested scrolling
 
 `SensorTableViewModel` also exposes `FirstColumn`/`SecondColumn`. `SensorColumns.Split` balances the groups by height
