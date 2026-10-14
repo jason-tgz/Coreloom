@@ -3,7 +3,8 @@
   <!-- The WPF desktop application (Coreloom.exe). -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- The Windows 10 SDK projection gives access to Windows' Bluetooth, radio and device APIs (Devices page). -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <UseWPF>true</UseWPF>
     <!-- WinForms is used only for the notification-area icon (NotifyIcon). -->
@@ -19,6 +20,11 @@
     <InvariantGlobalization>false</InvariantGlobalization>
     <TieredPGO>true</TieredPGO>
   </PropertyGroup>
+
+  <!-- The Windows API projection is large and rarely on a hot path: keep it out of ReadyToRun to keep downloads small. -->
+  <ItemGroup>
+    <PublishReadyToRunExclude Include="Microsoft.Windows.SDK.NET.dll" />
+  </ItemGroup>
 
   <!-- Keep WPF and WinForms types from colliding (Application, Button, Color, ...). -->
   <ItemGroup>

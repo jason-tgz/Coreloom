@@ -36,16 +36,18 @@ public sealed class InverseBoolConverter : IValueConverter
 /// <summary>Non-null / non-empty string / non-empty collection → Visible ("Invert" to invert).</summary>
 public sealed class HasValueToVisibilityConverter : IValueConverter
 {
+    internal static bool HasValue(object? value) => value switch
+    {
+        null => false,
+        string s => !string.IsNullOrWhiteSpace(s),
+        int i => i > 0,
+        ICollection c => c.Count > 0,
+        _ => true,
+    };
+
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        bool has = value switch
-        {
-            null => false,
-            string s => !string.IsNullOrWhiteSpace(s),
-            int i => i > 0,
-            ICollection c => c.Count > 0,
-            _ => true,
-        };
+        bool has = HasValue(value);
 
         if (string.Equals(parameter as string, "Invert", StringComparison.OrdinalIgnoreCase))
         {
@@ -54,6 +56,14 @@ public sealed class HasValueToVisibilityConverter : IValueConverter
 
         return has ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
+}
+
+/// <summary>Non-null / non-empty string / non-empty collection → true (e.g. to play an animation when a message appears).</summary>
+public sealed class HasValueToBoolConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => HasValueToVisibilityConverter.HasValue(value);
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
 }

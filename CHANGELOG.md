@@ -7,6 +7,30 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-14
+
+A new Devices page shows everything connected to your PC and lets you connect and disconnect Bluetooth devices with one click.
+
+### Highlights
+
+- **Devices page.** A new tab below Storage lists your Bluetooth devices as cards and your wired devices grouped by type: keyboards and mice, controllers, audio, displays, cameras, storage and more.
+- **Connect and disconnect.** Every Bluetooth card shows what the device is, a live connected indicator, and a Connect or Disconnect button. Connect brings back headphones and speakers that switched to your phone or another computer.
+- **Battery at a glance.** Devices that report their battery show it on the same green-to-red scale as the gauges, and a note warns when a connected device runs low.
+- **Bluetooth switch and pairing.** Turn Bluetooth on or off right on the page; *Pair a new device* opens Windows' Bluetooth settings.
+- **Safely remove drives.** USB drives get an Eject button, and wired devices with a driver problem are flagged.
+
+### In detail
+
+- Connect for headphones and speakers sends the same request as the Connect button in Windows' Bluetooth settings. Keyboards, mice and controllers are called too, though most reconnect by themselves when you turn them on or press a button.
+- Cards update as soon as Windows reports a device connecting or disconnecting, and every few seconds while the page is open. Connected devices come first; others show when they were last connected.
+- Search finds devices by name or type in both lists.
+- Devices paired over both Bluetooth Classic and Bluetooth LE show as one card.
+- If a device doesn't answer, the card says why and what to try. Ejecting a drive that's in use says which app is holding it when Windows tells.
+
+### Feedback
+
+Found a bug or a device that's listed wrong? [Open an issue](https://github.com/jerryubah/Coreloom/issues) and attach a CoreloomDiag report.
+
 ## [1.3.1] - 2026-10-14
 
 Smart Optimize cleans up, protects and speeds up your PC in one click, the Storage and Network pages can test drive and internet speed, and every gauge now speaks the same colors.

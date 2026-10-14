@@ -212,6 +212,24 @@ Work through each area and tick what works.
       resemble speed.cloudflare.com's in a browser. The server line shows Cloudflare, the location and your provider.
 - [ ] Unplug the network or turn off Wi-Fi and start a test: a short explanation instead of a hang.
 
+**Devices**
+
+- [ ] *Devices* sits below *Storage* in the sidebar. The Bluetooth card shows the adapter on, with counts that match
+      Windows' *Bluetooth & devices* page.
+- [ ] Every paired Bluetooth device has a card with the right icon (headphones, mouse, controller…), *Connected* or *Not
+      connected*, and the battery where Windows shows one. Connected devices come first; others say when they were last
+      connected.
+- [ ] Headphones: switch them to your phone, then press *Connect* on the card. They come back to the PC within about 15
+      seconds (sound plays on them). *Disconnect* drops them; Windows' *Bluetooth & devices* agrees.
+- [ ] A keyboard, mouse or controller: *Disconnect* drops it; *Connect* either reconnects or explains what to do.
+- [ ] Turn a device off and on: its card changes within a second or two, without pressing *Refresh*.
+- [ ] The Bluetooth switch turns Bluetooth off and on (Windows' switch follows). *Pair a new device* opens Bluetooth
+      settings.
+- [ ] *Wired and USB devices* lists your keyboard, mouse, monitors, webcam, USB drives… with sensible names and groups,
+      and nothing from inside the PC. Plug in a USB drive: it appears within ~15 s; *Eject* says it can be unplugged, and
+      with a file open from it, says it's in use.
+- [ ] Search narrows both lists; the × clears it.
+
 **Smart Optimize**
 
 - [ ] *Smart Optimize* sits below *Performance History* in the sidebar.

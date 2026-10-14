@@ -147,6 +147,27 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.3.2: Devices page
+
+- **Core tests: 387 passed** (23 new: device types from the Bluetooth Class of Device, LE Appearance and names; labels,
+  icons and groups; address formatting; battery colors; dual-mode devices merged and connected first; wired devices
+  built from a device tree (internal, Bluetooth and network-only containers left out, names from USB product strings
+  and disks, a mouse that also exposes a keyboard, monitors with driver problems, drives with eject, hubs left out)).
+- **View-model tests: 99 passed** (6 new: listing and ordering, card texts, battery warning, connect/disconnect updating
+  the same card, failed connect, search, the Bluetooth switch (also refused), eject, refreshing on Windows' events; nine
+  pages with Devices below Storage).
+- **`Coreloom.App` compiles** against the WPF reference assembly and stand-ins for the Windows SDK projection types it
+  uses (0 errors, 0 warnings); the real projection is first used by GitHub Actions. **Struct sizes** measured on .NET 10:
+  BLUETOOTH_DEVICE_INFO 560 (address at 8, last used at 48, name at 64), KSPROPERTY 24, DEVPROPKEY 20. **XAML checks
+  passed** (19 files, 204 shared keys, 905 bindings).
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Bluetooth list and status | Merging and typing unit-tested; WinRT calls compiled against stand-ins | Real enumeration, events, names and types on Windows 11 |
+| Connect / Disconnect | View model unit-tested; KS and IOCTL codes from the SDK headers | That headphones come back from a phone, other devices' behavior |
+| Battery | Colors unit-tested | The device-tree property and the GATT read on real devices |
+| Wired devices and Eject | Grouping unit-tested; configuration manager calls reviewed | Names and groups on a real PC, eject with and without files open |
+
 ### 1.3.1: gauge colors, memory and storage health, speed tests and Smart Optimize
 
 - **Core tests: 364 passed** (44 new: the cool threshold level and the gauge color scale (pure bands, blends that

@@ -67,6 +67,7 @@ public sealed class ShellViewModel : ObservableObject
         Cpu = new CpuViewModel(context);
         Memory = new MemoryViewModel(context);
         Storage = new StorageViewModel(context);
+        Devices = new DevicesViewModel(context);
         Network = new NetworkViewModel(context);
         History = new HistoryViewModel(context, deps.Shell);
         Optimize = new OptimizeViewModel(context);
@@ -82,7 +83,7 @@ public sealed class ShellViewModel : ObservableObject
             App = deps.App,
         });
 
-        Pages = [Overview, Gpu, Cpu, Memory, Storage, Network, History, Optimize];
+        Pages = [Overview, Gpu, Cpu, Memory, Storage, Devices, Network, History, Optimize];
         _currentPage = Overview;
         NavigateCommand = new RelayCommand<PageViewModel>(page =>
         {
@@ -142,6 +143,8 @@ public sealed class ShellViewModel : ObservableObject
     public MemoryViewModel Memory { get; }
 
     public StorageViewModel Storage { get; }
+
+    public DevicesViewModel Devices { get; }
 
     public NetworkViewModel Network { get; }
 

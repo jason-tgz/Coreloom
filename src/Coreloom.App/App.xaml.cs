@@ -51,6 +51,7 @@ public partial class App : Application
     private MainWindow? _window;
     private TrayIconService? _tray;
     private Overlay.OverlayService? _overlay;
+    private WindowsDeviceService? _devices;
     private HttpClient? _http;
     private UpdatesViewModel? _updates;
     private DispatcherTimer? _updateTimer;
@@ -281,6 +282,7 @@ public partial class App : Application
             {
                 SpeedTest = new SpeedTestService($"Coreloom/{app.DisplayVersion}"),
                 Optimizer = new WindowsOptimizeService(),
+                Devices = _devices = new WindowsDeviceService(),
             },
         });
         _shell = shell;
@@ -733,6 +735,8 @@ public partial class App : Application
             _settings?.Flush();
             _overlay?.Dispose();
             _overlay = null;
+            _devices?.Dispose();
+            _devices = null;
             _tray?.Dispose();
             _tray = null;
 

@@ -31,6 +31,7 @@
     <DataTemplate DataType="{x:Type pages:CpuViewModel}"><views:CpuPage /></DataTemplate>
     <DataTemplate DataType="{x:Type pages:MemoryViewModel}"><views:MemoryPage /></DataTemplate>
     <DataTemplate DataType="{x:Type pages:StorageViewModel}"><views:StoragePage /></DataTemplate>
+    <DataTemplate DataType="{x:Type pages:DevicesViewModel}"><views:DevicesPage /></DataTemplate>
     <DataTemplate DataType="{x:Type pages:NetworkViewModel}"><views:NetworkPage /></DataTemplate>
     <DataTemplate DataType="{x:Type pages:HistoryViewModel}"><views:HistoryPage /></DataTemplate>
     <DataTemplate DataType="{x:Type pages:OptimizeViewModel}"><views:OptimizePage /></DataTemplate>

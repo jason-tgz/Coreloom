@@ -90,6 +90,11 @@ public partial class StoragePage : UserControl
     public StoragePage() => InitializeComponent();
 }
 
+public partial class DevicesPage : UserControl
+{
+    public DevicesPage() => InitializeComponent();
+}
+
 public partial class NetworkPage : UserControl
 {
     public NetworkPage() => InitializeComponent();

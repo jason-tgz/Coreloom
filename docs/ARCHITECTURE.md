@@ -4,7 +4,7 @@ Coreloom is a layered .NET 10 application. Only the bottom-right box knows about
 layer calls Windows sensor APIs, so most of the logic is testable on any OS.
 
 ```
-┌────────────────────────────── Coreloom.App (WPF, net10.0-windows) ──────────────────────────────┐
+┌──────────────────── Coreloom.App (WPF, net10.0-windows10.0.19041.0) ───────────────────────────┐
 │ Views (XAML) · chart controls · ThemeService · tray · startup · single instance · App.xaml.cs │
 └───────────────▲──────────────────────────────────────────────────────────────────────────────┘
                 │ data binding (frames delivered on the UI thread, coalesced)
@@ -206,6 +206,42 @@ and `ISpeedTestService` (`PageContext.Tools`), so tests swap in fakes.
   samples after a warm-up (median and jitter, minus the server's own time from `Server-Timing`), then 10 s of
   download and 10 s of upload over six HTTP/1.1 connections, counting bytes as they arrive or are sent and leaving
   out the first 20 % while connections ramp up. The live reading is the last second.
+
+## Devices
+
+`DevicesViewModel` (the *Devices* page, below Storage) reaches Windows through `IDeviceService` (`PageContext.Tools`;
+`UnsupportedDeviceService` elsewhere, fakes in tests). It refreshes Bluetooth every 5 s and wired devices every 15 s
+while the page is open (driven by the frames it receives), and right away when the service raises `Changed`
+(marshalled to the UI thread, coalesced over 350 ms). Cards are updated in place and reordered with moves, so nothing
+flickers or replays its animation. Core holds the testable parts: `DeviceKinds` (type from the Bluetooth Class of
+Device, the LE GAP Appearance or the name; labels, icons, groups), `BluetoothDeviceList.Merge` (one card per container,
+so dual-mode devices show once; connected first), `WiredDevices.Build` and `BatteryLevels`.
+
+The app targets `net10.0-windows10.0.19041.0` for the Windows SDK projection; `Microsoft.Windows.SDK.NET.dll` is kept
+out of ReadyToRun to keep downloads small. `WindowsDeviceService`:
+
+- **Bluetooth devices**: `DeviceInformation.FindAllAsync` with `BluetoothDevice`/`BluetoothLEDevice.GetDeviceSelectorFromPairingState(true)`,
+  then one cached `BluetoothDevice`/`BluetoothLEDevice` per device for the name, `ConnectionStatus` (and its
+  `ConnectionStatusChanged` event), `ClassOfDevice` or `Appearance`. The container and battery come from the device tree:
+  Bluetooth device nodes carry the address in their instance id, and Windows records the battery of headsets and other
+  reporting devices in property `{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2`; LE devices without it are read from the GATT
+  Battery Service (at most every 2 minutes). `BluetoothGetDeviceInfo` gives Classic devices' last-used time.
+- **Connect**: for Classic devices the Bluetooth audio drivers' kernel-streaming filters are found (KSCATEGORY_AUDIO
+  interfaces under BTHENUM/BTHHFENUM whose path has the address or whose node shares the container) and sent
+  `KSPROPERTY_ONESHOT_RECONNECT` (KSPROPSETID_BtAudio), the request behind Windows' own Connect button; otherwise the
+  device is paged (uncached SDP query). LE devices get a `GattSession` with `MaintainConnection` and an uncached GATT
+  query. Either way the service waits up to 8–15 s for `ConnectionStatus` to change.
+- **Disconnect**: `KSPROPERTY_ONESHOT_DISCONNECT` for audio, else `IOCTL_BTH_DISCONNECT_DEVICE` on the radio.
+- **Adapter**: `Radio.GetRadiosAsync`/`SetStateAsync` and `StateChanged`; looked up again every 30 s while none is found.
+- **Wired devices**: every present node from `CM_Get_Device_ID_List`, with container, class, names, parent, problem
+  code and `DN_REMOVABLE` (nodes inside the PC are skipped after reading their container). `WiredDevices.Build` keeps
+  containers other than the PC's own that have a USB, HID, display, SCSI or PCI node and no Bluetooth node, names them
+  from the USB product string or the most telling node, and leaves out hubs on their own.
+- **Eject**: `CM_Request_Device_EjectW` on the removable node with a veto buffer (so Windows shows no dialog); vetoes
+  become "an app is using it".
+
+Struct sizes are checked against the Windows SDK (BLUETOOTH_DEVICE_INFO 560 bytes, KSPROPERTY 24, DEVPROPKEY 20) before
+use (`DeviceNative.LayoutIsValid`). Events log under "Devices".
 
 ## Smart Optimize
 

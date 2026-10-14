@@ -37,6 +37,10 @@ installs drivers or services, and never sends your data anywhere.
   startup apps; one click then cleans up, removes threats, frees memory and refreshes the network cache. Each part
   has its own card too: pick what to clean, run a quick scan or update definitions, free up RAM, turn startup apps
   off and on, flush DNS or optimize drives.
+- **Devices.** A page with your Bluetooth devices as cards (type icon, connected indicator, battery where reported,
+  Connect and Disconnect, which also brings back headphones that switched to your phone) and the devices plugged in by
+  USB or display cable, grouped by type, with *Eject* for drives and driver problems flagged. Bluetooth can be turned
+  on and off there, and *Pair a new device* opens Windows' Bluetooth settings.
 - **Drive speed test** on the Storage page: sequential and random read and write speeds (like CrystalDiskMark) on a
   temporary file that is deleted afterwards.
 - **Internet speed test** on the Network page: download, upload, ping and jitter against Cloudflare's speed test
@@ -93,6 +97,8 @@ installs drivers or services, and never sends your data anywhere.
 | Memory usage, commit, modules | Windows APIs + SMBIOS | No |
 | Disk activity, capacity, volumes, NVMe temperature | PDH + storage IOCTLs (query-only handles) | No; some drives report temperature only to administrators |
 | Network throughput | Windows network statistics | No |
+| Bluetooth devices, adapter state, battery levels | Windows Bluetooth APIs (WinRT) and the device tree | No |
+| Wired devices (USB, displays, Thunderbolt) | Plug and Play device tree (configuration manager) | No |
 
 **About PawnIO.** Reading CPU temperature and motherboard sensors on modern Windows needs a kernel driver.
 LibreHardwareMonitor uses [PawnIO](https://pawnio.eu), a signed, open-source driver. Coreloom **never installs
@@ -190,6 +196,8 @@ LibreHardwareMonitor's own report. See [docs/TESTING-ON-YOUR-PC.md](docs/TESTING
 
 - **Hands off the hardware.** No writes to hardware, the BIOS or drivers, and no overclocking or fan-control features.
   Monitoring is read-only.
+- **The Devices page changes something only when you click.** Connect, Disconnect, the Bluetooth switch and Eject do
+  what Windows' own buttons do; nothing is unpaired or reconfigured.
 - **Smart Optimize changes only what you ask it to.** It deletes files only inside known junk folders (never through
   links, never files younger than a day in temp folders, never files in use), turns startup apps off with the same
   switch Task Manager uses (turn them back on any time), and uses Windows' own tools for everything else: Microsoft

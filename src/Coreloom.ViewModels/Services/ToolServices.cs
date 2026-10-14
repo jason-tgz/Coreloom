@@ -1,4 +1,5 @@
 using Coreloom.Core.Benchmarks;
+using Coreloom.Core.Devices;
 using Coreloom.Core.Optimize;
 
 namespace Coreloom.ViewModels.Services;
@@ -53,6 +54,72 @@ public interface IOptimizeService
     Task<MaintenanceResult> OptimizeDrivesAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// The Devices page's view of Windows: the Bluetooth adapter and paired devices (with connect and disconnect), and the
+/// devices plugged in by wire (with "safely remove" for drives).
+/// </summary>
+public interface IDeviceService
+{
+    /// <summary>False where Windows' device APIs aren't available; the page explains instead.</summary>
+    bool IsSupported { get; }
+
+    /// <summary>Raised (on any thread) when a Bluetooth device connects or disconnects, or the adapter turns on or off.</summary>
+    event EventHandler? Changed;
+
+    Task<BluetoothRadioInfo> RadioAsync(CancellationToken cancellationToken);
+
+    Task<bool> SetRadioAsync(bool on, CancellationToken cancellationToken);
+
+    /// <summary>Paired Bluetooth devices, connected first.</summary>
+    Task<IReadOnlyList<BluetoothDeviceInfo>> BluetoothDevicesAsync(CancellationToken cancellationToken);
+
+    /// <summary>Connects (or reconnects, e.g. headphones that switched to a phone) and waits briefly for the link.</summary>
+    Task<DeviceActionResult> ConnectAsync(BluetoothDeviceInfo device, CancellationToken cancellationToken);
+
+    Task<DeviceActionResult> DisconnectAsync(BluetoothDeviceInfo device, CancellationToken cancellationToken);
+
+    /// <summary>Devices plugged in by USB, display cables or Thunderbolt.</summary>
+    Task<IReadOnlyList<WiredDevice>> WiredDevicesAsync(CancellationToken cancellationToken);
+
+    /// <summary>"Safely remove" for drives.</summary>
+    Task<DeviceActionResult> EjectAsync(WiredDevice device, CancellationToken cancellationToken);
+
+    /// <summary>Opens Windows' Bluetooth settings (to pair a new device).</summary>
+    void OpenBluetoothSettings();
+}
+
+/// <summary>Stand-in where Windows' device APIs aren't available.</summary>
+public sealed class UnsupportedDeviceService : IDeviceService
+{
+    public bool IsSupported => false;
+
+    public event EventHandler? Changed
+    {
+        add { }
+        remove { }
+    }
+
+    public Task<BluetoothRadioInfo> RadioAsync(CancellationToken cancellationToken) => Task.FromResult(BluetoothRadioInfo.None);
+
+    public Task<bool> SetRadioAsync(bool on, CancellationToken cancellationToken) => Task.FromResult(false);
+
+    public Task<IReadOnlyList<BluetoothDeviceInfo>> BluetoothDevicesAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<BluetoothDeviceInfo>>([]);
+
+    public Task<DeviceActionResult> ConnectAsync(BluetoothDeviceInfo device, CancellationToken cancellationToken) => Unavailable();
+
+    public Task<DeviceActionResult> DisconnectAsync(BluetoothDeviceInfo device, CancellationToken cancellationToken) => Unavailable();
+
+    public Task<IReadOnlyList<WiredDevice>> WiredDevicesAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WiredDevice>>([]);
+
+    public Task<DeviceActionResult> EjectAsync(WiredDevice device, CancellationToken cancellationToken) => Unavailable();
+
+    public void OpenBluetoothSettings()
+    {
+    }
+
+    private static Task<DeviceActionResult> Unavailable() => Task.FromResult(new DeviceActionResult(false, "Not available on this system."));
+}
+
 public sealed class DiskBenchmarkService : IDiskBenchmarkService
 {
     public IReadOnlyList<BenchmarkDrive> Drives() => DiskBenchmark.Drives();
@@ -103,7 +170,7 @@ public sealed class UnsupportedOptimizeService : IOptimizeService
     private static Task<MaintenanceResult> Unavailable() => Task.FromResult(new MaintenanceResult(false, "Not available on this system."));
 }
 
-/// <summary>The tools the pages offer (benchmarks, speed test, Smart Optimize). Tests swap in fakes.</summary>
+/// <summary>The tools the pages offer (benchmarks, speed test, Smart Optimize, devices). Tests swap in fakes.</summary>
 public sealed class ToolServices
 {
     public IDiskBenchmarkService DiskBenchmark { get; init; } = new DiskBenchmarkService();
@@ -111,4 +178,6 @@ public sealed class ToolServices
     public ISpeedTestService SpeedTest { get; init; } = new SpeedTestService();
 
     public IOptimizeService Optimizer { get; init; } = new UnsupportedOptimizeService();
+
+    public IDeviceService Devices { get; init; } = new UnsupportedDeviceService();
 }
