@@ -147,6 +147,18 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.3.3: compact device cards
+
+- `AdaptiveGrid` gained `MaxColumnWidth`: with it set, the grid uses the fewest columns that keep each one between the
+  minimum and maximum width (as many as fit at the minimum, otherwise capped and left-aligned), and keeps that column
+  count when there are fewer items, so cards don't stretch. The column math was checked for content widths from 520 to
+  2,400 px: Bluetooth cards land between 270 and 330 px wide (about 314 px on a 1,943 px page, six to a row, where they
+  were 635 px, three to a row).
+- The Bluetooth card's status pill moved from the header into the status row, replacing the line that repeated it.
+- **`Coreloom.App` compiles** (0 errors, 0 warnings), **XAML checks passed** (19 files, 204 shared keys, 907
+  bindings), core tests 387 and view-model tests 99 passed (no logic changed). An HTML mock-up of the new card at the
+  owner's window width was rendered to check proportions; the WPF page itself was not rendered here.
+
 ### 1.3.2: Devices page
 
 - **Core tests: 387 passed** (23 new: device types from the Bluetooth Class of Device, LE Appearance and names; labels,

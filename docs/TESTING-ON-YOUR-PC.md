@@ -229,6 +229,8 @@ Work through each area and tick what works.
       and nothing from inside the PC. Plug in a USB drive: it appears within ~15 s; *Eject* says it can be unplugged, and
       with a file open from it, says it's in use.
 - [ ] Search narrows both lists; the × clears it.
+- [ ] Cards are compact (roughly 270–330 px wide) and keep that width as you resize the window or search; they wrap
+      onto new rows instead of stretching. Long names end in "…" and show in full on hover.
 
 **Smart Optimize**
 

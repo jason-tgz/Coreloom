@@ -7,6 +7,21 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-10-14
+
+The Bluetooth cards on the Devices page are now compact, so more of your devices fit on screen at once.
+
+### Highlights
+
+- **Compact device cards.** Bluetooth cards are about half as wide and a little shorter. They keep the same width however many devices you have and wrap onto new rows, so a wide window now shows five or six devices in a row instead of three.
+- **Status in one place.** The connected pill now sits in the card's status row next to the battery, instead of repeating *Connected* twice. Disconnected devices show *Last connected …* in the pill, and the pill reads *Connecting…* or *Disconnecting…* while a request is running.
+- **Room for long names.** Device names use the card's full width, and hovering a name or the status shows it in full when it's cut short.
+- **Wired devices match.** The wired and USB device tiles use the same compact width.
+
+### Feedback
+
+Found a bug or a device that's listed wrong? [Open an issue](https://github.com/jerryubah/Coreloom/issues) and attach a CoreloomDiag report.
+
 ## [1.3.2] - 2026-10-14
 
 A new Devices page shows everything connected to your PC and lets you connect and disconnect Bluetooth devices with one click.

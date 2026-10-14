@@ -17,9 +17,9 @@
       <Setter Property="Fill" Value="{DynamicResource Brush.Accent}" />
     </Style>
 
-    <!-- A paired Bluetooth device: icon, name and type, a status dot, battery, and Connect or Disconnect. -->
+    <!-- A paired Bluetooth device, kept compact: icon, name and type; a status pill and battery; Connect or Disconnect. -->
     <DataTemplate x:Key="BluetoothCard" DataType="{x:Type pages:BluetoothDeviceViewModel}">
-      <Border x:Name="Card" Style="{StaticResource Card}" Padding="16,14,16,16" ToolTip="{Binding AddressText}" ToolTipService.InitialShowDelay="900">
+      <Border x:Name="Card" Style="{StaticResource Card}" Padding="14,13,14,14" ToolTip="{Binding AddressText}" ToolTipService.InitialShowDelay="900">
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -29,39 +29,44 @@
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
 
-          <!-- Icon, name, status -->
+          <!-- Icon, name and type (the name gets the whole width) -->
           <Grid>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <Grid Width="42" Height="42" VerticalAlignment="Top">
+            <Grid Width="38" Height="38" VerticalAlignment="Center">
               <Ellipse x:Name="Halo" Fill="{DynamicResource Brush.TextTertiary}" Opacity="0.14" />
-              <Path x:Name="Glyph" Style="{StaticResource IconPath}" Width="20" Height="20" Data="{Binding IconKey, Converter={StaticResource IconKeyToGeometry}}"
+              <Path x:Name="Glyph" Style="{StaticResource IconPath}" Width="18" Height="18" Data="{Binding IconKey, Converter={StaticResource IconKeyToGeometry}}"
                     Stroke="{DynamicResource Brush.TextSecondary}" />
             </Grid>
-            <StackPanel Grid.Column="1" Margin="12,1,10,0" VerticalAlignment="Center">
-              <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}" TextTrimming="CharacterEllipsis" />
-              <TextBlock Style="{StaticResource Text.Caption}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis">
+            <StackPanel Grid.Column="1" Margin="11,0,0,0" VerticalAlignment="Center">
+              <TextBlock Text="{Binding Name}" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}" TextTrimming="CharacterEllipsis"
+                         ToolTip="{Binding Name}" />
+              <TextBlock Style="{StaticResource Text.Caption}" Margin="0,1,0,0" TextTrimming="CharacterEllipsis">
                 <Run Text="{Binding KindText, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding TransportText, Mode=OneWay}" />
               </TextBlock>
             </StackPanel>
-            <Border Grid.Column="2" CornerRadius="10" Padding="8,3" VerticalAlignment="Top" Background="{DynamicResource Brush.ControlHover}">
-              <StackPanel Orientation="Horizontal">
-                <Ellipse x:Name="Dot" Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource Brush.TextTertiary}" />
-                <TextBlock x:Name="State" Text="Off" FontSize="11" FontWeight="SemiBold" Margin="6,0,0,0" Foreground="{DynamicResource Brush.TextSecondary}" />
-              </StackPanel>
-            </Border>
           </Grid>
 
-          <!-- Status line and battery -->
+          <!-- Status pill and battery -->
           <Grid Grid.Row="1" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Secondary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+            <Border CornerRadius="10" Padding="8,3" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{DynamicResource Brush.ControlHover}"
+                    ToolTip="{Binding StatusText}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Ellipse x:Name="Dot" Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource Brush.TextTertiary}" />
+                <TextBlock x:Name="State" Grid.Column="1" Text="{Binding StatusText}" FontSize="11" FontWeight="SemiBold" Margin="6,0,0,0"
+                           Foreground="{DynamicResource Brush.TextSecondary}" TextTrimming="CharacterEllipsis" />
+              </Grid>
+            </Border>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0"
                         Visibility="{Binding HasBattery, Converter={StaticResource BoolToVisibility}}" ToolTip="Battery">
               <Grid Width="22" Height="12" VerticalAlignment="Center">
@@ -71,7 +76,7 @@
                              Maximum="1" Background="Transparent" Foreground="{Binding BatteryColorKey, Converter={StaticResource ColorKeyToBrush}}"
                              b:Smooth.Value="{Binding BatteryFraction}" />
               </Grid>
-              <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="SemiBold" Margin="7,0,0,0" VerticalAlignment="Center"
+              <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="SemiBold" Margin="6,0,0,0" VerticalAlignment="Center"
                          Foreground="{DynamicResource Brush.Text}" b:AnimatedText.Formatter="{Binding BatteryFormatter}" b:AnimatedText.Value="{Binding Battery}" />
               <TextBlock Text="%" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="1,0,0,0" />
             </StackPanel>
@@ -83,23 +88,23 @@
                      Visibility="{Binding Message, Converter={StaticResource HasValueToVisibility}}" />
 
           <!-- Connect / Disconnect -->
-          <Grid Grid.Row="4" Margin="0,14,0,0">
-            <Button x:Name="Connect" Style="{StaticResource Button.Primary}" Padding="14,7" HorizontalAlignment="Stretch" Command="{Binding ActionCommand}">
+          <Grid Grid.Row="4" Margin="0,12,0,0">
+            <Button x:Name="Connect" Style="{StaticResource Button.Primary}" Padding="12,6" HorizontalAlignment="Stretch" Command="{Binding ActionCommand}">
               <StackPanel Orientation="Horizontal">
-                <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Link}" Stroke="{DynamicResource Brush.OnAccent}"
+                <Path Style="{StaticResource IconPath}" Width="13" Height="13" Data="{StaticResource Icon.Link}" Stroke="{DynamicResource Brush.OnAccent}"
                       Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
                 <c:RadialGauge Style="{StaticResource DeviceSpinner}" Fill="{DynamicResource Brush.OnAccent}" b:Spin.IsSpinning="{Binding IsBusy}"
                                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
-                <TextBlock Text="{Binding ActionText}" Margin="8,0,0,0" />
+                <TextBlock Text="{Binding ActionText}" Margin="7,0,0,0" />
               </StackPanel>
             </Button>
-            <Button x:Name="Disconnect" Style="{StaticResource Button.Secondary}" Padding="14,7" HorizontalAlignment="Stretch" Command="{Binding ActionCommand}" Visibility="Collapsed">
+            <Button x:Name="Disconnect" Style="{StaticResource Button.Secondary}" Padding="12,6" HorizontalAlignment="Stretch" Command="{Binding ActionCommand}" Visibility="Collapsed">
               <StackPanel Orientation="Horizontal">
-                <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Unlink}"
+                <Path Style="{StaticResource IconPath}" Width="13" Height="13" Data="{StaticResource Icon.Unlink}"
                       Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
                 <c:RadialGauge Style="{StaticResource DeviceSpinner}" b:Spin.IsSpinning="{Binding IsBusy}"
                                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
-                <TextBlock Text="{Binding ActionText}" Margin="8,0,0,0" />
+                <TextBlock Text="{Binding ActionText}" Margin="7,0,0,0" />
               </StackPanel>
             </Button>
           </Grid>
@@ -115,16 +120,12 @@
         </DataTrigger>
         <DataTrigger Binding="{Binding StatusKey}" Value="Connected">
           <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Brush.Success}" />
-          <Setter TargetName="State" Property="Text" Value="Connected" />
           <Setter TargetName="State" Property="Foreground" Value="{DynamicResource Brush.Success}" />
-        </DataTrigger>
-        <DataTrigger Binding="{Binding StatusKey}" Value="Disconnected">
-          <Setter TargetName="State" Property="Text" Value="Not connected" />
         </DataTrigger>
         <DataTrigger Binding="{Binding StatusKey}" Value="Busy">
           <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Brush.Accent}" />
           <Setter TargetName="Dot" Property="b:Pulse.IsPulsing" Value="True" />
-          <Setter TargetName="State" Property="Text" Value="Working" />
+          <Setter TargetName="State" Property="Text" Value="{Binding ActionText}" />
           <Setter TargetName="State" Property="Foreground" Value="{DynamicResource Brush.Accent}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding MessageIsError}" Value="True">
@@ -191,7 +192,7 @@
         <ItemsControl ItemsSource="{Binding Devices}" ItemTemplate="{StaticResource WiredCard}" Focusable="False">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <c:AdaptiveGrid MinColumnWidth="270" MaxColumns="3" Spacing="12" UniformRowHeight="True" />
+              <c:AdaptiveGrid MinColumnWidth="250" MaxColumnWidth="320" MaxColumns="12" Spacing="12" UniformRowHeight="True" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
@@ -341,7 +342,7 @@
       <ItemsControl ItemsSource="{Binding BluetoothDevices}" ItemTemplate="{StaticResource BluetoothCard}" Focusable="False">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
-            <c:AdaptiveGrid MinColumnWidth="290" MaxColumns="3" Spacing="14" />
+            <c:AdaptiveGrid MinColumnWidth="270" MaxColumnWidth="330" MaxColumns="12" Spacing="12" />
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
       </ItemsControl>

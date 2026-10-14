@@ -7,7 +7,8 @@ namespace Coreloom.App.Controls;
 /// Responsive grid: fits as many equal-width columns as possible with each at least
 /// <see cref="MinColumnWidth"/> wide (capped at <see cref="MaxColumns"/>), and stretches items to fill
 /// the row. Row height is the tallest item in the row (with <see cref="StretchRows"/>, rows also share any extra height
-/// the grid is given, so a tile grid can fill a card next to it). Used for all card grids.
+/// the grid is given, so a tile grid can fill a card next to it). With <see cref="MaxColumnWidth"/>, items stay compact:
+/// columns never grow past it, so cards keep the same width however many there are and wrap onto new rows. Used for all card grids.
 /// </summary>
 public sealed class AdaptiveGrid : Panel
 {
@@ -35,6 +36,10 @@ public sealed class AdaptiveGrid : Panel
         nameof(StretchRows), typeof(bool), typeof(AdaptiveGrid),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsArrange));
 
+    public static readonly DependencyProperty MaxColumnWidthProperty = DependencyProperty.Register(
+        nameof(MaxColumnWidth), typeof(double), typeof(AdaptiveGrid),
+        new FrameworkPropertyMetadata(double.PositiveInfinity, FrameworkPropertyMetadataOptions.AffectsMeasure));
+
     private double[] _rowHeights = [];
     private int _columns = 1;
     private double _columnWidth;
@@ -44,6 +49,19 @@ public sealed class AdaptiveGrid : Panel
         get => (double)GetValue(MinColumnWidthProperty);
         set => SetValue(MinColumnWidthProperty, value);
     }
+
+    /// <summary>
+    /// Widest a column may get (no limit by default). When set, the grid picks the column count that fills the row with
+    /// columns between <see cref="MinColumnWidth"/> and this width, keeps that count even when there are fewer items,
+    /// and lines items up from the left when the row can't be filled.
+    /// </summary>
+    public double MaxColumnWidth
+    {
+        get => (double)GetValue(MaxColumnWidthProperty);
+        set => SetValue(MaxColumnWidthProperty, value);
+    }
+
+    private bool IsCapped => !double.IsNaN(MaxColumnWidth) && !double.IsInfinity(MaxColumnWidth) && MaxColumnWidth > 0;
 
     public int MaxColumns
     {
@@ -87,14 +105,21 @@ public sealed class AdaptiveGrid : Panel
         double spacing = Spacing;
 
         int columns = (int)Math.Floor((width + spacing) / (Math.Max(1, MinColumnWidth) + spacing));
+        if (IsCapped)
+        {
+            // Fewest columns that keep each one within the cap, as long as they stay at least the minimum wide.
+            int fill = (int)Math.Ceiling((width + spacing) / (Math.Max(1, MaxColumnWidth) + spacing));
+            columns = Math.Min(columns, fill);
+        }
+
         columns = Math.Clamp(columns, 1, Math.Max(1, MaxColumns));
-        if (visible.Count > 0)
+        if (visible.Count > 0 && !IsCapped)
         {
             columns = Math.Min(columns, visible.Count);
         }
 
         _columns = columns;
-        _columnWidth = Math.Max(0, (width - (spacing * (columns - 1))) / columns);
+        _columnWidth = ColumnWidth(width, spacing, columns);
 
         foreach (UIElement child in InternalChildren)
         {
@@ -123,7 +148,7 @@ public sealed class AdaptiveGrid : Panel
     {
         double spacing = Spacing;
         double rowSpacing = EffectiveRowSpacing;
-        double columnWidth = Math.Max(0, (finalSize.Width - (spacing * (_columns - 1))) / _columns);
+        double columnWidth = ColumnWidth(finalSize.Width, spacing, _columns);
         double extra = 0;
         if (StretchRows && _rowHeights.Length > 0)
         {
@@ -154,5 +179,11 @@ public sealed class AdaptiveGrid : Panel
         }
 
         return finalSize;
+    }
+
+    private double ColumnWidth(double width, double spacing, int columns)
+    {
+        double fill = Math.Max(0, (width - (spacing * (columns - 1))) / columns);
+        return IsCapped ? Math.Min(fill, MaxColumnWidth) : fill;
     }
 }
