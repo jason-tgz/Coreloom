@@ -171,6 +171,7 @@ public sealed class VolumeViewModel : ObservableObject
             FreeText = Free.ValueText;
             CapacityText = f.Bytes(total, 0).ToString();
             Fraction = used / total;
+            Used.ColorKey = ColorKeys.ForLevel(Thresholds.DriveSpace.Evaluate(Fraction * 100)); // green when roomy … red when nearly full
             PercentText = f.Percent(Fraction * 100).ToString();
         }
     }
@@ -373,7 +374,7 @@ public sealed class OverviewViewModel : PageViewModel
     private Thresholds AlertThresholds(string ruleId, Thresholds fallback, double elevatedOffset)
     {
         var rule = Settings.Current.Alerts.Rules.FirstOrDefault(r => r.Id == ruleId);
-        return rule is { Enabled: true } ? new Thresholds(rule.Threshold - elevatedOffset, rule.Threshold) : fallback;
+        return rule is { Enabled: true } ? new Thresholds(rule.Threshold - elevatedOffset, rule.Threshold, fallback.Cool) : fallback;
     }
 
     private void ApplyLayout()
@@ -543,7 +544,7 @@ public sealed class OverviewViewModel : PageViewModel
         if (_powerLimit.HasValue && _powerLimit.Value > 0)
         {
             power.GaugeMaximum = _powerLimit.Value;
-            power.Thresholds = new Thresholds(_powerLimit.Value * 0.9, _powerLimit.Value * 0.99);
+            power.Thresholds = Thresholds.ForLimit(_powerLimit.Value);
             power.Detail = $"of {_powerLimit.Number} {_powerLimit.Unit} limit";
         }
 
@@ -580,6 +581,7 @@ public sealed class OverviewViewModel : PageViewModel
         {
             double total = used + available;
             memory.InUse.Value = used;
+            memory.InUse.ColorKey = ColorKeys.ForLevel(Thresholds.Memory.Evaluate(total > 0 ? used * 100 / total : double.NaN));
             memory.Available.Value = available;
             memory.InUse.ValueText = f.Bytes(used).ToString();
             memory.Available.ValueText = f.Bytes(available).ToString();

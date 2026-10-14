@@ -6,7 +6,8 @@ namespace Coreloom.App.Controls;
 /// <summary>
 /// Responsive grid: fits as many equal-width columns as possible with each at least
 /// <see cref="MinColumnWidth"/> wide (capped at <see cref="MaxColumns"/>), and stretches items to fill
-/// the row. Row height is the tallest item in the row. Used for all card grids.
+/// the row. Row height is the tallest item in the row (with <see cref="StretchRows"/>, rows also share any extra height
+/// the grid is given, so a tile grid can fill a card next to it). Used for all card grids.
 /// </summary>
 public sealed class AdaptiveGrid : Panel
 {
@@ -29,6 +30,10 @@ public sealed class AdaptiveGrid : Panel
     public static readonly DependencyProperty UniformRowHeightProperty = DependencyProperty.Register(
         nameof(UniformRowHeight), typeof(bool), typeof(AdaptiveGrid),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsMeasure));
+
+    public static readonly DependencyProperty StretchRowsProperty = DependencyProperty.Register(
+        nameof(StretchRows), typeof(bool), typeof(AdaptiveGrid),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsArrange));
 
     private double[] _rowHeights = [];
     private int _columns = 1;
@@ -66,6 +71,13 @@ public sealed class AdaptiveGrid : Panel
     {
         get => (bool)GetValue(UniformRowHeightProperty);
         set => SetValue(UniformRowHeightProperty, value);
+    }
+
+    /// <summary>When the grid is arranged taller than it asked for, the rows grow equally to fill the height.</summary>
+    public bool StretchRows
+    {
+        get => (bool)GetValue(StretchRowsProperty);
+        set => SetValue(StretchRowsProperty, value);
     }
 
     protected override Size MeasureOverride(Size availableSize)
@@ -112,6 +124,13 @@ public sealed class AdaptiveGrid : Panel
         double spacing = Spacing;
         double rowSpacing = EffectiveRowSpacing;
         double columnWidth = Math.Max(0, (finalSize.Width - (spacing * (_columns - 1))) / _columns);
+        double extra = 0;
+        if (StretchRows && _rowHeights.Length > 0)
+        {
+            double used = _rowHeights.Sum() + (rowSpacing * (_rowHeights.Length - 1));
+            extra = Math.Max(0, (finalSize.Height - used) / _rowHeights.Length);
+        }
+
         double y = 0;
         int index = 0;
         foreach (UIElement child in InternalChildren)
@@ -126,10 +145,10 @@ public sealed class AdaptiveGrid : Panel
             int column = index % _columns;
             if (column == 0 && row > 0)
             {
-                y += _rowHeights[row - 1] + rowSpacing;
+                y += _rowHeights[row - 1] + extra + rowSpacing;
             }
 
-            double height = row < _rowHeights.Length ? _rowHeights[row] : child.DesiredSize.Height;
+            double height = row < _rowHeights.Length ? _rowHeights[row] + extra : child.DesiredSize.Height;
             child.Arrange(new Rect(column * (columnWidth + spacing), y, columnWidth, height));
             index++;
         }

@@ -78,14 +78,8 @@
         </StackPanel>
         <c:RadialGauge Grid.Column="1" Width="78" Height="78" Thickness="8" Margin="12,0,0,0" VerticalAlignment="Center"
                        Value="{Binding Fraction}" TrackBrush="{DynamicResource Brush.Track}"
-                       IsUnavailable="{Binding HasValue, Converter={StaticResource InverseBool}}">
-          <c:RadialGauge.Fill>
-            <MultiBinding Converter="{StaticResource LevelToBrush}">
-              <Binding Path="Level" />
-              <Binding Path="ColorKey" />
-            </MultiBinding>
-          </c:RadialGauge.Fill>
-        </c:RadialGauge>
+                       ToneScale="True" CoolAt="{Binding GaugeCoolAt}" WarmAt="{Binding GaugeWarmAt}" HotAt="{Binding GaugeHotAt}"
+                       IsUnavailable="{Binding HasValue, Converter={StaticResource InverseBool}}" />
       </Grid>
     </Border>
   </DataTemplate>
@@ -146,14 +140,8 @@
           </StackPanel>
           <c:RadialGauge Grid.Column="1" Width="58" Height="58" Thickness="6" Margin="10,0,0,0"
                          Value="{Binding Metric.Fraction}" TrackBrush="{DynamicResource Brush.Track}"
-                         IsUnavailable="{Binding Metric.HasValue, Converter={StaticResource InverseBool}}">
-            <c:RadialGauge.Fill>
-              <MultiBinding Converter="{StaticResource LevelToBrush}">
-                <Binding Path="Metric.Level" />
-                <Binding Path="Metric.ColorKey" />
-              </MultiBinding>
-            </c:RadialGauge.Fill>
-          </c:RadialGauge>
+                         ToneScale="True" CoolAt="{Binding Metric.GaugeCoolAt}" WarmAt="{Binding Metric.GaugeWarmAt}" HotAt="{Binding Metric.GaugeHotAt}"
+                         IsUnavailable="{Binding Metric.HasValue, Converter={StaticResource InverseBool}}" />
         </Grid>
 
         <!-- Sparkline -->
@@ -381,7 +369,7 @@
           <TextBlock Text="{Binding Name}" FontSize="12.5" Foreground="{DynamicResource Brush.Text}" TextTrimming="CharacterEllipsis" Margin="0,0,48,0" />
           <TextBlock Text="{Binding PercentText}" FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}" HorizontalAlignment="Right" />
         </Grid>
-        <ProgressBar Style="{StaticResource ProgressBar.Thin}" Margin="0,6,0,0" Foreground="{DynamicResource Series.Storage.Brush}"
+        <ProgressBar Style="{StaticResource ProgressBar.Thin}" Margin="0,6,0,0" Foreground="{Binding Used.ColorKey, Converter={StaticResource ColorKeyToBrush}}"
                      Value="{Binding Fraction, Mode=OneWay, Converter={StaticResource FractionToPercent}}" />
         <TextBlock Style="{StaticResource Text.Caption}" Margin="0,5,0,0">
           <Run Text="{Binding UsedText, Mode=OneWay}" /><Run Text=" used · " /><Run Text="{Binding FreeText, Mode=OneWay}" /><Run Text=" free of " /><Run Text="{Binding CapacityText, Mode=OneWay}" />
@@ -574,5 +562,104 @@
         </ItemsControl.Style>
       </ItemsControl>
     </Grid>
+  </DataTemplate>
+
+  <!-- ================================================================================= -->
+  <!-- Tools: drive benchmark and internet speed test (values on the four-color scale)   -->
+  <!-- ================================================================================= -->
+
+  <!-- A result tile: icon and label, the number (counting smoothly), a bar in the rating's color and a detail line.
+       A dot breathes while the value is being measured. -->
+  <DataTemplate x:Key="ToneTile" DataType="{x:Type pages:ToneValueViewModel}">
+    <Border Style="{StaticResource Card.Inset}" Padding="14,12" MinHeight="98">
+      <StackPanel>
+        <Grid>
+          <StackPanel Orientation="Horizontal">
+            <Path Style="{StaticResource IconPath}" Width="14" Height="14" VerticalAlignment="Center"
+                  Data="{Binding IconKey, Converter={StaticResource IconKeyToGeometry}}"
+                  Stroke="{Binding ColorKey, Converter={StaticResource ColorKeyToBrush}}" />
+            <TextBlock Style="{StaticResource Text.Label}" Text="{Binding Label}" Margin="7,0,0,0" VerticalAlignment="Center" />
+          </StackPanel>
+          <Ellipse Width="7" Height="7" HorizontalAlignment="Right" VerticalAlignment="Center"
+                   Fill="{Binding ColorKey, Converter={StaticResource ColorKeyToBrush}}"
+                   b:Pulse.IsPulsing="{Binding IsActive}" Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibility}}" />
+        </Grid>
+        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+          <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}"
+                     b:AnimatedText.Formatter="{Binding NumberFormatter}" b:AnimatedText.Value="{Binding Value}" />
+          <TextBlock Style="{StaticResource Text.Unit}" Text="{Binding Unit}" VerticalAlignment="Bottom" Margin="5,0,0,3" />
+        </StackPanel>
+        <ProgressBar Style="{StaticResource ProgressBar.Thin}" Margin="0,8,0,0"
+                     Foreground="{Binding ColorKey, Converter={StaticResource ColorKeyToBrush}}"
+                     b:Smooth.Value="{Binding Fraction, Converter={StaticResource FractionToPercent}}" />
+        <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding Detail}" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"
+                   Visibility="{Binding Detail, Converter={StaticResource HasValueToVisibility}}" />
+      </StackPanel>
+    </Border>
+  </DataTemplate>
+
+  <!-- A big ring for a speed: the arc's length and color glide as the reading changes. -->
+  <DataTemplate x:Key="ToneGauge" DataType="{x:Type pages:ToneValueViewModel}">
+    <StackPanel HorizontalAlignment="Center">
+      <Grid Width="164" Height="164">
+        <c:RadialGauge Thickness="12" TrackBrush="{DynamicResource Brush.Track}" ToneScale="True"
+                       Tone="{Binding Tone}" Value="{Binding Fraction}" />
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+          <Path Style="{StaticResource IconPath}" Width="16" Height="16" HorizontalAlignment="Center"
+                Data="{Binding IconKey, Converter={StaticResource IconKeyToGeometry}}"
+                Stroke="{Binding ColorKey, Converter={StaticResource ColorKeyToBrush}}" b:Pulse.IsPulsing="{Binding IsActive}" />
+          <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="27" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"
+                     Foreground="{DynamicResource Brush.Text}"
+                     b:AnimatedText.Formatter="{Binding NumberFormatter}" b:AnimatedText.Value="{Binding Value}" />
+          <TextBlock Text="{Binding Unit}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center" />
+        </StackPanel>
+      </Grid>
+      <TextBlock Text="{Binding Label}" Style="{StaticResource Text.CardTitle}" HorizontalAlignment="Center" Margin="0,6,0,0" />
+      <TextBlock Text="{Binding Detail}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center" Margin="0,2,0,0" MinHeight="16" />
+    </StackPanel>
+  </DataTemplate>
+
+  <!-- One value in the benchmark table: number and unit, a bar in the rating's color, and IOPS and latency. -->
+  <DataTemplate x:Key="ToneCell" DataType="{x:Type pages:ToneValueViewModel}">
+    <StackPanel>
+      <Grid>
+        <StackPanel Orientation="Horizontal">
+          <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}"
+                     b:AnimatedText.Formatter="{Binding NumberFormatter}" b:AnimatedText.Value="{Binding Value}" />
+          <TextBlock Style="{StaticResource Text.Unit}" Text="{Binding Unit}" VerticalAlignment="Bottom" Margin="4,0,0,1" />
+        </StackPanel>
+        <Ellipse Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Center"
+                 Fill="{Binding ColorKey, Converter={StaticResource ColorKeyToBrush}}"
+                 b:Pulse.IsPulsing="{Binding IsActive}" Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibility}}" />
+      </Grid>
+      <ProgressBar Style="{StaticResource ProgressBar.Thin}" Margin="0,6,0,0"
+                   Foreground="{Binding ColorKey, Converter={StaticResource ColorKeyToBrush}}"
+                   b:Smooth.Value="{Binding Fraction, Converter={StaticResource FractionToPercent}}" />
+      <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding Detail}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" MinHeight="15" />
+    </StackPanel>
+  </DataTemplate>
+
+  <!-- A benchmark row: the test (name, shorthand, what it means) and its read and write results. -->
+  <DataTemplate x:Key="DiskBenchmarkRow" DataType="{x:Type pages:DiskBenchmarkRowViewModel}">
+    <Border Style="{StaticResource Card.Inset}" Padding="14,12" Margin="0,0,0,8">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="1.2*" MinWidth="130" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource Brush.Text}" />
+            <Border Style="{StaticResource Badge}" Margin="8,0,0,0">
+              <TextBlock Text="{Binding ShortName}" FontFamily="{StaticResource MonoFont}" FontSize="10" Foreground="{DynamicResource Brush.TextSecondary}" />
+            </Border>
+          </StackPanel>
+          <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,3,0,0" />
+        </StackPanel>
+        <ContentPresenter Grid.Column="1" Content="{Binding Read}" ContentTemplate="{StaticResource ToneCell}" Margin="0,0,14,0" VerticalAlignment="Center" />
+        <ContentPresenter Grid.Column="2" Content="{Binding Write}" ContentTemplate="{StaticResource ToneCell}" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
   </DataTemplate>
 </ResourceDictionary>

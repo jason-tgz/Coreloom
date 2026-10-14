@@ -87,7 +87,11 @@ public sealed class NetworkViewModel : PageViewModel
         UseAdapterCommand = new RelayCommand<AdapterViewModel>(adapter =>
             Settings.Update("Monitoring", s => s.Monitoring.PreferredNetworkAdapter = adapter?.Key));
         UseAutomaticCommand = new RelayCommand(() => Settings.Update("Monitoring", s => s.Monitoring.PreferredNetworkAdapter = null));
+        SpeedTest = new SpeedTestViewModel(context.Tools.SpeedTest);
     }
+
+    /// <summary>The internet speed test card.</summary>
+    public SpeedTestViewModel SpeedTest { get; }
 
     public MetricViewModel Download { get; }
 

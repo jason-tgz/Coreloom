@@ -61,7 +61,7 @@ public sealed class HealthReportViewModel : ObservableObject
         IconKey = iconKey;
     }
 
-    /// <summary>"Graphics card", "Processor", "Memory and drives".</summary>
+    /// <summary>"Graphics card", "Processor", "Memory", "Storage".</summary>
     public string Name { get; }
 
     public string IconKey { get; }
@@ -133,7 +133,7 @@ public sealed class HealthReportViewModel : ObservableObject
 }
 
 /// <summary>
-/// Health of the graphics card, the processor, and memory and drives, from the last minute of readings. One shared
+/// Health of the graphics card, the processor, memory and storage, from the last minute of readings. One shared
 /// instance (see <see cref="PageContext.Health"/>) is fed every frame by the shell, also while the window is hidden, so
 /// the cards are current the moment a page opens.
 /// </summary>
@@ -145,6 +145,7 @@ public sealed class SystemHealthViewModel : ObservableObject
     private int _gpuSlot = int.MinValue;
     private IReadOnlyList<PcFanSensor> _cpuFans = [];
     private HealthStatus _overall;
+    private (int Rated, int Configured)? _moduleSpeeds;
 
     public SystemHealthViewModel(PageContext context)
     {
@@ -155,12 +156,14 @@ public sealed class SystemHealthViewModel : ObservableObject
 
     public HealthReportViewModel Cpu { get; } = new("Processor", "Icon.Cpu");
 
-    public HealthReportViewModel System { get; } = new("Memory and drives", "Icon.Storage");
+    public HealthReportViewModel Memory { get; } = new("Memory", "Icon.Memory");
 
-    /// <summary>The three reports, for the Overview's health card.</summary>
-    public IReadOnlyList<HealthReportViewModel> Parts => [Gpu, Cpu, System];
+    public HealthReportViewModel Storage { get; } = new("Storage", "Icon.Storage");
 
-    /// <summary>The worst of the three.</summary>
+    /// <summary>The four reports, for the Overview's health card.</summary>
+    public IReadOnlyList<HealthReportViewModel> Parts => [Gpu, Cpu, Memory, Storage];
+
+    /// <summary>The worst of the four.</summary>
     public HealthStatus Overall
     {
         get => _overall;
@@ -204,15 +207,32 @@ public sealed class SystemHealthViewModel : ObservableObject
 
         Gpu.Apply(_monitor.EvaluateGpu(f, AlertThresholds(settings.Current, "gpu-temp", Thresholds.GpuTemperature, 8)));
         Cpu.Apply(_monitor.EvaluateCpu(f, AlertThresholds(settings.Current, "cpu-temp", Thresholds.CpuTemperature, 10), cpuTempReason));
-        System.Apply(_monitor.EvaluateSystem(f));
-        Overall = HealthReport.Worst([new(Gpu.Status, string.Empty, []), new(Cpu.Status, string.Empty, []), new(System.Status, string.Empty, [])]);
+        var (rated, configured) = ModuleSpeeds();
+        Memory.Apply(_monitor.EvaluateMemory(f, rated, configured));
+        Storage.Apply(_monitor.EvaluateStorage(f));
+        Overall = HealthReport.Worst(Parts.Select(p => new HealthReport(p.Status, string.Empty, [])));
     }
 
     /// <summary>Warning levels follow the user's temperature alerts (as on the Overview), or the defaults.</summary>
     internal static Thresholds AlertThresholds(AppSettings settings, string ruleId, Thresholds fallback, double elevatedOffset)
     {
         var rule = settings.Alerts.Rules.FirstOrDefault(r => r.Id == ruleId);
-        return rule is { Enabled: true } ? new Thresholds(rule.Threshold - elevatedOffset, rule.Threshold) : fallback;
+        return rule is { Enabled: true } ? new Thresholds(rule.Threshold - elevatedOffset, rule.Threshold, fallback.Cool) : fallback;
+    }
+
+    /// <summary>The slowest module's rated and configured speed (MT/s), or zeros when the modules aren't known.</summary>
+    private (int Rated, int Configured) ModuleSpeeds()
+    {
+        if (_moduleSpeeds is { } known)
+        {
+            return known; // the modules don't change while the app runs
+        }
+
+        var modules = _context.Monitor.Summary.MemoryModules;
+        int configured = modules.Select(m => m.ConfiguredSpeedMtps).Where(s => s > 0).DefaultIfEmpty(0).Min();
+        int rated = modules.Select(m => m.SpeedMtps).Where(s => s > 0).DefaultIfEmpty(0).Min();
+        _moduleSpeeds = (rated, configured);
+        return (rated, configured);
     }
 
     /// <summary>The processor fan's speed (the fastest fan the board names as CPU, AIO or radiator), when there is one.</summary>

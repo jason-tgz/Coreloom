@@ -31,8 +31,8 @@ public sealed class GpuViewModel : PageViewModel
         Power = new MetricViewModel(MetricIds.GpuPower(0), "Power draw", ValueStyle.Power, ColorKeys.Power, gaugeMaximum: 600);
         MemoryLoad = new MetricViewModel(MetricIds.GpuMemoryLoad(0), "VRAM", ValueStyle.Percent, ColorKeys.Memory, Thresholds.Memory);
 
-        HotSpot = new MetricViewModel(MetricIds.GpuHotSpotTemperature(0), "Hot spot", ValueStyle.Temperature, ColorKeys.Temperature, new Thresholds(90, 100));
-        MemoryJunction = new MetricViewModel(MetricIds.GpuMemoryJunctionTemperature(0), "Memory junction", ValueStyle.Temperature, ColorKeys.Temperature, new Thresholds(90, 100));
+        HotSpot = new MetricViewModel(MetricIds.GpuHotSpotTemperature(0), "Hot spot", ValueStyle.Temperature, ColorKeys.Temperature, new Thresholds(90, 100, 60));
+        MemoryJunction = new MetricViewModel(MetricIds.GpuMemoryJunctionTemperature(0), "Memory junction", ValueStyle.Temperature, ColorKeys.Temperature, new Thresholds(90, 100, 60));
         CoreClock = new MetricViewModel(MetricIds.GpuCoreClock(0), "Core clock", ValueStyle.ClockMegahertz, ColorKeys.Gpu);
         MemoryClock = new MetricViewModel(MetricIds.GpuMemoryClock(0), "Memory clock", ValueStyle.ClockMegahertz, ColorKeys.Memory);
         MemoryUsed = new MetricViewModel(MetricIds.GpuMemoryUsed(0), "VRAM used", ValueStyle.Bytes, ColorKeys.Memory);
@@ -220,7 +220,7 @@ public sealed class GpuViewModel : PageViewModel
         if (PowerLimit.HasValue && PowerLimit.Value > 0)
         {
             Power.GaugeMaximum = PowerLimit.Value;
-            Power.Thresholds = new Thresholds(PowerLimit.Value * 0.9, PowerLimit.Value * 0.99);
+            Power.Thresholds = Thresholds.ForLimit(PowerLimit.Value);
             Power.Detail = $"of {PowerLimit.Number} {PowerLimit.Unit} limit";
         }
 

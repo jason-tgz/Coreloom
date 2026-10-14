@@ -118,6 +118,8 @@ public sealed class HealthMonitor
         Add("cpu.temp", frame.GetValue(MetricIds.CpuTemperature));
         Add("cpu.fan", cpuFanRpm);
         Add("mem.load", frame.GetValue(MetricIds.MemoryLoad));
+        Add("mem.commit", frame.TryGetValue(MetricIds.MemoryCommitUsed, out double committed)
+            && frame.TryGetValue(MetricIds.MemoryCommitLimit, out double limit) && limit > 0 ? committed * 100 / limit : null);
 
         double? fullest = null;
         double? lifeUsed = null;
@@ -281,8 +283,11 @@ public sealed class HealthMonitor
         return HealthReport.From(checks);
     }
 
-    /// <summary>Memory and drives: how full memory and the fullest drive are, and the drives' wear and temperature.</summary>
-    public HealthReport EvaluateSystem(UnitFormatter f)
+    /// <summary>
+    /// Memory: how much is in use and how close the commit charge (RAM plus page file) is to its limit, and, when the
+    /// modules are known, the speed they run at against their rated speed (for information).
+    /// </summary>
+    public HealthReport EvaluateMemory(UnitFormatter f, int ratedMtps = 0, int configuredMtps = 0)
     {
         if (_frames < MinimumSamples)
         {
@@ -292,7 +297,7 @@ public sealed class HealthMonitor
         var checks = new List<HealthCheck>();
         if (Average("mem.load") is double memory)
         {
-            string detail = $"{f.Percent(memory)} in use";
+            string detail = $"{f.Percent(memory)} in use on average";
             checks.Add(memory >= 95
                 ? new HealthCheck("memory", CheckState.Problem, "Memory full", detail)
                 : memory >= 90
@@ -300,6 +305,36 @@ public sealed class HealthMonitor
                     : new HealthCheck("memory", CheckState.Ok, "Memory use normal", detail));
         }
 
+        if (Latest("mem.commit") is double commit)
+        {
+            string detail = $"{f.Percent(commit)} of the commit limit used";
+            checks.Add(commit >= 95
+                ? new HealthCheck("commit", CheckState.Problem, "Running out of virtual memory", detail)
+                : commit >= 85
+                    ? new HealthCheck("commit", CheckState.Notice, "Virtual memory running low", detail)
+                    : new HealthCheck("commit", CheckState.Ok, "Virtual memory normal", detail));
+        }
+
+        if (configuredMtps > 0)
+        {
+            string speed = configuredMtps.ToString("N0", CultureInfo.CurrentCulture);
+            checks.Add(ratedMtps > configuredMtps
+                ? new HealthCheck("speed", CheckState.Ok, "Running below rated speed", $"{speed} of {ratedMtps.ToString("N0", CultureInfo.CurrentCulture)} MT/s (set by the board or BIOS)")
+                : new HealthCheck("speed", CheckState.Ok, "Running at rated speed", $"{speed} MT/s"));
+        }
+
+        return HealthReport.From(checks);
+    }
+
+    /// <summary>Drives: free space on the fullest drive, wear (rated life used, spare blocks) and temperature.</summary>
+    public HealthReport EvaluateStorage(UnitFormatter f)
+    {
+        if (_frames < MinimumSamples)
+        {
+            return HealthReport.Checking;
+        }
+
+        var checks = new List<HealthCheck>();
         if (Latest("vol.fullest") is double fullest)
         {
             string drive = _fullestVolume is { } letter ? $"{letter}:" : "A drive";
@@ -313,18 +348,35 @@ public sealed class HealthMonitor
 
         double? life = Latest("disk.life");
         double? spare = Latest("disk.spare");
-        double? diskTemp = Average("disk.temp");
-        if (life is not null || spare is not null || diskTemp is not null)
+        if (life is not null || spare is not null)
         {
+            string detail = life is double used ? $"{f.Percent(used)} of its rated life used" : $"{f.Percent(spare!.Value)} spare left";
             checks.Add(life >= 100
-                ? new HealthCheck("drives", CheckState.Problem, "A drive is worn out", $"{f.Percent(life.Value)} of its rated life used")
+                ? new HealthCheck("wear", CheckState.Problem, "A drive is worn out", detail)
                 : spare < 10
-                    ? new HealthCheck("drives", CheckState.Problem, "A drive is running out of spare blocks", $"{f.Percent(spare.Value)} spare left")
+                    ? new HealthCheck("wear", CheckState.Problem, "A drive is running out of spare blocks", $"{f.Percent(spare.Value)} spare left")
                     : life >= 90
-                        ? new HealthCheck("drives", CheckState.Notice, "A drive is near the end of its rated life", $"{f.Percent(life.Value)} used")
-                        : diskTemp >= 70
-                            ? new HealthCheck("drives", CheckState.Notice, "A drive is running hot", $"{f.Temperature(diskTemp.Value)} on average")
-                            : new HealthCheck("drives", CheckState.Ok, "Drives healthy", DriveDetail(f, life, diskTemp)));
+                        ? new HealthCheck("wear", CheckState.Notice, "A drive is near the end of its rated life", detail)
+                        : new HealthCheck("wear", CheckState.Ok, "Drive wear low", life is null ? detail : $"Most worn: {detail}"));
+        }
+
+        if (Average("disk.temp") is double temperature)
+        {
+            string detail = $"{f.Temperature(temperature)} on average (warmest drive)";
+            checks.Add(temperature >= 80
+                ? new HealthCheck("drive-temp", CheckState.Problem, "A drive is too hot", detail)
+                : temperature >= 70
+                    ? new HealthCheck("drive-temp", CheckState.Notice, "A drive is running hot", detail)
+                    : new HealthCheck("drive-temp", CheckState.Ok, "Drive temperature normal", detail));
+        }
+
+        if (checks.Count == 0)
+        {
+            checks.Add(new HealthCheck("space", CheckState.Unknown, "No drive readings", "Storage monitoring is off, or no drives were found"));
+        }
+        else if (life is null && spare is null && Average("disk.temp") is null)
+        {
+            checks.Add(new HealthCheck("wear", CheckState.Unknown, "Drive wear not reported", "These drives don't share their health readings"));
         }
 
         return HealthReport.From(checks);
@@ -341,22 +393,6 @@ public sealed class HealthMonitor
         return fan.Max <= 0
             ? new HealthCheck(id, CheckState.Ok, $"{name} resting", "Stopped while cool (zero-RPM mode)")
             : new HealthCheck(id, CheckState.Ok, $"{name} spinning", $"{rpm.ToString("N0", CultureInfo.CurrentCulture)} RPM on average");
-    }
-
-    private static string DriveDetail(UnitFormatter f, double? life, double? temp)
-    {
-        var parts = new List<string>(2);
-        if (life is double used)
-        {
-            parts.Add($"{f.Percent(used)} of rated life used");
-        }
-
-        if (temp is double t)
-        {
-            parts.Add(f.Temperature(t).ToString());
-        }
-
-        return parts.Count == 0 ? "No warnings" : string.Join(" · ", parts);
     }
 
     private static string Percent(double fraction) => $"{Math.Round(fraction * 100).ToString(CultureInfo.CurrentCulture)}%";

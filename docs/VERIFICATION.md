@@ -147,6 +147,31 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.3.1: gauge colors, memory and storage health, speed tests and Smart Optimize
+
+- **Core tests: 364 passed** (44 new: the cool threshold level and the gauge color scale (pure bands, blends that
+  never go backwards, stops from thresholds); memory health (use, commit charge, module speed) and storage health
+  (space, wear, temperature, no SMART readings); the drive benchmark on a real temporary file (every test measured,
+  progress only forward, the file and its folder gone afterwards, cancelling, too little space); speed ratings; the
+  internet speed test against a fake server (latency, download, upload, phases, offline error, ramp-up and live
+  windows, `Server-Timing`); the junk cleaner on real files (age limit, links never followed, read-only skipped,
+  patterns, missing folders), the Windows junk categories; StartupApproved values and command parsing; Defender status
+  JSON (single threat, other antivirus, errors)).
+- **View-model tests: 93 passed** (10 new: the drive benchmark (drives, run, ratings, errors), the speed test (ratings,
+  offline), Smart Scan and the clean-up run on real files, threats flagged and removed, the Recycle Bin, startup
+  switches that Windows refuses, the page without Windows features; health split into four parts; eight pages).
+- **`Coreloom.App` compiles** against the WPF reference assembly (0 errors, 0 warnings). **XAML checks passed** (18
+  files, 182 shared keys, 826 bindings).
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Gauge color scale | Scale math unit-tested; gauge drawing reviewed | How the colors look and glide on screen, both themes |
+| Drive benchmark | Engine run on Linux with buffered I/O | Unbuffered I/O on Windows (alignment), numbers against CrystalDiskMark, the folder on non-system drives |
+| Internet speed test | Engine run against a fake server | Cloudflare's real endpoints, numbers against a browser test, Wi-Fi |
+| Cleanup | Cleaner unit-tested on real files | Sizes on a real PC, browser caches while browsers run, the Recycle Bin calls |
+| Protection | Status parsing unit-tested | The PowerShell script and MpCmdRun on Windows 11, another antivirus, EICAR |
+| Free up RAM, startup apps, maintenance | View models unit-tested; P/Invoke signatures reviewed | EmptyWorkingSet and the standby purge, StartupApproved against Task Manager, DNS flush, defrag |
+
 ### 1.3.0: in-game overlay and health cards
 
 - **Core tests: 320 passed** (25 new: overlay settings defaults, repairs and JSON round trip, hotkey names and

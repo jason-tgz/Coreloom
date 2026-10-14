@@ -100,6 +100,11 @@ public partial class HistoryPage : UserControl
     public HistoryPage() => InitializeComponent();
 }
 
+public partial class OptimizePage : UserControl
+{
+    public OptimizePage() => InitializeComponent();
+}
+
 public partial class SettingsPage : UserControl
 {
     public SettingsPage() => InitializeComponent();

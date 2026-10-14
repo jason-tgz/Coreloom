@@ -277,6 +277,11 @@ public partial class App : Application
             Diagnostics = diagnostics,
             Updates = updates,
             App = app,
+            Tools = new ToolServices
+            {
+                SpeedTest = new SpeedTestService($"Coreloom/{app.DisplayVersion}"),
+                Optimizer = new WindowsOptimizeService(),
+            },
         });
         _shell = shell;
 

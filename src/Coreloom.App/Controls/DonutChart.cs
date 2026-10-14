@@ -156,6 +156,10 @@ public sealed class DonutChart : FrameworkElement
         {
             Retarget();
         }
+        else if (e.PropertyName == nameof(DonutSegmentViewModel.ColorKey))
+        {
+            InvalidateVisual();
+        }
     }
 
     private void Retarget()

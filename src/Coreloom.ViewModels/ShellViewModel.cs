@@ -35,6 +35,9 @@ public sealed class ShellDependencies
     public required UpdatesViewModel Updates { get; init; }
 
     public required Coreloom.Core.AppVersionInfo App { get; init; }
+
+    /// <summary>Benchmarks, speed test and Smart Optimize; defaults work everywhere (Smart Optimize then explains it's unavailable).</summary>
+    public ToolServices? Tools { get; init; }
 }
 
 /// <summary>
@@ -56,7 +59,7 @@ public sealed class ShellViewModel : ObservableObject
     {
         _deps = deps;
         Timeline = new TimelineViewModel(deps.Monitor.Engine.History);
-        var context = new PageContext { Monitor = deps.Monitor, Settings = deps.Settings, Timeline = Timeline };
+        var context = new PageContext { Monitor = deps.Monitor, Settings = deps.Settings, Timeline = Timeline, Tools = deps.Tools ?? new ToolServices() };
         _context = context;
 
         Overview = new OverviewViewModel(context);
@@ -66,6 +69,7 @@ public sealed class ShellViewModel : ObservableObject
         Storage = new StorageViewModel(context);
         Network = new NetworkViewModel(context);
         History = new HistoryViewModel(context, deps.Shell);
+        Optimize = new OptimizeViewModel(context);
         Settings = new SettingsViewModel(context, new SettingsDependencies
         {
             Theme = deps.Theme,
@@ -78,7 +82,7 @@ public sealed class ShellViewModel : ObservableObject
             App = deps.App,
         });
 
-        Pages = [Overview, Gpu, Cpu, Memory, Storage, Network, History];
+        Pages = [Overview, Gpu, Cpu, Memory, Storage, Network, History, Optimize];
         _currentPage = Overview;
         NavigateCommand = new RelayCommand<PageViewModel>(page =>
         {
@@ -142,6 +146,8 @@ public sealed class ShellViewModel : ObservableObject
     public NetworkViewModel Network { get; }
 
     public HistoryViewModel History { get; }
+
+    public OptimizeViewModel Optimize { get; }
 
     public SettingsViewModel Settings { get; }
 

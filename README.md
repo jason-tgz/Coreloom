@@ -21,15 +21,26 @@ installs drivers or services, and never sends your data anywhere.
   lighting color you choose (blue, purple, red, green, rainbow or your accent) and whose fans turn with your real fan
   speeds; or a render of your own build. Six summary cards (GPU utilization, GPU
   temperature, CPU utilization, CPU temperature, RAM, GPU power), each with a radial gauge, a sparkline,
-  threshold colors and min/max/avg.
+  threshold colors and min/max/avg. Every gauge and usage ring uses one color scale: green when idle or cool, blue
+  in the normal range, orange when heavy and red at the limit, gliding from one to the next as the value moves.
   Below them are large charts and memory, storage and network panels, all on one grid: drag a card to move it and
   drag its corner to resize it. *Customize* opens a card right on the Overview to show or hide the PC picture, pick
   its lighting, and hide and reorder cards; the layout is saved.
 - **In-game overlay.** FPS, frame time and 1% lows with GPU, CPU and RAM readings on top of your games, measured from
   Windows' graphics events (nothing is injected into games). Turned on from the Graphics page or with a hotkey (End by
   default); choose what it shows, where, and its text, colors, opacity and corners.
-- **Health cards** on the Overview, Graphics and Processor pages: Excellent, Good or Needs attention, from the last
-  minute of temperatures, clock slowdowns, fans, memory and drives, with the reasons.
+- **Health cards** on the Overview, Graphics, Processor, Memory and Storage pages: Excellent, Good or Needs attention,
+  from the last minute of temperatures, clock slowdowns, fans, memory and commit charge, free space and drive wear,
+  with the reasons.
+- **Smart Optimize.** One Smart Scan finds junk files (temporary files, browser and shader caches, crash reports,
+  Windows Update leftovers, the Recycle Bin), checks Microsoft Defender's protection and threats, memory use and
+  startup apps; one click then cleans up, removes threats, frees memory and refreshes the network cache. Each part
+  has its own card too: pick what to clean, run a quick scan or update definitions, free up RAM, turn startup apps
+  off and on, flush DNS or optimize drives.
+- **Drive speed test** on the Storage page: sequential and random read and write speeds (like CrystalDiskMark) on a
+  temporary file that is deleted afterwards.
+- **Internet speed test** on the Network page: download, upload, ping and jitter against Cloudflare's speed test
+  servers, with a live gauge.
 - **Detail pages** for the GPU, CPU, memory, storage and network:
   - per-thread CPU graphs and a per-core table;
   - top processes;
@@ -177,11 +188,17 @@ LibreHardwareMonitor's own report. See [docs/TESTING-ON-YOUR-PC.md](docs/TESTING
 
 ## Privacy and safety
 
-- **Read-only.** No writes to hardware, the BIOS or drivers, and no overclocking or fan-control features.
-- **No telemetry.** The only network requests Coreloom makes are the update check to `api.github.com` and the
-  update download from GitHub (both can be turned off in *Settings → Updates*). No hardware data is included.
-- **Always elevated, still read-only.** Coreloom runs as administrator so the sensor driver can be read, but it
-  never writes to hardware, never installs drivers or services, and has no remote access of any kind.
+- **Hands off the hardware.** No writes to hardware, the BIOS or drivers, and no overclocking or fan-control features.
+  Monitoring is read-only.
+- **Smart Optimize changes only what you ask it to.** It deletes files only inside known junk folders (never through
+  links, never files younger than a day in temp folders, never files in use), turns startup apps off with the same
+  switch Task Manager uses (turn them back on any time), and uses Windows' own tools for everything else: Microsoft
+  Defender for scans and threats, the shell for the Recycle Bin, defrag.exe for drives.
+- **No telemetry.** Coreloom makes network requests only for the update check to `api.github.com` and the update
+  download from GitHub (both can be turned off in *Settings → Updates*), and to `speed.cloudflare.com` when you start
+  an internet speed test. No hardware data is included.
+- **Always elevated.** Coreloom runs as administrator so the sensor driver can be read and Smart Optimize can clean
+  system folders, but it never installs drivers or services and has no remote access of any kind.
 - **Alert thresholds are reminders, not safety limits.** Check your hardware vendor's specifications;
   modern CPUs and GPUs protect themselves by throttling.
 

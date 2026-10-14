@@ -180,12 +180,15 @@ public sealed class PageContext
 
     public required TimelineViewModel Timeline { get; init; }
 
+    /// <summary>Drive benchmark, internet speed test and Smart Optimize's Windows services.</summary>
+    public ToolServices Tools { get; init; } = new();
+
     /// <summary>GPU slot to show on Overview/GPU pages (user preference or automatic).</summary>
     public int GpuSlot => Settings.Current.Monitoring.PreferredGpuSlot is int slot && Monitor.Gpus().Any(g => g.Slot == slot)
         ? slot
         : Monitor.PrimaryGpuSlot();
 
-    /// <summary>Health of the graphics card, processor, memory and drives (shared by the Overview, Graphics and Processor pages).</summary>
+    /// <summary>Health of the graphics card, processor, memory and storage (shared by the Overview and the hardware pages).</summary>
     public SystemHealthViewModel Health => _health ??= new SystemHealthViewModel(this);
 
     /// <summary>The in-game overlay's content and look (shared by the overlay window and its settings).</summary>

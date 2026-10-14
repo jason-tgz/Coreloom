@@ -96,6 +96,9 @@ public sealed class MemoryViewModel : PageViewModel
 
     public ProcessListViewModel Processes { get; }
 
+    /// <summary>The memory's health card (shared, kept current by the shell).</summary>
+    public HealthReportViewModel Health => Context.Health.Memory;
+
     public SensorTableViewModel ModuleSensors { get; }
 
     protected override void OnActivated()
@@ -128,6 +131,7 @@ public sealed class MemoryViewModel : PageViewModel
         if (Used.HasValue && Available.HasValue)
         {
             InUseSegment.Value = Used.Value;
+            InUseSegment.ColorKey = ColorKeys.ForLevel(Load.HasValue ? Load.Level : Thresholds.Memory.Evaluate(Used.Value * 100 / Math.Max(1, Used.Value + Available.Value)));
             AvailableSegment.Value = Available.Value;
             InUseSegment.ValueText = Used.FormatWithUnit(Used.Value);
             AvailableSegment.ValueText = Available.FormatWithUnit(Available.Value);

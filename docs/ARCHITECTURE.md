@@ -87,7 +87,15 @@ layer calls Windows sensor APIs, so most of the logic is testable on any OS.
   `ObservableCollection`s. Views are XAML with data templates and no logic in code-behind. View models
   never reference WPF, so they're unit-tested on Linux in CI.
 - **Theming.** `ThemeService` creates every brush once, unfrozen, and animates its color on theme or accent
-  changes. All XAML uses `DynamicResource` for brushes. Mica uses `DWMWA_SYSTEMBACKDROP_TYPE` on Windows 11
+  changes. All XAML uses `DynamicResource` for brushes. The status colors double as the gauge scale: color keys
+  `Tone.Cool`, `Tone.Normal`, `Tone.Warm` and `Tone.Hot` resolve to the success (green), info (blue), elevated
+  (orange) and critical (red) brushes, and `Brush.*Soft` are tinted backgrounds of the same four.
+- **Gauge colors.** `Thresholds` has a third level, `Cool` (`ThresholdLevel.Cool` below it). `GaugeTone` (Core,
+  unit-tested) turns thresholds into stops on a gauge (`Stops`) and a gauge fraction into a position from 0 (green) to
+  3 (red) with short blends at each boundary (`At`). `RadialGauge` with `ToneScale` colors its arc from the
+  *animated* value, so the color glides with the arc; `MetricViewModel.GaugeCoolAt/WarmAt/HotAt` feed it. For
+  ratings where more is better (speeds), the view model sets `Tone` directly and the gauge animates between colors.
+  Usage donuts (memory, volumes) recolor their "in use" segment with `ColorKeys.ForLevel`. Mica uses `DWMWA_SYSTEMBACKDROP_TYPE` on Windows 11
   22H2 and later. The custom caption buttons support Snap Layouts by answering `WM_NCHITTEST` with
   `HTMAXBUTTON`.
 - **Settings** are JSON in `%APPDATA%\Coreloom\settings.json`, or `Data\` in portable mode.
@@ -169,16 +177,59 @@ its thumb from 8 to 14 px while the pointer is on the bar and narrows it again w
 
 `HealthMonitor` (Core, unit-tested) keeps the last 60 readings of each input it needs: the selected GPU's temperature,
 hot spot, memory junction, driver slowdown temperature, NVML clock event reasons and fan; the CPU temperature and fan
-(the board fans `PcFans` classifies as CPU/AIO/radiator); memory load; the fullest volume; drive wear, spare and
-temperature. `EvaluateGpu`, `EvaluateCpu` and `EvaluateSystem` turn them into a `HealthReport` of `HealthCheck`s:
+(the board fans `PcFans` classifies as CPU/AIO/radiator); memory load and commit charge; the fullest volume; drive
+wear, spare and temperature. `EvaluateGpu`, `EvaluateCpu`, `EvaluateMemory` (load, commit charge, module speed for
+information) and `EvaluateStorage` (space, wear, drive temperature) turn them into a `HealthReport` of `HealthCheck`s:
 any Problem makes the status *Needs attention*, any Notice or unreadable check *Good*, otherwise *Excellent*.
 Temperature levels follow the user's alert rules (as on the Overview cards). Thermal slowdown counts from 25 % of the
 minute (a problem from 75 %); hardware slowdown or power brake from 5 %; power-limit slowdowns are normal and ignored.
 
 `SystemHealthViewModel` (one per app, `PageContext.Health`) is fed every frame by the shell, also while the window is
-hidden, and updates its `HealthReportViewModel`s in place. The Graphics and Processor pages show their part with the
-`HealthCard` template; the Overview's `health` dashboard card (`HealthPanelViewModel`, 6 × 2 by default, placed after
-the summary cards; older layouts get it there through `DashboardCatalog.Normalize`) shows all three.
+hidden, and updates its `HealthReportViewModel`s in place. The Graphics, Processor, Memory and Storage pages show
+their part with the `HealthCard` template; the Overview's `health` dashboard card (`HealthPanelViewModel`, 6 × 2 by
+default, placed after the summary cards; older layouts get it there through `DashboardCatalog.Normalize`) shows all
+four.
+
+## Drive and internet speed tests
+
+Both engines are in Core (`Benchmarks/`) and unit-tested; the view models reach them through `IDiskBenchmarkService`
+and `ISpeedTestService` (`PageContext.Tools`), so tests swap in fakes.
+
+- `DiskBenchmark` writes a temporary file (256 MB, 1 GB or 4 GB) in the chosen drive's test folder (the temp folder on
+  the system drive, `X:\Coreloom benchmark` elsewhere), opened with `FILE_FLAG_NO_BUFFERING` (so the drive is measured,
+  not the file cache) and `DeleteOnClose` (so it disappears even if the app is closed mid-run). It checks free space
+  first, writes the file once, then runs CrystalDiskMark's usual tests for up to 4 s each with async
+  `RandomAccess` I/O on 4 KiB-aligned pinned buffers: sequential 1 MiB with 8 requests in flight (at most two passes,
+  to limit wear), random 4 KiB with 32 and with 1. `SpeedRating` colors results by test type (NVMe-class green,
+  SATA-SSD-class blue, hard-drive-class orange or red) on a square-root gauge scale.
+- `InternetSpeedTest` uses Cloudflare's speed test endpoints (`/meta`, `/__down?bytes=`, `/__up`): 12 latency
+  samples after a warm-up (median and jitter, minus the server's own time from `Server-Timing`), then 10 s of
+  download and 10 s of upload over six HTTP/1.1 connections, counting bytes as they arrive or are sent and leaving
+  out the first 20 % while connections ramp up. The live reading is the last second.
+
+## Smart Optimize
+
+`OptimizeViewModel` (the *Smart Optimize* page, below Performance History) runs Smart Scan through four parts, each
+also a card of its own: `CleanupViewModel`, `ProtectionViewModel`, `MemoryOptimizeViewModel` and `SpeedUpViewModel`.
+Everything Windows-specific is behind `IOptimizeService`; the app's `WindowsOptimizeService` implements it and the
+default `UnsupportedOptimizeService` makes the page explain itself where it can't work.
+
+- **Cleanup.** `WindowsJunk.Categories` lists the folders (Core); `JunkCleaner` measures and deletes. It never follows
+  reparse points (a junction could lead anywhere), checks every file is under its root, keeps temp files younger than
+  24 hours and Windows Update downloads younger than 10 days, skips read-only and in-use files, and removes only empty
+  folders that are old enough. Shader caches, the thumbnail cache, Update downloads and the Recycle Bin are off by
+  default and say why. The Recycle Bin goes through `SHQueryRecycleBin`/`SHEmptyRecycleBin`.
+- **Protection.** Microsoft Defender's own tools: `Get-MpComputerStatus`, `Get-MpThreat` and Security Center's
+  antivirus list through a PowerShell script (`DefenderScripts.Status`, run with `-EncodedCommand`, UTF-8 JSON parsed
+  by `DefenderScripts.ParseStatus`), `MpCmdRun -Scan -ScanType 1` for a quick scan (cancelled with `-Scan -Cancel`),
+  `MpCmdRun -SignatureUpdate`, and `Remove-MpThreat`. When another antivirus is in charge it is named and Defender's
+  actions are disabled.
+- **Memory.** `K32EmptyWorkingSet` on every process it may open except the foreground app, Coreloom and Windows' core
+  processes; optionally the standby list is purged (`NtSetSystemInformation`, `SeProfileSingleProcessPrivilege`).
+  The result is available memory after a short settle minus before.
+- **Speed.** Startup apps from the Run keys (user, machine, 32-bit) and both Startup folders, switched off and on with
+  the same `StartupApproved` values Task Manager writes (`StartupApproved`, Core). Maintenance runs
+  `DnsFlushResolverCache` and `defrag.exe /C /O /H`.
 
 ## In-game overlay
 
@@ -229,6 +280,8 @@ hand, and the process always holds an elevated token. CoreloomDiag stays `asInvo
 terminal to include the admin-only sensors).
 
 - **Without PawnIO:** NVML, PDH, memory, network, SMBIOS, process lists and storage queries all work.
+- **Smart Optimize** relies on the elevation for the Windows temp folder, machine-wide startup apps, trimming other
+  apps' memory, clearing the standby list, Defender's threat removal and drive optimization.
 - **With PawnIO (the app is already elevated):** LibreHardwareMonitor's low-level CPU and Super I/O sensors
   need both. If the driver is missing Coreloom explains that; it never installs drivers.
 - **Starting at sign-in:** *Start with Windows* creates a Task Scheduler logon task (`HighestAvailable`, named

@@ -102,6 +102,80 @@ public class ThresholdTests
         Assert.Equal(ThresholdLevel.Critical, t.Evaluate(90));
         Assert.Equal(ThresholdLevel.Normal, t.Evaluate(double.NaN));
     }
+
+    [Fact]
+    public void Evaluate_BelowCool_IsCool()
+    {
+        var t = new Thresholds(75, 83, 50);
+        Assert.Equal(ThresholdLevel.Cool, t.Evaluate(35));
+        Assert.Equal(ThresholdLevel.Normal, t.Evaluate(50));
+        Assert.Equal(ThresholdLevel.Normal, new Thresholds(75, 83).Evaluate(5)); // no cool band unless asked for
+        Assert.Equal(ThresholdLevel.Normal, default(ThresholdLevel));
+    }
+
+    [Fact]
+    public void ForLimit_ScalesWithTheLimit()
+    {
+        var t = Thresholds.ForLimit(200);
+        Assert.Equal(180, t.Elevated, 6);
+        Assert.Equal(198, t.Critical, 6);
+        Assert.Equal(60, t.Cool, 6);
+    }
+}
+
+public class GaugeToneTests
+{
+    [Theory]
+    [InlineData(0.0, 0.0)]
+    [InlineData(0.10, 0.0)]
+    [InlineData(0.50, 1.0)]
+    [InlineData(0.70, 1.0)]
+    [InlineData(0.88, 2.0)]
+    [InlineData(0.97, 3.0)]
+    [InlineData(1.0, 3.0)]
+    public void At_IsPureInsideEachBand(double fraction, double expected)
+    {
+        Assert.Equal(expected, GaugeTone.At(fraction, 0.30, 0.80, 0.97), 6);
+    }
+
+    [Fact]
+    public void At_BlendsAcrossBoundaries_AndNeverGoesBack()
+    {
+        double atCool = GaugeTone.At(0.30, 0.30, 0.80, 0.95);
+        Assert.InRange(atCool, 0.4, 0.6); // halfway from green to blue
+        double previous = -1;
+        for (double f = 0; f <= 1.0001; f += 0.005)
+        {
+            double tone = GaugeTone.At(f, 0.30, 0.80, 0.95);
+            Assert.InRange(tone, GaugeTone.Green, GaugeTone.Red);
+            Assert.True(tone >= previous - 1e-9, $"tone went back at {f}");
+            previous = tone;
+        }
+    }
+
+    [Fact]
+    public void At_WithoutACoolBand_StartsBlue()
+    {
+        Assert.Equal(GaugeTone.Blue, GaugeTone.At(0, 0, 0.80, 0.95), 6);
+        Assert.Equal(GaugeTone.Blue, GaugeTone.At(double.NaN, 0.3, 0.80, 0.95), 6);
+    }
+
+    [Fact]
+    public void Stops_FollowThresholdsInGaugeUnits()
+    {
+        var (cool, warm, hot) = GaugeTone.Stops(Thresholds.GpuTemperature, 100);
+        Assert.Equal(0.50, cool, 6);
+        Assert.Equal(0.75, warm, 6);
+        Assert.Equal(0.83, hot, 6);
+
+        var none = GaugeTone.Stops(Thresholds.None, 5000); // e.g. a clock: default bands
+        Assert.Equal(0.30, none.Cool, 6);
+        Assert.Equal(0.80, none.Warm, 6);
+        Assert.Equal(0.95, none.Hot, 6);
+
+        var power = GaugeTone.Stops(Thresholds.ForLimit(300), 300);
+        Assert.True(power.Cool < power.Warm && power.Warm < power.Hot);
+    }
 }
 
 public class AxisScaleTests

@@ -145,7 +145,7 @@
             <ItemsControl ItemsSource="{Binding Health.Parts}" Focusable="False">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                  <c:AdaptiveGrid MinColumnWidth="140" MaxColumns="3" Spacing="24" RowSpacing="12" />
+                  <c:AdaptiveGrid MinColumnWidth="150" MaxColumns="4" Spacing="24" RowSpacing="12" />
                 </ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>

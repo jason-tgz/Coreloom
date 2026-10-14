@@ -351,7 +351,7 @@ public sealed class OverlayViewModel : ObservableObject
             OverlayCatalog.GpuLoad => new(MetricIds.GpuLoad(slot), "GPU", ValueStyle.Percent, thresholds: Thresholds.Load),
             OverlayCatalog.GpuTemperature => new(MetricIds.GpuTemperature(slot), "GPU temperature", ValueStyle.Temperature,
                 thresholds: SystemHealthViewModel.AlertThresholds(settings, "gpu-temp", Thresholds.GpuTemperature, 8)),
-            OverlayCatalog.GpuHotSpot => new(MetricIds.GpuHotSpotTemperature(slot), "Hot spot", ValueStyle.Temperature, thresholds: new Thresholds(90, 100)),
+            OverlayCatalog.GpuHotSpot => new(MetricIds.GpuHotSpotTemperature(slot), "Hot spot", ValueStyle.Temperature, thresholds: new Thresholds(90, 100, 60)),
             OverlayCatalog.GpuPower => new(MetricIds.GpuPower(slot), "GPU power", ValueStyle.Power),
             OverlayCatalog.GpuClock => new(MetricIds.GpuCoreClock(slot), "GPU clock", ValueStyle.ClockMegahertz),
             OverlayCatalog.GpuMemoryClock => new(MetricIds.GpuMemoryClock(slot), "Memory clock", ValueStyle.ClockMegahertz),

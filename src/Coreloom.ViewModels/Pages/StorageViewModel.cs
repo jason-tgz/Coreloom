@@ -21,8 +21,8 @@ public sealed class DiskViewModel : ObservableObject
         Read = new MetricViewModel(MetricIds.DiskRead(number), "Read", ValueStyle.DiskRate, ColorKeys.Read);
         Write = new MetricViewModel(MetricIds.DiskWrite(number), "Write", ValueStyle.DiskRate, ColorKeys.Write);
         Activity = new MetricViewModel(MetricIds.DiskActivity(number), "Active time", ValueStyle.Percent, ColorKeys.Storage, Thresholds.Load);
-        Temperature = new MetricViewModel(MetricIds.DiskTemperature(number), "Temperature", ValueStyle.Temperature, ColorKeys.Temperature, new Thresholds(60, 70));
-        LifeUsed = new MetricViewModel(MetricIds.DiskLifeUsed(number), "Endurance used", ValueStyle.Percent, ColorKeys.Storage, new Thresholds(80, 95));
+        Temperature = new MetricViewModel(MetricIds.DiskTemperature(number), "Temperature", ValueStyle.Temperature, ColorKeys.Temperature, new Thresholds(60, 70, 40));
+        LifeUsed = new MetricViewModel(MetricIds.DiskLifeUsed(number), "Endurance used", ValueStyle.Percent, ColorKeys.Storage, new Thresholds(80, 95, 20));
         Spare = new MetricViewModel(MetricIds.DiskAvailableSpare(number), "Available spare", ValueStyle.Percent, ColorKeys.Storage);
         Chart = new ChartViewModel("Throughput", ChartScale.Auto,
             new ChartSeriesViewModel(MetricIds.DiskRead(number), "Read", ColorKeys.Read, ValueStyle.DiskRate),
@@ -104,7 +104,13 @@ public sealed class StorageViewModel : PageViewModel
         TotalChart = new ChartViewModel("All disks", ChartScale.Auto,
             new ChartSeriesViewModel(MetricIds.DiskTotalRead, "Read", ColorKeys.Read, ValueStyle.DiskRate),
             new ChartSeriesViewModel(MetricIds.DiskTotalWrite, "Write", ColorKeys.Write, ValueStyle.DiskRate));
+        Benchmark = new StorageBenchmarkViewModel(context.Tools.DiskBenchmark);
     }
+
+    /// <summary>The storage health card (shared, kept current by the shell).</summary>
+    public HealthReportViewModel Health => Context.Health.Storage;
+
+    public StorageBenchmarkViewModel Benchmark { get; }
 
     public MetricViewModel TotalRead { get; }
 
@@ -114,7 +120,11 @@ public sealed class StorageViewModel : PageViewModel
 
     public ObservableCollection<DiskViewModel> Disks { get; } = [];
 
-    protected override void OnActivated() => _deviceVersion = -1;
+    protected override void OnActivated()
+    {
+        _deviceVersion = -1;
+        Benchmark.EnsureDrives();
+    }
 
     protected override void OnUpdate(TelemetryFrame frame)
     {

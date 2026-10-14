@@ -41,6 +41,21 @@ public static class ColorKeys
     public const string Write = "Write";
     public const string Neutral = "Neutral";
 
+    /// <summary>The four-color scale of gauges and usage donuts: green (idle, cool), blue (normal), orange (heavy), red (at the limit).</summary>
+    public const string ToneCool = "Tone.Cool";
+    public const string ToneNormal = "Tone.Normal";
+    public const string ToneWarm = "Tone.Warm";
+    public const string ToneHot = "Tone.Hot";
+
+    /// <summary>The scale's color for a threshold level.</summary>
+    public static string ForLevel(Core.Formatting.ThresholdLevel level) => level switch
+    {
+        Core.Formatting.ThresholdLevel.Cool => ToneCool,
+        Core.Formatting.ThresholdLevel.Elevated => ToneWarm,
+        Core.Formatting.ThresholdLevel.Critical => ToneHot,
+        _ => ToneNormal,
+    };
+
     /// <summary>Palette used for user-composed charts (Performance History).</summary>
     public static IReadOnlyList<string> Sequence { get; } = [Cpu, Gpu, Temperature, Memory, Storage, Power, NetworkDown, Fan];
 }

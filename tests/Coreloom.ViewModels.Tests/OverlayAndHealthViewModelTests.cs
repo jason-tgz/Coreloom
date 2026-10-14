@@ -37,7 +37,9 @@ public class HealthViewModelTests
         Assert.Contains(context.Health.Gpu.Checks, c => c is { Title: "Temperature normal", Detail: "38 °C on average" });
         Assert.Equal(HealthStatus.Good, context.Health.Cpu.Status);
         Assert.Contains(context.Health.Cpu.Checks, c => c.State == CheckState.Unknown && c.Detail.Contains("administrator"));
-        Assert.Equal(HealthStatus.Excellent, context.Health.System.Status);
+        Assert.Equal(HealthStatus.Excellent, context.Health.Memory.Status);
+        Assert.Equal(HealthStatus.Good, context.Health.Storage.Status); // no drives in the fixture
+        Assert.Equal(4, context.Health.Parts.Count);
         Assert.Equal(HealthStatus.Good, context.Health.Overall);
         Assert.Equal("Good", context.Health.OverallText);
         settings.Dispose();

@@ -34,11 +34,14 @@
         <ItemsControl ItemsSource="{Binding Details}" ItemTemplate="{StaticResource MetricTile}" Focusable="False">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <c:AdaptiveGrid MinColumnWidth="180" MaxColumns="2" Spacing="12" UniformRowHeight="True" />
+              <c:AdaptiveGrid MinColumnWidth="180" MaxColumns="2" Spacing="12" UniformRowHeight="True" StretchRows="True" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
       </c:AdaptiveGrid>
+
+      <!-- Health of the memory -->
+      <ContentPresenter Content="{Binding Health}" ContentTemplate="{StaticResource HealthCard}" Margin="0,16,0,0" />
 
       <c:AdaptiveGrid MinColumnWidth="460" MaxColumns="2" Spacing="16" Margin="0,16,0,0">
         <ContentPresenter Content="{Binding UsageChart}" ContentTemplate="{StaticResource ChartCard}" Height="280" />

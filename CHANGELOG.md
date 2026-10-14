@@ -7,6 +7,33 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-10-14
+
+Smart Optimize cleans up, protects and speeds up your PC in one click, the Storage and Network pages can test drive and internet speed, and every gauge now speaks the same colors.
+
+### Highlights
+
+- **Smart Optimize.** A new page below Performance History. *Smart Scan* finds junk files, checks Microsoft Defender's protection and threats, memory and startup apps; *Clean up and optimize* then frees the space, removes threats, trims memory and refreshes the network cache. Each part has its own card for more control.
+- **One color scale for every gauge.** Green when idle or cool, blue in the normal range, orange when heavy and red at the limit, gliding from one to the next as the value moves. The memory and drive rings use it too.
+- **Drive speed test.** On the Storage page: sequential and random read and write speeds, like CrystalDiskMark, with live gauges.
+- **Internet speed test.** On the Network page: download, upload, ping and jitter, with a live gauge.
+- **Health for memory and storage.** The Memory and Storage pages get health cards, and the Overview's *System health* card now shows four parts.
+
+### In detail
+
+- Cleanup looks at temporary files, Windows temporary files, browser caches (Chrome, Edge, Brave, Vivaldi, Opera, Firefox), crash dumps and error reports, the thumbnail cache, shader caches, Windows Update downloads and the Recycle Bin. Only those folders are touched: never through links, never temp files younger than a day, never files in use. The last four are off by default and say why.
+- Protection uses Microsoft Defender itself: its status and threats, *Quick scan*, *Update definitions* and *Remove threats*. If another antivirus is in charge, the card names it.
+- *Free up RAM* trims memory background apps aren't using (never the app in front), with an option to clear the standby cache too.
+- *Speed up* lists your startup apps with switches (the same ones as Task Manager, so turning an app off doesn't uninstall it) and offers *Flush DNS cache* and *Optimize drives*.
+- The drive test uses a temporary file of 256 MB, 1 GB or 4 GB that bypasses the file cache and is deleted afterwards, also if Coreloom closes mid-test. Results are colored by what's fast for that kind of test.
+- The internet test uses Cloudflare's speed test servers and shows the server location and your provider. It's the only time Coreloom contacts a server other than GitHub, and only when you start it.
+- Memory health checks memory use and how close virtual memory (the commit charge) is to its limit; storage health checks free space, drive wear and drive temperature.
+- The Memory page's tiles now fill the height next to the memory donut, all the same size, and the cards line up.
+
+### Feedback
+
+Found a bug or a sensor that reads wrong? [Open an issue](https://github.com/jerryubah/Coreloom/issues) and attach a CoreloomDiag report.
+
 ## [1.3.0] - 2026-10-13
 
 A new in-game overlay shows your frame rate and sensors on top of games, and health cards tell you at a glance how your PC is doing.

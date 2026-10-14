@@ -292,24 +292,54 @@ public class HealthMonitorTests
     }
 
     [Fact]
-    public void System_ChecksMemoryDrivesAndWear()
+    public void Memory_ChecksUseAndCommitCharge()
+    {
+        long gb = 1_000_000_000;
+        var healthy = new HealthMonitor();
+        Feed(healthy, Frame((MetricIds.MemoryLoad, 40), (MetricIds.MemoryCommitUsed, 20 * gb), (MetricIds.MemoryCommitLimit, 40 * gb)), 5);
+        var report = healthy.EvaluateMemory(F, ratedMtps: 3600, configuredMtps: 3600);
+        Assert.Equal(HealthStatus.Excellent, report.Status);
+        Assert.Contains(report.Checks, c => c is { Id: "commit", Title: "Virtual memory normal", Detail: "50 % of the commit limit used" });
+        Assert.Contains(report.Checks, c => c is { Id: "speed", Title: "Running at rated speed" });
+
+        var slow = healthy.EvaluateMemory(F, ratedMtps: 3600, configuredMtps: 2133);
+        Assert.Equal(HealthStatus.Excellent, slow.Status); // for information only: the board or BIOS decides
+        Assert.Contains(slow.Checks, c => c.Title == "Running below rated speed");
+
+        var tight = new HealthMonitor();
+        Feed(tight, Frame((MetricIds.MemoryLoad, 92), (MetricIds.MemoryCommitUsed, 39 * gb), (MetricIds.MemoryCommitLimit, 40 * gb)), 5);
+        var tightReport = tight.EvaluateMemory(F);
+        Assert.Equal(HealthStatus.Attention, tightReport.Status);
+        Assert.Equal("commit", tightReport.Checks.First(c => c.State == CheckState.Problem).Id);
+        Assert.Contains(tightReport.Checks, c => c is { Title: "Memory almost full", State: CheckState.Notice });
+    }
+
+    [Fact]
+    public void Storage_ChecksSpaceWearAndTemperature()
     {
         long tb = 1_000_000_000_000;
         var healthy = new HealthMonitor();
-        Feed(healthy, Frame((MetricIds.MemoryLoad, 40), (MetricIds.VolumeTotal("C"), tb), (MetricIds.VolumeFree("C"), tb / 2),
+        Feed(healthy, Frame((MetricIds.VolumeTotal("C"), tb), (MetricIds.VolumeFree("C"), tb / 2),
             (MetricIds.DiskLifeUsed(0), 3), (MetricIds.DiskTemperature(0), 41)), 5);
-        var report = healthy.EvaluateSystem(F);
+        var report = healthy.EvaluateStorage(F);
         Assert.Equal(HealthStatus.Excellent, report.Status);
         Assert.Contains(report.Checks, c => c is { Id: "space", Detail: "Fullest drive: C: 50 % full" });
-        Assert.Contains(report.Checks, c => c.Title == "Drives healthy");
+        Assert.Contains(report.Checks, c => c is { Id: "wear", Title: "Drive wear low" });
+        Assert.Contains(report.Checks, c => c is { Id: "drive-temp", Title: "Drive temperature normal" });
 
         var full = new HealthMonitor();
-        Feed(full, Frame((MetricIds.MemoryLoad, 40), (MetricIds.VolumeTotal("D"), tb), (MetricIds.VolumeFree("D"), tb / 20)), 5);
-        Assert.Contains(full.EvaluateSystem(F).Checks, c => c is { Title: "D: almost full", State: CheckState.Notice });
+        Feed(full, Frame((MetricIds.VolumeTotal("D"), tb), (MetricIds.VolumeFree("D"), tb / 20)), 5);
+        var fullReport = full.EvaluateStorage(F);
+        Assert.Contains(fullReport.Checks, c => c is { Title: "D: almost full", State: CheckState.Notice });
+        Assert.Contains(fullReport.Checks, c => c is { Id: "wear", State: CheckState.Unknown }); // no SMART readings
 
         var worn = new HealthMonitor();
         Feed(worn, Frame((MetricIds.DiskLifeUsed(1), 100)), 5);
-        Assert.Equal(HealthStatus.Attention, worn.EvaluateSystem(F).Status);
+        Assert.Equal(HealthStatus.Attention, worn.EvaluateStorage(F).Status);
+
+        var hot = new HealthMonitor();
+        Feed(hot, Frame((MetricIds.DiskTemperature(0), 74)), 5);
+        Assert.Contains(hot.EvaluateStorage(F).Checks, c => c is { Title: "A drive is running hot", State: CheckState.Notice });
     }
 
     [Fact]

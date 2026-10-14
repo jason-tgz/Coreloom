@@ -15,15 +15,22 @@ public sealed class DonutSegmentViewModel : ObservableObject
     private double _value;
     private string _valueText = string.Empty;
 
+    private string _colorKey;
+
     public DonutSegmentViewModel(string label, string colorKey)
     {
         Label = label;
-        ColorKey = colorKey;
+        _colorKey = colorKey;
     }
 
     public string Label { get; }
 
-    public string ColorKey { get; }
+    /// <summary>Series color; usage segments follow the gauge scale (see <see cref="ColorKeys.ForLevel"/>).</summary>
+    public string ColorKey
+    {
+        get => _colorKey;
+        set => SetProperty(ref _colorKey, value);
+    }
 
     public double Value
     {

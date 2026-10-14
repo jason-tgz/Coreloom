@@ -179,6 +179,55 @@ Work through each area and tick what works.
 - [ ] Under a long stress test the graphics card stays *Excellent* unless it gets warm (it then says *Good* and
       "Running warm"). Clock slowdowns from heat show up there; power-limit slowdowns don't.
 - [ ] The health card can be moved, resized and hidden like the other dashboard cards.
+- [ ] The Overview's card shows four parts: graphics card, processor, memory and storage. The Memory and Storage
+      pages have their own health card (memory use and virtual memory; free space, drive wear and drive temperature).
+
+**Gauge colors**
+
+- [ ] Every gauge (Overview summary cards, the Graphics, Processor and Memory page gauges) is green when idle or cool,
+      blue in the normal range, orange when heavy and red at the limit. Under a stress test the color glides from one
+      to the next with the arc; it doesn't jump.
+- [ ] The memory donuts (Memory page, Overview) and the drive rings and bars (Storage page, Overview) use the same
+      colors: green for plenty free, red for nearly full.
+- [ ] Switching between dark and light themes recolors the gauges right away.
+
+**Memory page layout**
+
+- [ ] The four tiles next to the memory donut fill the card's height, two by two, all the same size; in a narrower
+      window the tiles move under the donut. The charts and the two bottom cards line up in equal heights.
+
+**Drive speed test (Storage page)**
+
+- [ ] Pick a drive and *1 GB*, then *Start test*: a progress bar, the read or write gauge moving with the live speed
+      and the running row breathing. It takes about half a minute.
+- [ ] Results resemble CrystalDiskMark's SEQ1M Q8T1, RND4K Q32T1 and RND4K Q1T1 on the same drive (within roughly
+      10–20 %). An NVMe drive reads green, a SATA SSD blue, a hard drive orange or red.
+- [ ] *Cancel* stops within a second or two; no `coreloom-*.tmp` file is left in the temp folder or in
+      `X:\Coreloom benchmark` (the folder is removed again).
+- [ ] A drive with less free space than the test needs says so instead of starting.
+
+**Internet speed test (Network page)**
+
+- [ ] *Start test*: ping and jitter first, then the gauge follows the download and then the upload speed. The results
+      resemble speed.cloudflare.com's in a browser. The server line shows Cloudflare, the location and your provider.
+- [ ] Unplug the network or turn off Wi-Fi and start a test: a short explanation instead of a hang.
+
+**Smart Optimize**
+
+- [ ] *Smart Optimize* sits below *Performance History* in the sidebar.
+- [ ] *Smart Scan*: the ring fills while the comet circles; the four tiles fill in one after another (Cleanup,
+      Protection, Memory, Speed). The headline shows how much junk was found.
+- [ ] Compare the Cleanup sizes with Disk Cleanup / Storage Sense where they overlap. *Clean up and optimize* frees
+      about that much (files in use are skipped and said so), trims memory and flushes DNS; the tiles get checks.
+- [ ] The Recycle Bin, shader caches, thumbnail cache and Update downloads are unticked by default; ticking the Recycle
+      Bin and cleaning empties it.
+- [ ] Protection matches Windows Security (real-time protection, definitions version and age, last scan). *Quick
+      scan* runs (a few minutes), *Stop scan* stops it, *Update definitions* works. With another antivirus installed,
+      the card names it.
+- [ ] (Optional) Download the EICAR test file: Protection shows *Threats found* and *Remove threats* clears it.
+- [ ] *Free up RAM* reports what it freed; the game or app in front isn't trimmed.
+- [ ] Startup apps match Task Manager's *Startup apps*; switching one off here shows *Disabled* there (and back).
+- [ ] *Flush DNS cache* and *Optimize drives* report success.
 
 **In-game overlay**
 

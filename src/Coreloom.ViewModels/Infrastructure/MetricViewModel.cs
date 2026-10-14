@@ -26,6 +26,8 @@ public sealed class MetricViewModel : ObservableObject
     private bool _isDerived;
     private string _toolTip = string.Empty;
     private UnitFormatter _formatter = UnitFormatter.Default;
+    private Thresholds _thresholds;
+    private double _gaugeMaximum;
 
     public MetricViewModel(string metricId, string label, ValueStyle style, string colorKey = ColorKeys.Accent, Thresholds? thresholds = null, double gaugeMaximum = 100)
     {
@@ -54,10 +56,49 @@ public sealed class MetricViewModel : ObservableObject
 
     public string ColorKey { get; }
 
-    public Thresholds Thresholds { get; set; }
+    public Thresholds Thresholds
+    {
+        get => _thresholds;
+        set
+        {
+            if (_thresholds != value)
+            {
+                _thresholds = value;
+                Level = HasValue ? value.Evaluate(Value) : ThresholdLevel.Normal;
+                OnToneStopsChanged();
+            }
+        }
+    }
 
     /// <summary>Value that maps to a full gauge (e.g. 100 for %, the power limit for watts).</summary>
-    public double GaugeMaximum { get; set; }
+    public double GaugeMaximum
+    {
+        get => _gaugeMaximum;
+        set
+        {
+            if (!_gaugeMaximum.Equals(value))
+            {
+                _gaugeMaximum = value;
+                OnToneStopsChanged();
+            }
+        }
+    }
+
+    /// <summary>Where the gauge turns from green to blue (a fraction of the gauge; see <see cref="GaugeTone"/>).</summary>
+    public double GaugeCoolAt => GaugeTone.Stops(_thresholds, _gaugeMaximum).Cool;
+
+    /// <summary>Where the gauge turns from blue to orange.</summary>
+    public double GaugeWarmAt => GaugeTone.Stops(_thresholds, _gaugeMaximum).Warm;
+
+    /// <summary>Where the gauge turns red.</summary>
+    public double GaugeHotAt => GaugeTone.Stops(_thresholds, _gaugeMaximum).Hot;
+
+    private void OnToneStopsChanged()
+    {
+        OnPropertyChanged(nameof(GaugeCoolAt));
+        OnPropertyChanged(nameof(GaugeWarmAt));
+        OnPropertyChanged(nameof(GaugeHotAt));
+    }
 
     public bool HasValue
     {

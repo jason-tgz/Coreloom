@@ -95,6 +95,11 @@ public sealed class ThemeService : IThemeService
         SetColor("Brush.AccentSoft", ThemePalette.WithAlpha(AccentColor, (byte)(_isDark ? 0x2E : 0x24)), duration);
         SetColor("Brush.AccentHover", Blend(AccentColor, _isDark ? Colors.White : Colors.Black, 0.12), duration);
         SetColor("Brush.OnAccent", ThemePalette.ContrastingText(AccentColor), duration);
+        byte soft = (byte)(_isDark ? 0x26 : 0x1C); // tinted backgrounds for notices and results
+        SetColor("Brush.SuccessSoft", ThemePalette.WithAlpha(palette["Success"], soft), duration);
+        SetColor("Brush.InfoSoft", ThemePalette.WithAlpha(palette["Info"], soft), duration);
+        SetColor("Brush.ElevatedSoft", ThemePalette.WithAlpha(palette["Elevated"], soft), duration);
+        SetColor("Brush.CriticalSoft", ThemePalette.WithAlpha(palette["Critical"], soft), duration);
 
         IsMicaActive = appearance.UseMica && IsMicaSupported;
         var background = palette["Background"];
@@ -127,8 +132,19 @@ public sealed class ThemeService : IThemeService
 
     /// <summary>Live brush for a semantic series color key such as "Cpu" or "Gpu".</summary>
     public Brush GetSeriesBrush(string? colorKey) =>
-        _live.TryGetValue($"Series.{colorKey ?? "Accent"}.Brush", out var brush) ? brush
+        ToneBrushKey(colorKey) is { } tone && _live.TryGetValue(tone, out var toneBrush) ? toneBrush
+        : _live.TryGetValue($"Series.{colorKey ?? "Accent"}.Brush", out var brush) ? brush
         : _live.TryGetValue("Series.Accent.Brush", out var accent) ? accent : Brushes.SteelBlue;
+
+    /// <summary>The gauge scale's colors ("Tone.Cool" … "Tone.Hot") are the status brushes.</summary>
+    private static string? ToneBrushKey(string? colorKey) => colorKey switch
+    {
+        "Tone.Cool" => "Brush.Success",
+        "Tone.Normal" => "Brush.Info",
+        "Tone.Warm" => "Brush.Elevated",
+        "Tone.Hot" => "Brush.Critical",
+        _ => null,
+    };
 
     private void SetColor(string key, Color color, TimeSpan duration)
     {
