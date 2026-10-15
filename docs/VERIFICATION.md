@@ -147,6 +147,70 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.4.1: design overhaul, per-game frame pacer, overlay graph
+
+- **Core tests: 442 passed** (13 new: picking a game's programs (running program, store program, Unreal shipping
+  build, largest non-helper, launchers last); program names from paths and icon references; the limit pacing a program
+  (its game's own, else the all-games one); repairing per-game limits; the overlay's frame-time graph offered once to
+  existing setups; recent frame times from the tracker; the splash bar's per-stage progress, creep and ceiling, and its
+  easing). **View-model tests: 115 passed** (5 new: search suggestions on the Devices and Gaming pages and their
+  ranking, the typed text kept as typed; a game's own frame limit set, shown as a chip, changed and removed without
+  touching other games; the all-games limit remembered for the overlay; the overlay's pacing mark and graph feed for
+  the game in front).
+- **GitHub Actions on the branch, before release: the Windows job compiled the app with the real WPF XAML compiler
+  (no warnings reported) and passed all tests with the real xUnit and MVVM Toolkit**, and the Linux job passed too.
+  Here, `Coreloom.App` compiles (0 errors, 0 warnings) and the XAML checks pass (20 files, 226 shared keys, 1,114
+  bindings).
+- The squircle path is a port of figma-squircle's math; the same function, ported to JavaScript, drew the HTML mock-ups
+  of the Overview (glass sidebar, glow cards with the pointer light, tick gauges, toggles), the frame pacer card, quick
+  search, gauges with orbs, the overlay with its graph and pacing mark, and the splash with both icons. The WPF windows
+  themselves were not rendered here.
+- The dark-mode icon was generated from the approved 1024 px icon by `build/dark-icon.py` and checked at 1024 and at
+  16–128 px; the mark itself is unchanged.
+- NVAPI per-program functions (`FindApplicationByName`, `CreateProfile`, `CreateApplication`, `DeleteProfileSetting`,
+  `GetProfileInfo`, `DeleteProfile`) and the `NVDRS_PROFILE`/`NVDRS_APPLICATION` layouts were taken from NVIDIA's
+  public headers; none of these calls has run here.
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Squircles, glow cards, edge light | Geometry ported and rendered in mock-ups; compiled | WPF rendering at his scaling, hover smoothness, CPU cost with many cards |
+| Darker palette, glass sidebar, Mica | Reviewed; mock-up | How Mica looks through the sidebar on his wallpaper; text smoothing there |
+| Tick gauges, liquid toggle, quick search, smooth scrolling | Compiled; mock-ups; suggestion logic unit-tested | Feel of the toggle and scrolling; the search panel's focus handling in WPF |
+| Splash and dark icon | Progress logic unit-tested; mock-up | The layered splash animating smoothly; icons in the taskbar and tray |
+| Per-game frame pacer | Program picking and settings unit-tested; NVAPI calls reviewed against the headers | Driver profiles created and applied to his games |
+| Overlay redesign and graph | Tracker and view model unit-tested | The graph in games, the layered overlay redrawing at 30 Hz |
+
+### 1.4.0: Gaming tab
+
+- **Core tests: 429 passed** (36 new: KeyValues parsing with escapes, comments and conditions; Steam library folders in
+  old and new formats, app manifests, tools and unfinished installs left out, library art in both cache layouts; Epic
+  manifests with DLC, engines and unfinished installs left out, catalog covers; GOG play tasks; Xbox config and the
+  package family name, checked against Microsoft's known publisher id `8wekyb3d8bbwe`; Ubisoft, Riot, Battle.net and
+  EA games from installed-app entries; merging, sorting, search, initials, finding the running game; `powercfg`
+  output in English and German; HAGS state with a pending restart; DirectX user settings; the automatic frame limit
+  for 60–360 Hz; pacing grades; shader-cache locations and driver-change text; Gaming settings repair).
+  **View-model tests: 110 passed** (11 new: the library in order with store, size and last played; sort, search and
+  list/grid remembered; Play and Open folder; covers offered and downloaded only when asked; boosts, *Boost now* and
+  the restart notice; a switch turned off; a refused change flips back with its reason; the frame pacer's automatic
+  and chosen limits; no NVIDIA driver; the running game marked with its pacing; shader caches and a driver change;
+  Gaming above Graphics and Updates last in Settings).
+- **GitHub Actions on the branch, before release: the Windows job compiled the app with the real WPF XAML compiler
+  and passed all tests with the real xUnit and MVVM Toolkit**, and the Linux job passed too. Here, `Coreloom.App`
+  compiles (0 errors, 0 warnings) and the XAML checks pass (20 files, 215 shared keys, 1,072 bindings).
+- NVAPI function ids, setting ids and the `NVDRS_SETTING` layout were taken from NVIDIA's public NVAPI headers; the
+  D3DKMT query type and structures from the Windows headers (cross-checked with Wine's). None of these calls has run
+  here.
+- HTML mock-ups of the Gaming page (list and grid) were rendered with invented game titles and artwork; the WPF page
+  itself was not rendered here.
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Game library | Parsers unit-tested with sample files | His real libraries (missing or doubled games), Xbox packages, launch as non-administrator |
+| Boosts | State logic unit-tested; registry and `powercfg` calls reviewed | Each switch on his PC; HAGS after a restart; Ultimate Performance on his edition |
+| Frame pacer | Limit math unit-tested; NVAPI calls reviewed against the headers | The driver limit applying to games; NVAPI on driver 58x |
+| Shader cache | Locations and notice unit-tested | The unlimited setting in the NVIDIA Control Panel; the sizes |
+| Covers | Download only on request; unit-tested | Steam's and Epic's servers answering; picture quality in the grid |
+
 ### 1.3.5: Smart Optimize card layout, sidebar order, search hint, Devices headings
 
 - **Core tests: 393 passed** (1 new: in-order stacking keeps cards in their columns, and filling grows only the last
