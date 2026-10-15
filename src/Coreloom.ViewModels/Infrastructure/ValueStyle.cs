@@ -56,6 +56,24 @@ public static class ColorKeys
         _ => ToneNormal,
     };
 
+    /// <summary>
+    /// A temperature's colors, like a thermometer: blue (cool), teal-green (normal), amber-orange (warm), red (hot). Each is
+    /// drawn as a gradient on gauges and lights the card it is on.
+    /// </summary>
+    public const string TempCool = "Temp.Cool";
+    public const string TempNormal = "Temp.Normal";
+    public const string TempWarm = "Temp.Warm";
+    public const string TempHot = "Temp.Hot";
+
+    /// <summary>The temperature color for a threshold level (unknown or no thresholds: normal).</summary>
+    public static string ForTemperature(Core.Formatting.ThresholdLevel level) => level switch
+    {
+        Core.Formatting.ThresholdLevel.Cool => TempCool,
+        Core.Formatting.ThresholdLevel.Elevated => TempWarm,
+        Core.Formatting.ThresholdLevel.Critical => TempHot,
+        _ => TempNormal,
+    };
+
     /// <summary>Palette used for user-composed charts (Performance History).</summary>
     public static IReadOnlyList<string> Sequence { get; } = [Cpu, Gpu, Temperature, Memory, Storage, Power, NetworkDown, Fan];
 }

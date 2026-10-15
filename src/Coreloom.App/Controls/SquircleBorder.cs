@@ -170,10 +170,12 @@ public static class Squircle
 /// A <see cref="Border"/> drawn as a squircle (<see cref="Squircle"/>), used for every card and rounded surface so corners
 /// look the same everywhere. Styles written for <c>Border</c> (Card, Card.Inset) apply to it unchanged.
 /// <para>
-/// A card can also glow: <see cref="GlowKey"/> names a color (a series such as "Gpu", a status such as "Success", or
-/// "Accent") that lights the card from the bottom and along its lower edge, like the light of a lamp under frosted glass.
-/// With <see cref="EdgeGlow"/> the pointer lights the card's rim where it is nearest, the light following it smoothly and
-/// growing as it nears the edge; only the edge glows, never the content.
+/// A card can also glow: <see cref="GlowKey"/> names a color (a series such as "Gpu", a status such as "Success", a
+/// temperature such as "Temp.Cool", or "Accent") that lights the card from the bottom and along its lower edge, like the
+/// light of a lamp under frosted glass; when the key changes the light fades to the new color. With
+/// <see cref="EdgeGlow"/> the pointer lights the card's rim where it is nearest, in that same color, as a soft glow
+/// around the outside of the edge with a bright line on it, following the pointer smoothly and growing as it nears the
+/// edge; the content itself never glows.
 /// </para>
 /// </summary>
 public class SquircleBorder : Border
@@ -207,6 +209,7 @@ public class SquircleBorder : Border
 
     private Geometry? _outer;
     private Geometry? _stroke;
+    private Geometry? _outside;       // everything around the card (for the glow outside its edge)
     private (Size Size, CornerRadius Radii, double Thickness, double Smoothing) _shapeKey;
     private bool _themeHooked;
     private bool _renderingHooked;
@@ -216,6 +219,9 @@ public class SquircleBorder : Border
     private Point _target;           // where the pointer is
     private TimeSpan _lastFrame;
     private DispatcherTimer? _settle;
+    private Color? _glowFrom;        // the color the glow is fading from after GlowKey changed
+    private double _glowFade = 1;    // 0 … 1 through that fade
+    private Color? _glowShown;       // the glow color last drawn
 
     public SquircleBorder()
     {
@@ -226,6 +232,8 @@ public class SquircleBorder : Border
             HookRendering(false);
             _hovering = false;
             _hover = 0;
+            _glowFrom = null;
+            _glowFade = 1;
         };
     }
 
@@ -289,6 +297,19 @@ public class SquircleBorder : Border
         {
             border.HookTheme(e.NewValue is not null || border.EdgeGlow);
         }
+
+        // A new color (a temperature warming up, say) fades in over about 450 ms rather than switching at once.
+        if (border._glowShown is { } shown && e.NewValue is not null && border.IsVisible && !Motion.ReducedMotion)
+        {
+            border._glowFrom = shown;
+            border._glowFade = 0;
+            border.HookRendering(true);
+        }
+        else
+        {
+            border._glowFrom = null;
+            border._glowFade = 1;
+        }
     }
 
     private static void OnEdgeGlowChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -298,6 +319,8 @@ public class SquircleBorder : Border
         {
             border._hovering = false;
             border._hover = 0;
+            border._glowFrom = null;
+            border._glowFade = 1;
             border.HookRendering(false);
             border.InvalidateVisual();
         }
@@ -307,15 +330,45 @@ public class SquircleBorder : Border
         }
     }
 
-    /// <summary>The color for a glow key: a status ("Success", "Info", "Elevated", "Critical"), "Accent", or a series.</summary>
+    /// <summary>
+    /// The color for a glow key: a status ("Success", "Info", "Elevated", "Critical"), "Accent", a temperature
+    /// ("Temp.Cool" … "Temp.Hot"), or a series.
+    /// </summary>
     public static Color GlowColor(string key) => key switch
     {
         "Success" or "Info" or "Elevated" or "Critical" or "Accent" => ChartColors.Theme(key),
+        _ when key.StartsWith("Temp.", StringComparison.Ordinal) => ChartColors.Theme(key),
         _ => ChartColors.Series(key),
     };
 
+    /// <summary>The glow color to draw now: the key's color, or partway there while fading from the previous one.</summary>
+    private Color? CurrentGlow()
+    {
+        if (GlowKey is not { } key)
+        {
+            return null;
+        }
+
+        var target = GlowColor(key);
+        if (_glowFrom is not { } from || _glowFade >= 1)
+        {
+            return target;
+        }
+
+        double t = 1 - Math.Pow(1 - Math.Clamp(_glowFade, 0, 1), 3); // ease out
+        return Color.FromArgb(
+            (byte)Math.Round(from.A + ((target.A - from.A) * t)),
+            (byte)Math.Round(from.R + ((target.R - from.R) * t)),
+            (byte)Math.Round(from.G + ((target.G - from.G) * t)),
+            (byte)Math.Round(from.B + ((target.B - from.B) * t)));
+    }
+
     protected override Geometry? GetLayoutClip(Size layoutSlotSize) =>
         ClipContent ? Shape(RenderSize).Outer : base.GetLayoutClip(layoutSlotSize);
+
+    /// <summary>Only the card itself takes the pointer, never its shadow or the glow around its edge.</summary>
+    protected override HitTestResult? HitTestCore(PointHitTestParameters hitTestParameters) =>
+        new Rect(RenderSize).Contains(hitTestParameters.HitPoint) ? base.HitTestCore(hitTestParameters) : null;
 
     private (Geometry Outer, Geometry Stroke) Shape(Size size)
     {
@@ -326,10 +379,25 @@ public class SquircleBorder : Border
             var rect = new Rect(size);
             _outer = Squircle.Create(rect, CornerRadius, Smoothing);
             _stroke = thickness > 0 ? Squircle.Inset(rect, CornerRadius, thickness / 2, Smoothing) : _outer;
+            _outside = null;
             _shapeKey = key;
         }
 
         return (_outer, _stroke);
+    }
+
+    /// <summary>The area around the card, out to a little past the reach of the edge glow.</summary>
+    private Geometry Outside(Size size, Geometry outer)
+    {
+        if (_outside is null)
+        {
+            var around = new RectangleGeometry(new Rect(-OuterReach - 4, -OuterReach - 4, size.Width + (2 * (OuterReach + 4)), size.Height + (2 * (OuterReach + 4))));
+            var geometry = new CombinedGeometry(GeometryCombineMode.Exclude, around, outer);
+            geometry.Freeze();
+            _outside = geometry;
+        }
+
+        return _outside;
     }
 
     protected override void OnRender(DrawingContext dc)
@@ -354,7 +422,8 @@ public class SquircleBorder : Border
             dc.DrawGeometry(background, null, outer);
         }
 
-        Color? glow = GlowKey is { } key ? GlowColor(key) : null;
+        Color? glow = CurrentGlow();
+        _glowShown = glow;
         if (glow is { } lamp)
         {
             DrawLamp(dc, outer, size, lamp, dark);
@@ -377,7 +446,7 @@ public class SquircleBorder : Border
 
         if (_hover > 0.004 && EdgeGlow)
         {
-            DrawPointerGlow(dc, outer, stroke, size, glow ?? ChartColors.Theme("Accent"));
+            DrawPointerGlow(dc, outer, stroke, size, glow ?? ChartColors.Theme("Accent"), dark);
         }
     }
 
@@ -461,20 +530,19 @@ public class SquircleBorder : Border
     }
 
     /// <summary>
-    /// The rim near the pointer lights up in two colors (the glow color and its warmer neighbour): a crisp line on the edge
-    /// and a soft halo just inside it, clipped to the card so nothing spills over the content around it.
+    /// The edge near the pointer lights up in the card's own glow color, like light escaping around a pane of tinted glass:
+    /// a soft glow spreading outward from the edge (clipped to the outside, so it never washes over the content), a faint
+    /// inner rim, and a bright line on the edge itself. All of it fades with distance from the pointer.
     /// </summary>
-    private void DrawPointerGlow(DrawingContext dc, Geometry outer, Geometry stroke, Size size, Color color)
+    private void DrawPointerGlow(DrawingContext dc, Geometry outer, Geometry stroke, Size size, Color color, bool dark)
     {
         double nearest = Math.Min(Math.Min(_pointer.X, size.Width - _pointer.X), Math.Min(_pointer.Y, size.Height - _pointer.Y));
         double reach = Math.Max(48, Math.Min(size.Width, size.Height) * 0.5);
-        double intensity = _hover * (0.55 + (0.45 * (1 - Math.Clamp(nearest / reach, 0, 1))));
+        double intensity = _hover * (0.55 + (0.45 * (1 - Math.Clamp(nearest / reach, 0, 1)))) * (dark ? 1 : 0.8);
         double radius = Math.Clamp(Math.Max(size.Width, size.Height) * 0.5, 110, 240);
-        var primary = ThemePalette.Shift(color, 0, 0.16);
-        var secondary = ThemePalette.Shift(color, 38, 0.06);
+        var line = ThemePalette.Shift(color, 0, dark ? 0.14 : 0.04);
 
-        dc.PushClip(outer);
-        foreach (var (width, alpha) in Layers)
+        Brush Light(Color c, double alpha)
         {
             var brush = new RadialGradientBrush
             {
@@ -485,20 +553,36 @@ public class SquircleBorder : Border
                 RadiusY = radius,
                 GradientStops =
                 {
-                    new GradientStop(ThemePalette.WithAlpha(primary, (byte)(255 * alpha * intensity)), 0),
-                    new GradientStop(ThemePalette.WithAlpha(secondary, (byte)(150 * alpha * intensity)), 0.45),
-                    new GradientStop(ThemePalette.WithAlpha(secondary, 0), 1),
+                    new GradientStop(ThemePalette.WithAlpha(c, (byte)Math.Clamp(255 * alpha * intensity, 0, 255)), 0),
+                    new GradientStop(ThemePalette.WithAlpha(c, (byte)Math.Clamp(110 * alpha * intensity, 0, 255)), 0.5),
+                    new GradientStop(ThemePalette.WithAlpha(c, 0), 1),
                 },
             };
             brush.Freeze();
-            dc.DrawGeometry(null, Pen(brush, width), stroke);
+            return brush;
+        }
+
+        // Outside the edge: the glow.
+        dc.PushClip(Outside(size, outer));
+        foreach (var (width, alpha) in OuterLayers)
+        {
+            dc.DrawGeometry(null, Pen(Light(color, alpha), width), outer);
         }
 
         dc.Pop();
+
+        // Inside: a faint rim of the same light, and the bright line on the edge.
+        dc.PushClip(outer);
+        dc.DrawGeometry(null, Pen(Light(color, 0.16), 6), stroke);
+        dc.DrawGeometry(null, Pen(Light(line, 1.0), 1.3), stroke);
+        dc.Pop();
     }
 
-    // Halo widths and strengths, widest first; the last one is the crisp line on the rim.
-    private static readonly (double Width, double Alpha)[] Layers = [(14, 0.10), (7, 0.18), (3, 0.42), (1.3, 1.0)];
+    /// <summary>How far the edge glow spreads outside the card.</summary>
+    private const double OuterReach = 14;
+
+    // The outer glow's widths (twice how far each reaches out) and strengths, widest and faintest first.
+    private static readonly (double Width, double Alpha)[] OuterLayers = [(OuterReach * 2, 0.07), (16, 0.12), (8, 0.2), (3.5, 0.34)];
 
     private static Pen Pen(Brush brush, double thickness)
     {
@@ -562,6 +646,7 @@ public class SquircleBorder : Border
         {
             _pointer = _target;
             _hover = _hovering ? 1 : 0;
+            _glowFade = 1;
             HookRendering(false);
             InvalidateVisual();
             return;
@@ -569,6 +654,9 @@ public class SquircleBorder : Border
 
         HookRendering(true);
     }
+
+    /// <summary>How long a new glow color takes to fade in.</summary>
+    private const double GlowFadeSeconds = 0.45;
 
     private void OnRendering(object? sender, EventArgs e)
     {
@@ -585,13 +673,19 @@ public class SquircleBorder : Border
         double fade = 1 - Math.Exp(-dt * (_hovering ? 9 : 6));
         _pointer = new Point(_pointer.X + ((_target.X - _pointer.X) * follow), _pointer.Y + ((_target.Y - _pointer.Y) * follow));
         _hover += ((_hovering ? 1 : 0) - _hover) * fade;
+        if (_glowFade < 1)
+        {
+            _glowFade = Math.Min(1, _glowFade + (dt / GlowFadeSeconds));
+        }
 
         bool settled = Math.Abs(_target.X - _pointer.X) < 0.3 && Math.Abs(_target.Y - _pointer.Y) < 0.3
-            && Math.Abs((_hovering ? 1 : 0) - _hover) < 0.004;
+            && Math.Abs((_hovering ? 1 : 0) - _hover) < 0.004
+            && _glowFade >= 1;
         if (settled)
         {
             _pointer = _target;
             _hover = _hovering ? 1 : 0;
+            _glowFrom = null;
             HookRendering(false);
         }
 

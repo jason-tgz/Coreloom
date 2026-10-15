@@ -56,6 +56,15 @@ public sealed class MetricViewModel : ObservableObject
 
     public string ColorKey { get; }
 
+    /// <summary>A temperature: its gauge and card take the temperature's colors (blue when cool … red when hot).</summary>
+    public bool IsTemperature => Style == ValueStyle.Temperature;
+
+    /// <summary>
+    /// The color the metric's card glows with (and its gauge, sparkline and icon for a temperature): the series color,
+    /// or for a temperature the color of how warm it is ("Temp.Cool" … "Temp.Hot"), changing as it warms up or cools down.
+    /// </summary>
+    public string GlowKey => IsTemperature ? ColorKeys.ForTemperature(HasValue ? Level : ThresholdLevel.Normal) : ColorKey;
+
     public Thresholds Thresholds
     {
         get => _thresholds;
@@ -103,7 +112,13 @@ public sealed class MetricViewModel : ObservableObject
     public bool HasValue
     {
         get => _hasValue;
-        private set => SetProperty(ref _hasValue, value);
+        private set
+        {
+            if (SetProperty(ref _hasValue, value) && IsTemperature)
+            {
+                OnPropertyChanged(nameof(GlowKey));
+            }
+        }
     }
 
     /// <summary>Raw value in base units (NaN when unavailable). Animated by the view.</summary>
@@ -135,7 +150,13 @@ public sealed class MetricViewModel : ObservableObject
     public ThresholdLevel Level
     {
         get => _level;
-        private set => SetProperty(ref _level, value);
+        private set
+        {
+            if (SetProperty(ref _level, value) && IsTemperature)
+            {
+                OnPropertyChanged(nameof(GlowKey));
+            }
+        }
     }
 
     /// <summary>0..1 for gauges and bars.</summary>

@@ -335,10 +335,12 @@ public partial class App : Application
         _tray = tray;
 
         // The dark-mode icon (dark glass tile) replaces the light one in the window, taskbar and tray while the dark theme
-        // is on; the sidebar, About page and splash take theirs from the theme's "Image.AppIcon*" resources.
+        // is on, and on Coreloom's Start menu, desktop and pinned taskbar shortcuts (Windows draws those from the shortcut);
+        // the sidebar, About page and splash take theirs from the theme's "Image.AppIcon*" resources.
         void ApplyAppIcon()
         {
             tray.SetDark(theme.IsDark);
+            ShortcutIconService.Apply(theme.IsDark);
             try
             {
                 window.Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri(AppIcons.Ico(theme.IsDark), UriKind.Absolute));

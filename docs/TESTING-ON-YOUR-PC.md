@@ -268,7 +268,7 @@ Work through each area and tick what works.
       still looks right.
 - [ ] The Overview's summary cards, the PC header, Memory/Storage/Health panels, the page gauge cards, the speed test
       and benchmark cards, the Smart Optimize, Gaming and Devices banners and the frame pacer glow faintly in their
-      color from the bottom. Moving the pointer over them lights the rim near the pointer in two shades, following it
+      color from the bottom. Moving the pointer over them lights the edge near the pointer in that color, following it
       smoothly, brighter near the edge, fading out when the pointer leaves; the content never glows, and nothing lags.
 - [ ] The sidebar floats with a gap all round, rounded and glassy with a bright rim; collapsing it (button or a
       narrow window) still works. With Mica on (Windows 11), the desktop tint shows through the sidebar; text there is
@@ -288,6 +288,27 @@ Work through each area and tick what works.
       app. With Reduce motion, no flowing light or stripes.
 - [ ] Dark theme: the window, taskbar and tray icons and the sidebar/About logos are the dark-mode icon; switching to
       the light theme swaps them back at once.
+
+**Design fixes (1.4.2)**
+
+- [ ] Collapse the sidebar (button, or a narrow window): every icon is whole and centered in its button; the logo and
+      the expand button line up with them; an update badge, if showing, shows its whole icon.
+- [ ] Hover the cards that glow (dashboard summary cards, the PC header, page gauge cards, banners, frame pacer): the
+      edge lights in the color already inside the card (green Graphics, blue Processor, your accent on the banners),
+      as a soft glow just outside the edge with a bright line on it; no purple or second shade; it doesn't flicker
+      when the pointer crosses to a neighbouring card, and buttons right next to a card still click.
+- [ ] Temperatures: on Graphics and Processor, and the dashboard's GPU and CPU temperature cards, an idle PC shows a
+      blue gauge and glow; under load it turns teal-green, then amber-orange near the warning level and red at the
+      limit, fading between them. Other gauges keep the green/blue/orange/red scale. Check the light theme too.
+- [ ] Gaming › Frame pacer: open *Apply to*, then turn the mouse wheel over the list and over the page: the list stays
+      attached right under its box and the page doesn't move (a long list scrolls itself). Same with the limit picker
+      and a Settings picker.
+- [ ] Devices and Gaming search: type a letter; the list is exactly as wide as the search box, directly under it,
+      centered (also with *Settings › Devices › Pen and Windows Ink* / *Tablet settings* set to right-handed, if the PC
+      has it). Scrolling the page with the list open keeps it under the box.
+- [ ] Dark theme: the Start menu entry, the desktop shortcut (if installed) and Coreloom pinned to the taskbar show the
+      dark-mode icon after a few seconds (a pinned taskbar button may need sign-out or *Restart Explorer* to redraw);
+      switching to the light theme puts the usual icon back. A shortcut you gave a custom icon keeps it.
 
 **Gaming**
 

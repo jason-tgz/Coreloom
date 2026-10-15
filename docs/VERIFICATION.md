@@ -147,6 +147,37 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.4.2: design fixes
+
+- **Core tests: 452 passed** (10 new: which shortcut files are Coreloom's, a shortcut starting this exe (case, quotes),
+  the dark icon over the usual one, the exe's icon back in the light theme, nothing changed when a shortcut already
+  matches, a custom icon left alone). **View-model tests: 121 passed** (6 new: a temperature's glow key following its
+  level as it is read and as thresholds change, other metrics keeping their series color, the four temperature keys).
+- **New Windows test** (`ShellLinkTests`): creates a real shortcut through the Windows Shell, switches its icon to the
+  dark one and back as the app does, and reads it back each time. It runs on the Windows runner (skipped only off
+  Windows).
+- **GitHub Actions on the branch, before release: the Windows job compiled the app with the real WPF XAML compiler (no
+  warnings reported) and passed all tests, including the shortcut test**, and the Linux job passed too. Here,
+  `Coreloom.App` compiles (0 errors, 0 warnings) and the XAML checks pass (20 files, 238 shared keys, 1,119 bindings).
+- The causes were found from Jerry's screenshots: collapsed nav items are 40 px wide but their icon row needed 42
+  (14 + 18 + 10), so WPF clipped the icon about 2 px short of its right edge; the search list sat 18 screen pixels (12
+  DIPs) left of the box, which is the popup's −12 offset, because WPF's Bottom placement lines up the panel itself
+  (not its shadow margin) and, with right-handed menus, the right edges; and the page scrolled under the open
+  dropdown because the list was too short to scroll, so the smooth-scroll handler passed the wheel to the page. The
+  popup placement maths was checked against WPF's own `Popup.cs` (custom placement sizes are screen pixels; the
+  returned point moves the popup window from the target's top-left).
+- The new edge glow and the temperature gradients were drawn with the same maths in an HTML mock-up (cards at 38, 62,
+  78 and 86 °C, hovered cards, the collapsed sidebar, the centered search list and the attached dropdown). The WPF
+  windows themselves were not rendered here.
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Collapsed sidebar icons | Layout arithmetic; compiled | The look at his scaling |
+| Edge glow in the card's color, outside the edge | Mock-up; compiled | Smoothness in WPF; neighbouring cards drawn over a glow |
+| Temperature colors | Glow keys unit-tested; gradients in the mock-up | Colors on his panel as temperatures change |
+| Dropdowns kept attached, search list centered | Placement checked against WPF's source; compiled | Behaviour with his mouse/touchpad and handedness setting |
+| Dark icon on shortcuts | Policy unit-tested; shortcut round trip tested on Windows CI | His Start menu, desktop and pinned taskbar button redrawing (Explorer's icon cache) |
+
 ### 1.4.1: design overhaul, per-game frame pacer, overlay graph
 
 - **Core tests: 442 passed** (13 new: picking a game's programs (running program, store program, Unreal shipping

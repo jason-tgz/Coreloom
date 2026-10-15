@@ -48,6 +48,8 @@
          the app wherever it draws its own icon while the dark theme is on. -->
     <Resource Include="..\..\assets\branding\dark\coreloom-dark.ico" Link="Assets\coreloom-dark.ico" />
     <Resource Include="..\..\assets\branding\dark\png\coreloom-dark-*.png" Link="Assets\%(Filename)%(Extension)" />
+    <!-- A copy beside Coreloom.exe for Windows to draw Coreloom's shortcuts with while the dark theme is on. -->
+    <Content Include="..\..\assets\branding\dark\coreloom-dark.ico" Link="coreloom-dark.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <!-- Vendor logos (nvidia/amd/intel[-on-dark|-on-light].png) are optional and supplied by the repository owner from
          the vendors' own brand pages; none are bundled. Anything placed in assets/vendors is embedded at build time. -->
     <Resource Include="..\..\assets\vendors\*.png" Link="Assets\Vendors\%(Filename)%(Extension)" />

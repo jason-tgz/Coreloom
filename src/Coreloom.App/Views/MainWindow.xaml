@@ -45,13 +45,35 @@
       <Setter Property="ToolTipService.Placement" Value="Right" />
     </Style>
 
+    <!-- Collapsed, an item is only 40 px wide: the icon sits centered with no margins (with them it didn't fit and was
+         clipped on the right). -->
     <DataTemplate x:Key="NavItemTemplate" DataType="{x:Type pages:PageViewModel}">
-      <StackPanel Orientation="Horizontal" Margin="14,0,10,0">
+      <StackPanel x:Name="Row" Orientation="Horizontal" Margin="14,0,10,0">
         <Path Style="{StaticResource IconPath}" Data="{Binding IconKey, Converter={StaticResource IconKeyToGeometry}}" />
         <TextBlock Text="{Binding Title}" Margin="14,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                    Visibility="{Binding IsCompactSidebar, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
       </StackPanel>
+      <DataTemplate.Triggers>
+        <DataTrigger Binding="{Binding IsCompactSidebar, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+          <Setter TargetName="Row" Property="Margin" Value="0" />
+          <Setter TargetName="Row" Property="HorizontalAlignment" Value="Center" />
+        </DataTrigger>
+      </DataTemplate.Triggers>
     </DataTemplate>
+
+    <!-- The brand mark: beside the name when expanded, centered over the icons when collapsed. -->
+    <Style x:Key="SidebarBrand" TargetType="StackPanel">
+      <Setter Property="Orientation" Value="Horizontal" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="Margin" Value="8,4,0,0" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsCompactSidebar, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+          <Setter Property="HorizontalAlignment" Value="Center" />
+          <Setter Property="Margin" Value="0,4,0,0" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
   </Window.Resources>
 
   <Border x:Name="RootBorder">
@@ -80,7 +102,7 @@
 
           <!-- Brand + collapse -->
           <Grid>
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,4,0,0">
+            <StackPanel Style="{StaticResource SidebarBrand}">
               <Image Source="{DynamicResource Image.AppIcon}" Width="26" Height="26" RenderOptions.BitmapScalingMode="HighQuality" />
               <TextBlock Text="Coreloom" FontSize="16" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center"
                          Visibility="{Binding IsCompactSidebar, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
@@ -94,7 +116,7 @@
 
           <!-- Navigation -->
           <StackPanel Grid.Row="1" Margin="0,10,0,0">
-            <Button Style="{StaticResource Button.Icon}" HorizontalAlignment="Left" Margin="4,0,0,8" Command="{Binding ToggleSidebarCommand}"
+            <Button Style="{StaticResource Button.Icon}" HorizontalAlignment="Center" Margin="0,0,0,8" Command="{Binding ToggleSidebarCommand}"
                     ToolTip="Expand sidebar" Visibility="{Binding IsCompactSidebar, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
               <Path Style="{StaticResource IconPath}" Width="16" Height="16" Data="{StaticResource Icon.Sidebar}" />
             </Button>
@@ -106,11 +128,22 @@
           <!-- Footer -->
           <StackPanel Grid.Row="2">
             <!-- Update badge: a newer version is available, downloading or ready to install. -->
-            <Button Style="{StaticResource Button.Subtle}" HorizontalContentAlignment="Left" Padding="12,8" Margin="0,0,0,6"
-                    Background="{DynamicResource Brush.AccentSoft}" BorderBrush="Transparent"
+            <Button Margin="0,0,0,6" Background="{DynamicResource Brush.AccentSoft}" BorderBrush="Transparent"
                     Command="{Binding OpenUpdatesCommand}" ToolTip="{Binding Updates.BadgeToolTip}"
                     AutomationProperties.Name="{Binding Updates.BadgeToolTip}"
                     Visibility="{Binding Updates.ShowBadge, Converter={StaticResource BoolToVisibility}}">
+              <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource Button.Subtle}">
+                  <Setter Property="HorizontalContentAlignment" Value="Left" />
+                  <Setter Property="Padding" Value="12,8" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsCompactSidebar, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                      <Setter Property="HorizontalContentAlignment" Value="Center" />
+                      <Setter Property="Padding" Value="0,8" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Button.Style>
               <StackPanel Orientation="Horizontal">
                 <Grid Width="16" Height="16" VerticalAlignment="Center">
                   <Path Style="{StaticResource IconPath}" Width="15" Height="15" Data="{StaticResource Icon.Download}" Stroke="{DynamicResource Brush.Accent}" />

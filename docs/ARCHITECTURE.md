@@ -103,7 +103,7 @@ layer calls Windows sensor APIs, so most of the logic is testable on any OS.
   - Writes are debounced by 600 ms.
   - A corrupt file is kept as `settings.json.bad` and defaults are used.
 
-## Design system (1.4.1)
+## Design system (1.4.1, 1.4.2)
 
 - **Squircles.** `Squircle.Create` (Controls/SquircleBorder.cs) builds Figma's corner smoothing (figma-squircle,
   "preserve smoothing"): with smoothing ξ (0.6, Apple's) a corner starts (1 + ξ)·r from the vertex, a circular arc of
@@ -113,11 +113,21 @@ layer calls Windows sensor APIs, so most of the logic is testable on any OS.
   background, the glow, border, lit edge and sheen, all on the squircle; `ClipContent` clips children through
   `GetLayoutClip`. Every card and rounded container in the XAML, and the button, field, menu, tooltip, segmented and
   navigation templates, are `c:SquircleBorder`.
-- **Glow cards.** `GlowKey` names a color (a series such as `Gpu`, a status such as `Success`, `Accent`); the card is lit
-  from below by a radial gradient clipped to its shape and its lower rim brightens. `Card.Glow` adds `EdgeGlow`: the
-  pointer's position (eased toward the pointer each frame on `CompositionTarget.Rendering`, only while hovered or fading)
-  centres a radial gradient in the glow color and its warmer neighbour, stroked along the rim in four widths from a
-  14 px halo to a 1.3 px line, clipped inside the card; it brightens as the pointer nears the edge.
+- **Glow cards.** `GlowKey` names a color (a series such as `Gpu`, a status such as `Success`, a temperature such as
+  `Temp.Cool`, `Accent`); the card is lit from below by a radial gradient clipped to its shape and its lower rim
+  brightens. When the key changes the color fades over 450 ms (the last drawn color eased toward the new one on
+  `CompositionTarget.Rendering`). `Card.Glow` adds `EdgeGlow`: the pointer's position (eased toward the pointer each
+  frame, only while hovered or fading) centres a radial gradient in the glow color itself (since 1.4.2, no second
+  shade), stroked along the edge in four widths up to 28 px and clipped to the outside of the card (a combined geometry:
+  the area around it minus the squircle), so it glows outward; inside, a faint 6 px rim and a bright 1.3 px line. It
+  brightens as the pointer nears the edge. `HitTestCore` only answers inside the card's rectangle, so neither the glow
+  nor a shadow takes the pointer.
+- **Temperatures (1.4.2).** `MetricViewModel.IsTemperature` (its style is Temperature) and `GlowKey`
+  (`ColorKeys.ForTemperature(Level)`: `Temp.Cool` blue, `Temp.Normal` teal-green, `Temp.Warm` amber-orange, `Temp.Hot`
+  red; otherwise the series `ColorKey`). The palette has each band's glow color and a `.Tail`/`.Head` pair;
+  `RadialGauge.TemperatureScale` colors the lit ticks from tail to head along the lit part, the pair blended between
+  bands at the scale position (`GaugeTone.At`), and the head, orb and halo in the head color. The gauge cards and the
+  dashboard's summary cards bind their glow, gauge, sparkline and icon to it.
 - **Palette and glass.** The dark palette is near-black (`Background` #0A0B0E, cards #15171C). `ThemeService` publishes
   the sidebar's glass (`Brush.GlassFill`, `Brush.GlassRim`, `Brush.GlassLightA/B`) from the accent; the sidebar column is
   the backdrop (Mica shows through it when on), the pages sit on an opaque layer, and the sidebar's text switches to
@@ -131,13 +141,29 @@ layer calls Windows sensor APIs, so most of the logic is testable on any OS.
   from the page's `SearchSuggestions`, ranked by `SearchSuggestions.Rank`), Up/Down/Enter, picks on press, Ctrl+K/F via
   the window's `PreviewKeyDown`. `SmoothScroll` (attached to the page scroll styles) takes the wheel in
   `PreviewMouseWheel` at the innermost scroll area that can still move, eases the offset toward a target each frame
-  (exponential, ~165 ms) and stops when something else scrolls.
+  (exponential, ~165 ms) and stops when something else scrolls. Over an open dropdown (the walk up from the pointer
+  ends at a popup's root without reaching the page, or passes a `ComboBox` with its list open, which holds the mouse)
+  it marks the wheel handled so the page stays put; the list's own scroll area still takes it when it can move.
+- **Dropdowns (1.4.2).** `PopupAnchor.Align` (Start or Center) on a template's `Popup` switches it to custom placement:
+  WPF passes the panel's and the control's sizes in screen pixels and moves the popup window by the returned point from
+  the control's top-left, so the callback places the panel (inside its shadow margin) under the control, aligned or
+  centered, with the gap scaled to the DPI, and above it as the fallback. Built-in `Bottom` placement follows Windows'
+  right-handed menu setting (right edges aligned) and lines up the panel itself, not its margin. Open anchored popups
+  are tracked; when a `SmoothScroll` page scrolls, each one on it is placed again (an offset nudge) or, once its control
+  is out of view, closed through its owner (`IsDropDownOpen`).
 - **Text.** Large text uses `TextFormattingMode.Ideal` (Display mode distorts big glyphs); headline numbers are Inter
   Bold with tabular digits.
 - **Icons.** `build/dark-icon.py` makes the dark-mode icon from the approved one (the mark's shape found by colour with
   thin highlights closed in, its outline anti-aliased from the original, put on a navy glass tile with a blue rim) into
   `assets/branding/dark`. `ThemeService` publishes `Image.AppIcon`/`Image.AppIconLarge` and raises `AppIconChanged`, on
-  which the app swaps the window and tray icons (`AppIcons`).
+  which the app swaps the window and tray icons (`AppIcons`) and, since 1.4.2, its shortcuts' icons
+  (`ShortcutIconService`): Windows draws the Start menu entry, desktop shortcut and a pinned taskbar button from the
+  shortcut, not the window. `coreloom-dark.ico` ships next to Coreloom.exe; in the background the service opens the
+  `.lnk` files named for Coreloom in the user's Start menu (and a Coreloom folder there), desktop and *User Pinned*
+  (TaskBar, StartMenu) folders through the Shell's `ShellLink` (Hardware/Native/ShellLink.cs), and for those that start
+  this exe sets the icon by `ShortcutIcons.Desired` (Core: dark icon over the usual one in the dark theme, the exe's icon
+  again in the light theme, a custom icon left alone), then `SHChangeNotify` (each file, then the icon association) so
+  Explorer redraws them.
 
 ## Overview header
 

@@ -65,6 +65,9 @@ public sealed class RadialGauge : FrameworkElement
     public static readonly DependencyProperty ToneScaleProperty = DependencyProperty.Register(
         nameof(ToneScale), typeof(bool), typeof(RadialGauge), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty TemperatureScaleProperty = DependencyProperty.Register(
+        nameof(TemperatureScale), typeof(bool), typeof(RadialGauge), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+
     public static readonly DependencyProperty CoolAtProperty = DependencyProperty.Register(
         nameof(CoolAt), typeof(double), typeof(RadialGauge), new FrameworkPropertyMetadata(double.NaN, FrameworkPropertyMetadataOptions.AffectsRender));
 
@@ -138,6 +141,17 @@ public sealed class RadialGauge : FrameworkElement
     {
         get => (bool)GetValue(ToneScaleProperty);
         set => SetValue(ToneScaleProperty, value);
+    }
+
+    /// <summary>
+    /// With <see cref="ToneScale"/>, the gauge shows a temperature and takes its colors from how warm it is: blue when
+    /// cool, teal-green when normal, amber-orange when warm, red when hot. Each is a gradient, deeper at the tail and
+    /// brighter at the head, and it glides from one to the next as the temperature moves.
+    /// </summary>
+    public bool TemperatureScale
+    {
+        get => (bool)GetValue(TemperatureScaleProperty);
+        set => SetValue(TemperatureScaleProperty, value);
     }
 
     /// <summary>
@@ -277,6 +291,13 @@ public sealed class RadialGauge : FrameworkElement
         }
 
         double arcSweep = sweep * Math.Clamp(value, 0, 1);
+        if (ToneScale && TemperatureScale && !FadeTail)
+        {
+            var (tail, head) = TemperatureColors(double.IsFinite(tone) ? tone : TonePosition(value));
+            DrawSweep(dc, center, radius, thickness, start, sweep, arcSweep, t => Lerp(tail, head, Math.Clamp(t * sweep / arcSweep, 0, 1)));
+            return;
+        }
+
         var gradient = Gradient;
         if (gradient == GaugeGradient.None && !FadeTail)
         {
@@ -312,9 +333,18 @@ public sealed class RadialGauge : FrameworkElement
         DrawSweep(dc, center, radius, thickness, start, sweep, arcSweep, colorAt);
     }
 
-    /// <summary>The color of the lit ticks at a place on the ring (0 at the start … 1 at the end of the sweep).</summary>
-    private Func<double, Color> TickColors(double value, double tone)
+    /// <summary>
+    /// The color of a lit tick from its place on the ring (0 at the start … 1 at the end of the sweep) and along the lit
+    /// part (0 at the tail … 1 at the head).
+    /// </summary>
+    private Func<double, double, Color> TickColors(double value, double tone)
     {
+        if (ToneScale && TemperatureScale)
+        {
+            var (tail, head) = TemperatureColors(double.IsFinite(tone) ? tone : TonePosition(value));
+            return (_, along) => Lerp(tail, head, along);
+        }
+
         Color color = ToneScale ? (double.IsFinite(tone) ? ScaleColor(tone) : ToneColor(value))
             : Fill is SolidColorBrush solid ? solid.Color
             : Colors.DodgerBlue;
@@ -322,10 +352,10 @@ public sealed class RadialGauge : FrameworkElement
         {
             var accent = ThemeService.Instance?.AccentColor ?? color;
             var (cool, warm) = ThemeService.AccentNeighbours(accent);
-            return t => t < 0.5 ? Lerp(cool, accent, t * 2) : Lerp(accent, warm, (t - 0.5) * 2);
+            return (t, _) => t < 0.5 ? Lerp(cool, accent, t * 2) : Lerp(accent, warm, (t - 0.5) * 2);
         }
 
-        return _ => color;
+        return (_, _) => color;
     }
 
     /// <summary>
@@ -346,7 +376,7 @@ public sealed class RadialGauge : FrameworkElement
         int full = value <= 0.002 ? -1 : (int)Math.Floor(lit + 1e-6);               // last fully lit tick
         double partial = lit - Math.Floor(lit + 1e-6);
         var colorAt = TickColors(value, tone);
-        Color head = colorAt(Math.Clamp(lit / Math.Max(count - 1, 1), 0, 1));
+        Color head = colorAt(Math.Clamp(lit / Math.Max(count - 1, 1), 0, 1), 1);
 
         if (Orb)
         {
@@ -380,7 +410,7 @@ public sealed class RadialGauge : FrameworkElement
         {
             double t = count > 1 ? i / (double)(count - 1) : 1;
             double along = headIndex > 0 ? i / (double)headIndex : 1;     // 0 at the tail … 1 at the head
-            var color = colorAt(t);
+            var color = colorAt(t, along);
             int fromHead = headIndex - i;
             if (fromHead <= 2)
             {
@@ -518,14 +548,32 @@ public sealed class RadialGauge : FrameworkElement
     }
 
     /// <summary>The scale's color for a gauge fraction, blended between the theme's success, info, elevated and critical colors.</summary>
-    private Color ToneColor(double fraction)
+    private Color ToneColor(double fraction) => ScaleColor(TonePosition(fraction));
+
+    /// <summary>Position on the scale (0 … 3) for a gauge fraction, from the stops.</summary>
+    private double TonePosition(double fraction)
     {
         double hot = Valid(HotAt, 0.95);
         double warm = Math.Min(Valid(WarmAt, 0.80), hot);
         double cool = Math.Min(Valid(CoolAt, Math.Min(0.30, warm * 0.5)), warm);
-        return ScaleColor(GaugeTone.At(fraction, cool, warm, hot));
+        return GaugeTone.At(fraction, cool, warm, hot);
 
         static double Valid(double value, double fallback) => double.IsFinite(value) ? Math.Clamp(value, 0, 1) : fallback;
+    }
+
+    /// <summary>
+    /// A temperature's gradient (tail and head colors) at a position on the scale: 0 cool (blue), 1 normal (teal-green),
+    /// 2 warm (amber-orange), 3 hot (red), blended between neighbours.
+    /// </summary>
+    internal static (Color Tail, Color Head) TemperatureColors(double position)
+    {
+        position = double.IsFinite(position) ? Math.Clamp(position, 0, 3) : 1;
+        int band = Math.Clamp((int)Math.Floor(position), 0, 2);
+        double f = Math.Clamp(position - band, 0, 1);
+        return (Lerp(Temperature(band, "Tail"), Temperature(band + 1, "Tail"), f),
+                Lerp(Temperature(band, "Head"), Temperature(band + 1, "Head"), f));
+
+        static Color Temperature(int band, string part) => ChartColors.Theme($"Temp.{band switch { 0 => "Cool", 1 => "Normal", 2 => "Warm", _ => "Hot" }}.{part}");
     }
 
     /// <summary>The color at a position on the scale (0 green … 3 red), blended between neighbours.</summary>

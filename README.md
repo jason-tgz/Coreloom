@@ -18,8 +18,9 @@ installs drivers or services, and never sends your data anywhere.
 ## Features
 
 - **Design.** Smooth squircle corners on every card and control; cards with data glow in their own color, and their
-  edge lights up under the pointer; a near-black dark mode; a floating liquid-glass sidebar; tick-ring gauges;
-  liquid toggles; quick search with live results (Ctrl+K); eased scrolling everywhere; and a dark-mode app icon.
+  edge glows in that color under the pointer; temperatures shown like a thermometer (blue when cool through to red when
+  hot); a near-black dark mode; a floating liquid-glass sidebar; tick-ring gauges; liquid toggles; quick search with
+  live results (Ctrl+K); eased scrolling everywhere; and a dark-mode app icon, on Coreloom's shortcuts too.
 - **Overview dashboard.** A header for your PC: motherboard, graphics card and key specs next to a rendered PC whose
   lighting color you choose (blue, purple, red, green, rainbow or your accent) and whose fans turn with your real fan
   speeds; or a render of your own build. Six summary cards (GPU utilization, GPU

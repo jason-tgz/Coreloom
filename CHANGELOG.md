@@ -7,6 +7,29 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-10-15
+
+Polish for the new design: temperatures take their own colors, the edge glow matches each card, the collapsed sidebar shows its icons in full, dropdowns stay with their box, the search list sits centered under the search box, and Coreloom's shortcuts switch to the dark-mode icon too.
+
+### Highlights
+
+- **Temperatures in their own colors.** Temperature gauges and cards now show how warm a reading is, like a thermometer: a blue gradient when cool, teal-green when normal, amber to orange when warm and orange to red when hot. The card's glow, its sparkline and its icon take the same color, and it fades smoothly from one to the next as the temperature changes. This covers the Graphics and Processor temperature cards and the GPU and CPU temperature cards on the dashboard.
+- **An edge glow in the card's own color.** Hovering a card lights its edge in the color already glowing inside it (green for graphics, blue for a cool temperature, your accent on the banners), as a soft glow spreading just outside the edge with a bright line on it. The second, shifted shade is gone, so the hero card no longer glows purple.
+- **Collapsed sidebar icons in full.** With the sidebar collapsed, every icon sits centered in its button instead of being cut off on the right, and the logo, the expand button and the update badge line up with them.
+- **Dropdowns stay put.** While a dropdown list is open (the frame pacer's *Apply to* and every other picker), the page under it no longer scrolls: the wheel scrolls the list itself when it is long, and otherwise does nothing. If the page moves another way, the list moves with its box, and closes once the box scrolls out of view.
+- **Search list centered.** The quick-search list on the Devices and Gaming pages now sits exactly under the search box, the same width and centered, whatever Windows' left- or right-handed menu setting is.
+- **Dark-mode icon on your shortcuts.** With the dark theme on, Coreloom's Start menu entry, desktop shortcut and pinned taskbar button show the dark-mode icon too, and go back to the usual icon with the light theme.
+
+### In detail
+
+- Windows draws a shortcut's icon from the shortcut itself, so Coreloom points its own shortcuts (named *Coreloom* and starting this copy of Coreloom.exe) at `coreloom-dark.ico`, which now installs next to the app. A shortcut you gave an icon of your own is left alone. Explorer is told to redraw them; a pinned taskbar button can take until Explorer next refreshes its icons.
+- An update reinstalls the shortcuts with the usual icon; Coreloom switches them back as it starts.
+- With *Reduce motion* on, a temperature's color changes without fading.
+
+### Feedback
+
+Something still not where it should be? [Open an issue](https://github.com/jerryubah/Coreloom/issues) with a screenshot and a CoreloomDiag report.
+
 ## [1.4.1] - 2026-10-15
 
 A design overhaul: smooth squircle cards that glow in their own colors, a darker dark mode, a floating glass sidebar, tick-ring gauges, liquid toggles, quick search and eased scrolling, crisper text, an animated splash with a dark-mode icon, and a redesigned in-game overlay with a frame-time graph. The frame pacer can now limit one game on its own.

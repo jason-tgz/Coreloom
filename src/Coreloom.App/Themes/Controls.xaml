@@ -698,7 +698,8 @@
               </Grid>
             </c:SquircleBorder>
 
-            <Popup x:Name="PART_Popup" PlacementTarget="{Binding ElementName=Field}" Placement="Bottom" VerticalOffset="-4" HorizontalOffset="-12"
+            <!-- centered under the field (the panel's margin only leaves room for its shadow) and kept attached to it -->
+            <Popup x:Name="PART_Popup" PlacementTarget="{Binding ElementName=Field}" b:PopupAnchor.Align="Center" b:PopupAnchor.Gap="6"
                    AllowsTransparency="True" Focusable="False" StaysOpen="True"
                    IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}">
               <c:SquircleBorder x:Name="PART_Panel" Margin="12,10,12,16" Width="{Binding ActualWidth, ElementName=Field}" CornerRadius="16" Padding="6"
@@ -1125,7 +1126,7 @@
                               Content="{TemplateBinding SelectionBoxItem}"
                               ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                               ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" />
-            <Popup x:Name="PART_Popup" Placement="Bottom" VerticalOffset="4" AllowsTransparency="True" Focusable="False"
+            <Popup x:Name="PART_Popup" b:PopupAnchor.Align="Start" b:PopupAnchor.Gap="4" AllowsTransparency="True" Focusable="False"
                    IsOpen="{TemplateBinding IsDropDownOpen}" PopupAnimation="Fade">
               <c:SquircleBorder MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="{TemplateBinding MaxDropDownHeight}"
                       Background="{DynamicResource Brush.Tooltip}" BorderBrush="{DynamicResource Brush.TooltipBorder}" BorderThickness="1" CornerRadius="14" Padding="0,4">

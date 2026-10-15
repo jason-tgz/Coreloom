@@ -159,6 +159,49 @@ public class MetricViewModelTests
         Assert.Equal("Min 100 · Avg 100 · Max 100", metric.StatsText);
         settings.Dispose();
     }
+
+    [Fact]
+    public void Temperature_GlowsInTheColorOfHowWarmItIs()
+    {
+        var (monitor, settings, _) = Fixture.Create();
+        var metric = new MetricViewModel(MetricIds.GpuTemperature(0), "GPU temperature", ValueStyle.Temperature, ColorKeys.Gpu, Thresholds.GpuTemperature);
+        Assert.True(metric.IsTemperature);
+        Assert.Equal(ColorKeys.TempNormal, metric.GlowKey); // no reading yet
+        var changes = new List<string?>();
+        metric.PropertyChanged += (_, e) => changes.Add(e.PropertyName);
+
+        metric.Update(monitor.Engine.LatestFrame, UnitFormatter.Default, monitor.Engine.Catalog); // 38 °C: cool
+        Assert.Equal(ColorKeys.TempCool, metric.GlowKey);
+        Assert.Contains(nameof(MetricViewModel.GlowKey), changes);
+
+        metric.Thresholds = new Thresholds(60, 90, 30);
+        Assert.Equal(ColorKeys.TempNormal, metric.GlowKey);
+        metric.Thresholds = new Thresholds(30, 80);
+        Assert.Equal(ColorKeys.TempWarm, metric.GlowKey);
+        metric.Thresholds = new Thresholds(20, 35);
+        Assert.Equal(ColorKeys.TempHot, metric.GlowKey);
+        settings.Dispose();
+    }
+
+    [Fact]
+    public void OtherMetrics_GlowInTheirSeriesColor()
+    {
+        var (monitor, settings, _) = Fixture.Create();
+        var metric = new MetricViewModel(MetricIds.CpuLoad, "CPU load", ValueStyle.Percent, ColorKeys.Cpu, Thresholds.Load);
+        metric.Update(monitor.Engine.LatestFrame, UnitFormatter.Default, monitor.Engine.Catalog);
+
+        Assert.False(metric.IsTemperature);
+        Assert.Equal(ColorKeys.Cpu, metric.GlowKey);
+        settings.Dispose();
+    }
+
+    [Theory]
+    [InlineData(ThresholdLevel.Cool, "Temp.Cool")]
+    [InlineData(ThresholdLevel.Normal, "Temp.Normal")]
+    [InlineData(ThresholdLevel.Elevated, "Temp.Warm")]
+    [InlineData(ThresholdLevel.Critical, "Temp.Hot")]
+    public void TemperatureColors_FollowTheLevel(ThresholdLevel level, string key) =>
+        Assert.Equal(key, ColorKeys.ForTemperature(level));
 }
 
 public class OverviewViewModelTests

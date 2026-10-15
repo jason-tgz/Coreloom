@@ -50,6 +50,20 @@ internal static class ThemePalette
         ["Series.Read"] = Hex("#3CC8D8"),
         ["Series.Write"] = Hex("#FFB454"),
         ["Series.Neutral"] = Hex("#2C3038"),
+
+        // Temperatures: each band is a gradient (Tail → Head, cooler to warmer) and one color for its card's glow.
+        ["Temp.Cool"] = Hex("#4C9DFF"),
+        ["Temp.Cool.Tail"] = Hex("#2E5FF2"),
+        ["Temp.Cool.Head"] = Hex("#6FCBFF"),
+        ["Temp.Normal"] = Hex("#34D3A0"),
+        ["Temp.Normal.Tail"] = Hex("#1FAFC4"),
+        ["Temp.Normal.Head"] = Hex("#4FE08C"),
+        ["Temp.Warm"] = Hex("#FFAA3A"),
+        ["Temp.Warm.Tail"] = Hex("#FFD24A"),
+        ["Temp.Warm.Head"] = Hex("#FF8A2E"),
+        ["Temp.Hot"] = Hex("#FF5A4A"),
+        ["Temp.Hot.Tail"] = Hex("#FF7F3A"),
+        ["Temp.Hot.Head"] = Hex("#FF3B5C"),
     };
 
     public static IReadOnlyDictionary<string, Color> Light { get; } = new Dictionary<string, Color>
@@ -94,6 +108,19 @@ internal static class ThemePalette
         ["Series.Read"] = Hex("#1BA3B5"),
         ["Series.Write"] = Hex("#E08A16"),
         ["Series.Neutral"] = Hex("#DADDE3"),
+
+        ["Temp.Cool"] = Hex("#2F7CF2"),
+        ["Temp.Cool.Tail"] = Hex("#2450D6"),
+        ["Temp.Cool.Head"] = Hex("#27A2E8"),
+        ["Temp.Normal"] = Hex("#169F78"),
+        ["Temp.Normal.Tail"] = Hex("#138EA8"),
+        ["Temp.Normal.Head"] = Hex("#1DAA5C"),
+        ["Temp.Warm"] = Hex("#DE8612"),
+        ["Temp.Warm.Tail"] = Hex("#E0A810"),
+        ["Temp.Warm.Head"] = Hex("#E0680F"),
+        ["Temp.Hot"] = Hex("#E3463F"),
+        ["Temp.Hot.Tail"] = Hex("#E8692A"),
+        ["Temp.Hot.Head"] = Hex("#D92A4A"),
     };
 
     public static Color Hex(string hex) => (Color)ColorConverter.ConvertFromString(hex);

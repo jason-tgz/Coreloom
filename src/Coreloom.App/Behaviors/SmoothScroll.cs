@@ -10,7 +10,10 @@ namespace Coreloom.App.Behaviors;
 /// Eased scrolling for the mouse wheel and touchpad: instead of jumping a few lines per notch, the view glides to where
 /// the wheel sends it and slows smoothly into place; turning the wheel again while it moves adds to the trip. The innermost
 /// scroll area that can still move takes the wheel (a list inside a page scrolls first, then the page). With reduced motion
-/// it jumps straight there. Set <c>b:SmoothScroll.IsEnabled="True"</c> on a ScrollViewer (the page styles do).
+/// it jumps straight there. While a dropdown is open the page under it stays put: the wheel scrolls the dropdown's list
+/// (when it is long enough to) and nothing else, so the list never drifts away from its control; if the page moves anyway
+/// (the keyboard, say) the dropdown follows (<see cref="PopupAnchor"/>). Set <c>b:SmoothScroll.IsEnabled="True"</c> on a
+/// ScrollViewer (the page styles do).
 /// </summary>
 public static class SmoothScroll
 {
@@ -64,9 +67,13 @@ public static class SmoothScroll
         }
 
         bool up = e.Delta > 0;
-        if (InnerCanScroll(e.OriginalSource as DependencyObject, viewer, up))
+        switch (Under(e.OriginalSource as DependencyObject, viewer, up))
         {
-            return; // the area under the pointer still has room: it scrolls (smoothly, if it has this behaviour too)
+            case Pointer.InnerCanScroll:
+                return; // the area under the pointer still has room: it scrolls (smoothly, if it has this behaviour too)
+            case Pointer.OverDropDown:
+                e.Handled = true; // a dropdown is open over this page: the page must not move under it
+                return;
         }
 
         if (!CanScroll(viewer, up))
@@ -81,9 +88,19 @@ public static class SmoothScroll
 
     private static void OnScrollChanged(object sender, ScrollChangedEventArgs e)
     {
-        if (sender is ScrollViewer viewer && Glides.TryGetValue(viewer, out var glide))
+        if (sender is not ScrollViewer viewer || !ReferenceEquals(e.OriginalSource, viewer))
+        {
+            return;
+        }
+
+        if (Glides.TryGetValue(viewer, out var glide))
         {
             glide.OnScrolled();
+        }
+
+        if (e.VerticalChange != 0 || e.HorizontalChange != 0)
+        {
+            PopupAnchor.OnScrolled(viewer);
         }
     }
 
@@ -98,18 +115,36 @@ public static class SmoothScroll
     private static bool CanScroll(ScrollViewer viewer, bool up) =>
         viewer.ScrollableHeight > 0.5 && (up ? viewer.VerticalOffset > 0.5 : viewer.VerticalOffset < viewer.ScrollableHeight - 0.5);
 
-    /// <summary>Whether a scroll area between the pointer and <paramref name="outer"/> can still move that way.</summary>
-    private static bool InnerCanScroll(DependencyObject? source, ScrollViewer outer, bool up)
+    private enum Pointer
     {
-        for (var node = source; node is not null && !ReferenceEquals(node, outer); node = Parent(node))
+        /// <summary>Over this scroll area's own content: it may scroll.</summary>
+        Here,
+
+        /// <summary>Over a scroll area inside it that can still move that way.</summary>
+        InnerCanScroll,
+
+        /// <summary>Over an open dropdown (or its control, which holds the mouse while the list is open).</summary>
+        OverDropDown,
+    }
+
+    /// <summary>What is under the pointer, between it and <paramref name="outer"/>.</summary>
+    private static Pointer Under(DependencyObject? source, ScrollViewer outer, bool up)
+    {
+        var node = source;
+        bool dropDown = false;
+        for (; node is not null && !ReferenceEquals(node, outer); node = Parent(node))
         {
             if (node is ScrollViewer inner && inner.VerticalScrollBarVisibility != ScrollBarVisibility.Disabled && CanScroll(inner, up))
             {
-                return true;
+                return Pointer.InnerCanScroll;
             }
+
+            dropDown |= node is ComboBox { IsDropDownOpen: true };
         }
 
-        return false;
+        // A popup's content is a tree of its own: the walk ends at its root, never reaching this page. The wheel only
+        // gets here from a popup that belongs to a control on the page (a dropdown), so the page must stay put.
+        return dropDown || node is null ? Pointer.OverDropDown : Pointer.Here;
 
         static DependencyObject? Parent(DependencyObject node) =>
             node is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(node) : LogicalTreeHelper.GetParent(node);

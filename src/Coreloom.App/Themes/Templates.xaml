@@ -62,7 +62,7 @@
   <!-- Gauge card (page heroes)                                                           -->
   <!-- ================================================================================= -->
   <DataTemplate x:Key="GaugeCard" DataType="{x:Type inf:MetricViewModel}">
-    <c:SquircleBorder Style="{StaticResource Card.Glow}" GlowKey="{Binding ColorKey}" ToolTip="{Binding ToolTip}" ToolTipService.InitialShowDelay="400">
+    <c:SquircleBorder Style="{StaticResource Card.Glow}" GlowKey="{Binding GlowKey}" ToolTip="{Binding ToolTip}" ToolTipService.InitialShowDelay="400">
       <Grid>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" />
@@ -78,7 +78,7 @@
         </StackPanel>
         <c:RadialGauge Grid.Column="1" Width="80" Height="80" Thickness="10" Orb="True" Margin="12,0,0,0" VerticalAlignment="Center"
                        Value="{Binding Fraction}" TrackBrush="{DynamicResource Brush.Track}"
-                       ToneScale="True" CoolAt="{Binding GaugeCoolAt}" WarmAt="{Binding GaugeWarmAt}" HotAt="{Binding GaugeHotAt}"
+                       ToneScale="True" TemperatureScale="{Binding IsTemperature}" CoolAt="{Binding GaugeCoolAt}" WarmAt="{Binding GaugeWarmAt}" HotAt="{Binding GaugeHotAt}"
                        IsUnavailable="{Binding HasValue, Converter={StaticResource InverseBool}}" />
       </Grid>
     </c:SquircleBorder>
@@ -89,7 +89,7 @@
   <!-- ================================================================================= -->
   <!-- A card made taller on the dashboard gives the extra height to its sparkline. -->
   <DataTemplate x:Key="SummaryCard" DataType="{x:Type pages:SummaryCardViewModel}">
-    <c:SquircleBorder Style="{StaticResource Card.Glow}" GlowKey="{Binding ColorKey}" Padding="18,16,18,14" ToolTip="{Binding Metric.ToolTip}" ToolTipService.InitialShowDelay="500">
+    <c:SquircleBorder Style="{StaticResource Card.Glow}" GlowKey="{Binding Metric.GlowKey}" Padding="18,16,18,14" ToolTip="{Binding Metric.ToolTip}" ToolTipService.InitialShowDelay="500">
       <Grid>
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
@@ -107,7 +107,7 @@
           <Border Width="26" Height="26" CornerRadius="8" Background="{DynamicResource Brush.ControlHover}">
             <Path Style="{StaticResource IconPath}" Width="14" Height="14" StrokeThickness="1.6"
                   Data="{Binding IconKey, Converter={StaticResource IconKeyToGeometry}}"
-                  Stroke="{Binding ColorKey, Converter={StaticResource ColorKeyToBrush}}" />
+                  Stroke="{Binding Metric.GlowKey, Converter={StaticResource ColorKeyToBrush}}" />
           </Border>
           <TextBlock Grid.Column="1" Style="{StaticResource Text.CardTitle}" Text="{Binding Title}" VerticalAlignment="Center" Margin="10,0,0,0" />
           <Border Grid.Column="2" Style="{StaticResource Badge}" Visibility="{Binding Metric.IsDerived, Converter={StaticResource BoolToVisibility}}">
@@ -140,13 +140,13 @@
           </StackPanel>
           <c:RadialGauge Grid.Column="1" Width="60" Height="60" Thickness="8" Margin="10,0,0,0"
                          Value="{Binding Metric.Fraction}" TrackBrush="{DynamicResource Brush.Track}"
-                         ToneScale="True" CoolAt="{Binding Metric.GaugeCoolAt}" WarmAt="{Binding Metric.GaugeWarmAt}" HotAt="{Binding Metric.GaugeHotAt}"
+                         ToneScale="True" TemperatureScale="{Binding Metric.IsTemperature}" CoolAt="{Binding Metric.GaugeCoolAt}" WarmAt="{Binding Metric.GaugeWarmAt}" HotAt="{Binding Metric.GaugeHotAt}"
                          IsUnavailable="{Binding Metric.HasValue, Converter={StaticResource InverseBool}}" />
         </Grid>
 
         <!-- Sparkline -->
         <c:Sparkline Grid.Row="2" MinHeight="34" Margin="-2,12,-2,0"
-                     MetricId="{Binding Metric.MetricId}" ColorKey="{Binding ColorKey}"
+                     MetricId="{Binding Metric.MetricId}" ColorKey="{Binding Metric.GlowKey}"
                      Timeline="{Binding DataContext.Timeline, RelativeSource={RelativeSource AncestorType=UserControl}}" />
 
         <!-- Stats -->

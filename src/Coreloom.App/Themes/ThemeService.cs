@@ -271,13 +271,17 @@ public sealed class ThemeService : IThemeService
         : _live.TryGetValue($"Series.{colorKey ?? "Accent"}.Brush", out var brush) ? brush
         : _live.TryGetValue("Series.Accent.Brush", out var accent) ? accent : Brushes.SteelBlue;
 
-    /// <summary>The gauge scale's colors ("Tone.Cool" … "Tone.Hot") are the status brushes.</summary>
+    /// <summary>
+    /// The gauge scale's colors ("Tone.Cool" … "Tone.Hot") are the status brushes; a temperature's ("Temp.Cool" …
+    /// "Temp.Hot": blue, teal-green, amber, red) are its own.
+    /// </summary>
     private static string? ToneBrushKey(string? colorKey) => colorKey switch
     {
         "Tone.Cool" => "Brush.Success",
         "Tone.Normal" => "Brush.Info",
         "Tone.Warm" => "Brush.Elevated",
         "Tone.Hot" => "Brush.Critical",
+        "Temp.Cool" or "Temp.Normal" or "Temp.Warm" or "Temp.Hot" => "Brush." + colorKey,
         _ => null,
     };
 
