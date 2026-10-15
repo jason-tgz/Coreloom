@@ -228,8 +228,9 @@ Work through each area and tick what works.
 - [ ] *Wired and USB devices* lists your keyboard, mouse, monitors, webcam, USB drives… with sensible names and groups,
       and nothing from inside the PC. Plug in a USB drive: it appears within ~15 s; *Eject* says it can be unplugged, and
       with a file open from it, says it's in use.
-- [ ] Search narrows both lists; the × clears it. The box is wide, typed text starts right after the magnifier, and
-      clicking anywhere outside the box (or Esc) stops typing in it.
+- [ ] Search narrows both lists; the × clears it. The box is wide; clicking in it hides the grey hint and the cursor
+      blinks right after the magnifier, where typing starts; clicking anywhere outside the box (or Esc) stops typing in it.
+- [ ] "Bluetooth devices" and "Wired and USB devices" are larger headings with a subtitle, above the group names.
 - [ ] The Bluetooth switch sits right next to "Bluetooth / Bluetooth is on".
 - [ ] Wired groups are columns on the same grid as the Bluetooth cards (left edges line up), stacking under each other
       to fill the width. Only real gamepads are under *Controllers*; RGB/LED controllers and lights are under
@@ -239,7 +240,10 @@ Work through each area and tick what works.
 
 **Smart Optimize**
 
-- [ ] *Smart Optimize* sits below *Performance History* in the sidebar.
+- [ ] *Smart Optimize* sits above *Performance History* in the sidebar.
+- [ ] The four cards stack in two columns (Cleanup over Free up memory, Protection over Speed up) with no large empty
+      areas inside them; the two columns end at the same height; Speed up shows more startup apps when it has room.
+      Narrow the window: they become one column.
 - [ ] The banner shows your accent as a gradient (try another accent in Settings: it follows), with a lit, glowing ring
       before the first scan and no word repeated under "Ready when you are". Light theme looks right too.
 - [ ] *Smart Scan*: the ring fills while the comet circles; the four tiles fill in one after another (Cleanup,

@@ -147,6 +147,16 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.3.5: Smart Optimize card layout, sidebar order, search hint, Devices headings
+
+- **Core tests: 393 passed** (1 new: in-order stacking keeps cards in their columns, and filling grows only the last
+  card of the shorter column). **View-model tests: 99 passed** (Smart Optimize is now second to last, above
+  Performance History). **`Coreloom.App` compiles** (0 errors, 0 warnings); **XAML checks passed** (19 files, 212
+  shared keys, 914 bindings).
+- HTML mock-ups at the owner's width rendered: the Smart Optimize cards with the startup list capped at 300 px as in the
+  app (columns end level, no large empty areas), and the Devices headings with the focused search box. The WPF pages
+  themselves were not rendered here.
+
 ### 1.3.4: aligned device groups, grouping fixes, search, Smart Optimize banner
 
 - **Core tests: 392 passed** (5 new: `CardColumns.Fit` capped and uncapped, every width 600–3,000 px within range,

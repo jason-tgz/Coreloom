@@ -83,7 +83,7 @@ public sealed class ShellViewModel : ObservableObject
             App = deps.App,
         });
 
-        Pages = [Overview, Gpu, Cpu, Memory, Storage, Devices, Network, History, Optimize];
+        Pages = [Overview, Gpu, Cpu, Memory, Storage, Devices, Network, Optimize, History];
         _currentPage = Overview;
         NavigateCommand = new RelayCommand<PageViewModel>(page =>
         {

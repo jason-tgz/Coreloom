@@ -301,7 +301,10 @@
         </Grid>
       </Border>
 
-      <c:AdaptiveGrid MinColumnWidth="460" MaxColumns="2" Spacing="16" Margin="0,16,0,0">
+      <!-- Two columns that stack: Cleanup over Free up memory, Protection over Speed up, each card as tall as its content
+           (no padding to match a neighbour), with the last card in each column growing so the bottoms line up. One column
+           when the window is narrow. -->
+      <c:StackedColumns MinColumnWidth="460" MaxColumns="2" Spacing="16" RowSpacing="16" InOrder="True" FillColumns="True" Margin="0,16,0,0">
 
         <!-- ============================================================ -->
         <!-- Cleanup                                                      -->
@@ -429,7 +432,11 @@
         <!-- Memory                                                       -->
         <!-- ============================================================ -->
         <Border Style="{StaticResource Card}" DataContext="{Binding Memory}">
-          <StackPanel>
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -444,7 +451,8 @@
               </StackPanel>
             </Grid>
 
-            <Grid Margin="0,16,0,0">
+            <!-- centred in whatever height the card is given -->
+            <Grid Grid.Row="1" Margin="0,16,0,0" VerticalAlignment="Center">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -484,14 +492,23 @@
                            Visibility="{Binding LastResult, Converter={StaticResource HasValueToVisibility}}" />
               </StackPanel>
             </Grid>
-          </StackPanel>
+          </Grid>
         </Border>
 
         <!-- ============================================================ -->
         <!-- Speed                                                        -->
         <!-- ============================================================ -->
         <Border Style="{StaticResource Card}" DataContext="{Binding Speed}">
-          <StackPanel>
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -510,21 +527,22 @@
               </Button>
             </Grid>
 
-            <TextBlock Text="Startup apps" Style="{StaticResource Text.Label}" Margin="0,14,0,4" />
-            <TextBlock Text="Fewer apps starting with Windows means a faster sign-in. Turning one off doesn't uninstall it." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" />
-            <c:HeightCap Cap="300" Margin="0,8,0,0">
+            <TextBlock Grid.Row="1" Text="Startup apps" Style="{StaticResource Text.Label}" Margin="0,14,0,4" />
+            <TextBlock Grid.Row="2" Text="Fewer apps starting with Windows means a faster sign-in. Turning one off doesn't uninstall it." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" />
+            <!-- starts at up to 300 px and shows more apps when the card is taller -->
+            <c:HeightCap Grid.Row="3" Cap="300" Margin="0,8,0,0">
               <ScrollViewer Style="{StaticResource ScrollViewer.Page}" b:ScrollChain.Enabled="True">
                 <ItemsControl ItemsSource="{Binding StartupApps}" ItemTemplate="{StaticResource StartupRow}" Focusable="False" Margin="0,0,10,0" />
               </ScrollViewer>
             </c:HeightCap>
-            <TextBlock Text="No startup apps found." Style="{StaticResource Text.Secondary}" Margin="0,4,0,0"
+            <TextBlock Grid.Row="4" Text="No startup apps found." Style="{StaticResource Text.Secondary}" Margin="0,4,0,0"
                        Visibility="{Binding HasStartupApps, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
 
-            <TextBlock Text="Maintenance" Style="{StaticResource Text.Label}" Margin="0,16,0,8" />
-            <ItemsControl ItemsSource="{Binding Tasks}" ItemTemplate="{StaticResource TaskRow}" Focusable="False" />
-          </StackPanel>
+            <TextBlock Grid.Row="5" Text="Maintenance" Style="{StaticResource Text.Label}" Margin="0,16,0,8" />
+            <ItemsControl Grid.Row="6" ItemsSource="{Binding Tasks}" ItemTemplate="{StaticResource TaskRow}" Focusable="False" />
+          </Grid>
         </Border>
-      </c:AdaptiveGrid>
+      </c:StackedColumns>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

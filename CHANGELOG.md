@@ -7,6 +7,21 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.3.5] - 2026-10-14
+
+Smart Optimize's cards now fit their content with no empty space, and the Devices page reads more clearly.
+
+### Highlights
+
+- **Smart Optimize cards fit their content.** The four cards stack in two columns, Cleanup over Free up memory and Protection over Speed up, each only as tall as what's in it. The bottoms of the two columns line up, and Speed up's list of startup apps uses the extra room. In a narrow window the cards drop to one column.
+- **Smart Optimize moved up.** It now sits above Performance History in the sidebar.
+- **Search starts where you'd expect.** The grey hint in the device search box disappears as soon as you click in it, so the blinking cursor sits plainly right after the magnifier, where your typing begins.
+- **Clearer headings on the Devices page.** "Bluetooth devices" and "Wired and USB devices" are now larger section headings with a short subtitle, a step above the group names like "Keyboards and mice".
+
+### Feedback
+
+Found a bug or a device that's listed wrong? [Open an issue](https://github.com/jerryubah/Coreloom/issues) and attach a CoreloomDiag report.
+
 ## [1.3.4] - 2026-10-14
 
 The Devices page lines everything up on one grid and sorts wired devices more sensibly, and the Smart Optimize banner gets a vivid accent gradient with a ring you can actually see.

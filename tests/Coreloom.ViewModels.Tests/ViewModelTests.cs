@@ -333,7 +333,8 @@ public class ShellViewModelTests
         Assert.Same(shell.Overview, shell.CurrentPage);
         Assert.NotNull(stubs.Applied);
         Assert.Equal(9, shell.Pages.Count);
-        Assert.Same(shell.Optimize, shell.Pages[^1]); // Smart Optimize sits below Performance History
+        Assert.Same(shell.History, shell.Pages[^1]);
+        Assert.Same(shell.Optimize, shell.Pages[^2]); // Smart Optimize sits above Performance History
         Assert.Same(shell.Devices, shell.Pages[shell.Pages.IndexOf(shell.Storage) + 1]); // Devices sits below Storage
         settings.Dispose();
     }

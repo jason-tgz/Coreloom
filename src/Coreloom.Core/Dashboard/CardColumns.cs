@@ -47,10 +47,11 @@ public static class CardColumns
     }
 
     /// <summary>
-    /// Stacks cards (their heights, in order) into <paramref name="columns"/> columns: each goes under the column that is
-    /// shortest so far (the leftmost when several are), <paramref name="rowSpacing"/> below the card above it.
+    /// Stacks cards (their heights, in order) into <paramref name="columns"/> columns, <paramref name="rowSpacing"/> below
+    /// the card above. Each goes under the column that is shortest so far (the leftmost when several are), or, with
+    /// <paramref name="inOrder"/>, simply into the next column in turn, so cards never swap columns as their heights change.
     /// </summary>
-    public static IReadOnlyList<StackPlacement> Stack(IReadOnlyList<double> heights, int columns, double rowSpacing, out double totalHeight)
+    public static IReadOnlyList<StackPlacement> Stack(IReadOnlyList<double> heights, int columns, double rowSpacing, out double totalHeight, bool inOrder = false)
     {
         columns = Math.Max(1, columns);
         var next = new double[columns];   // where the next card in each column would start
@@ -59,8 +60,8 @@ public static class CardColumns
         foreach (double raw in heights)
         {
             double height = double.IsFinite(raw) ? Math.Max(0, raw) : 0;
-            int column = 0;
-            for (int c = 1; c < columns; c++)
+            int column = inOrder ? placements.Count % columns : 0;
+            for (int c = 1; c < columns && !inOrder; c++)
             {
                 if (next[c] < next[column] - 0.5)
                 {
@@ -83,6 +84,27 @@ public static class CardColumns
         }
 
         return placements;
+    }
+
+    /// <summary>
+    /// Heights that line up the bottoms of the columns: the last card in each column grows to end where the tallest column
+    /// ends; every other card keeps its own height.
+    /// </summary>
+    public static double[] FillColumns(IReadOnlyList<StackPlacement> placements, IReadOnlyList<double> heights, double totalHeight)
+    {
+        var filled = heights.Select(h => double.IsFinite(h) ? Math.Max(0, h) : 0).ToArray();
+        var last = new Dictionary<int, int>();
+        for (int i = 0; i < placements.Count && i < filled.Length; i++)
+        {
+            last[placements[i].Column] = i;
+        }
+
+        foreach (int i in last.Values)
+        {
+            filled[i] = Math.Max(filled[i], totalHeight - placements[i].Top);
+        }
+
+        return filled;
     }
 
     private static bool IsCapped(double maxWidth) => double.IsFinite(maxWidth) && maxWidth > 0;

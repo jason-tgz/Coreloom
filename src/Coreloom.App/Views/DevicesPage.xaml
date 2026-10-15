@@ -318,13 +318,27 @@
       <!-- Typed text and the placeholder start at the same spot, right after the icon (1 border + 32 padding + 2 the text
            box keeps before its first character). Clicking anywhere outside the box, or Esc, leaves it (TextBoxFocus). -->
       <Grid Margin="0,16,0,0" Width="440" HorizontalAlignment="Left">
-        <TextBox Style="{StaticResource TextBox.Default}" Padding="32,8,34,8" HorizontalContentAlignment="Left" TextAlignment="Left"
+        <TextBox x:Name="SearchBox" Style="{StaticResource TextBox.Default}" Padding="32,8,34,8" HorizontalContentAlignment="Left" TextAlignment="Left"
                  Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search devices" />
         <Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Search}" Margin="12,0,0,0" HorizontalAlignment="Left"
               VerticalAlignment="Center" IsHitTestVisible="False" Stroke="{DynamicResource Brush.TextTertiary}" />
-        <TextBlock Text="Search devices by name or type" Margin="35,0,40,0" VerticalAlignment="Center" IsHitTestVisible="False" Foreground="{DynamicResource Brush.TextTertiary}"
-                   FontSize="13" TextTrimming="CharacterEllipsis"
-                   Visibility="{Binding Search, Converter={StaticResource HasValueToVisibility}, ConverterParameter=Invert}" />
+        <!-- The hint goes away as soon as the box is clicked (and while there's text), so the blinking caret is plainly at the
+             start, where typing begins; otherwise it sits on the hint's first letter and can't be seen. -->
+        <TextBlock Text="Search devices by name or type" Margin="35,0,40,0" VerticalAlignment="Center" IsHitTestVisible="False" FontSize="13"
+                   Foreground="{DynamicResource Brush.TextTertiary}" TextTrimming="CharacterEllipsis">
+          <TextBlock.Style>
+            <Style TargetType="TextBlock">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding Search, Converter={StaticResource HasValueToBool}}" Value="True">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=SearchBox}" Value="True">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </TextBlock.Style>
+        </TextBlock>
         <Button Style="{StaticResource Button.Icon}" Width="26" Height="26" HorizontalAlignment="Right" Margin="0,0,4,0" Command="{Binding ClearSearchCommand}"
                 ToolTip="Clear" AutomationProperties.Name="Clear search" Visibility="{Binding Search, Converter={StaticResource HasValueToVisibility}}">
           <Path Style="{StaticResource IconPath}" Width="10" Height="10" Data="{StaticResource Icon.Close}" />
@@ -334,11 +348,14 @@
       <!-- ============================================================ -->
       <!-- Bluetooth devices                                            -->
       <!-- ============================================================ -->
-      <StackPanel Orientation="Horizontal" Margin="2,22,0,12">
-        <TextBlock Text="Bluetooth devices" Style="{StaticResource Text.CardTitle}" VerticalAlignment="Center" />
-        <Border Style="{StaticResource Badge}" Margin="10,0,0,0">
-          <TextBlock Text="{Binding PairedCount}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextSecondary}" />
-        </Border>
+      <StackPanel Margin="2,26,0,14">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Text="Bluetooth devices" Style="{StaticResource Text.SectionTitle}" VerticalAlignment="Center" />
+          <Border Style="{StaticResource Badge}" Margin="10,1,0,0">
+            <TextBlock Text="{Binding PairedCount}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextSecondary}" />
+          </Border>
+        </StackPanel>
+        <TextBlock Text="Paired with this PC. Connect or disconnect each one here." Style="{StaticResource Text.Secondary}" Margin="0,3,0,0" />
       </StackPanel>
       <TextBlock Text="Looking for devices…" Style="{StaticResource Text.Secondary}" Margin="2,0,0,8"
                  Visibility="{Binding IsLoaded, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
@@ -361,11 +378,14 @@
       <!-- ============================================================ -->
       <!-- Wired devices                                                -->
       <!-- ============================================================ -->
-      <StackPanel Orientation="Horizontal" Margin="2,30,0,12">
-        <TextBlock Text="Wired and USB devices" Style="{StaticResource Text.CardTitle}" VerticalAlignment="Center" />
-        <Border Style="{StaticResource Badge}" Margin="10,0,0,0">
-          <TextBlock Text="{Binding WiredCount}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextSecondary}" />
-        </Border>
+      <StackPanel Margin="2,34,0,16">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Text="Wired and USB devices" Style="{StaticResource Text.SectionTitle}" VerticalAlignment="Center" />
+          <Border Style="{StaticResource Badge}" Margin="10,1,0,0">
+            <TextBlock Text="{Binding WiredCount}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextSecondary}" />
+          </Border>
+        </StackPanel>
+        <TextBlock Text="Plugged in by USB, display cable or Thunderbolt, grouped by type." Style="{StaticResource Text.Secondary}" Margin="0,3,0,0" />
       </StackPanel>
       <!-- Same column widths and gaps as the Bluetooth cards, so the two sections line up; each group stacks under the
            shortest column. -->

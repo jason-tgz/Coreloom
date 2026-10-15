@@ -31,7 +31,17 @@ public sealed class StackedColumns : Panel
         nameof(RowSpacing), typeof(double), typeof(StackedColumns),
         new FrameworkPropertyMetadata(20.0, FrameworkPropertyMetadataOptions.AffectsMeasure));
 
+    public static readonly DependencyProperty InOrderProperty = DependencyProperty.Register(
+        nameof(InOrder), typeof(bool), typeof(StackedColumns),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsMeasure));
+
+    public static readonly DependencyProperty FillColumnsProperty = DependencyProperty.Register(
+        nameof(FillColumns), typeof(bool), typeof(StackedColumns),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsArrange));
+
     private IReadOnlyList<StackPlacement> _placements = [];
+    private double[] _heights = [];
+    private double _totalHeight;
     private int _columns = 1;
 
     public double MinColumnWidth
@@ -67,6 +77,23 @@ public sealed class StackedColumns : Panel
         set => SetValue(RowSpacingProperty, value);
     }
 
+    /// <summary>
+    /// Items go into the columns in turn (first, second, first, second…) instead of under the shortest one, so they keep
+    /// their places while their heights change.
+    /// </summary>
+    public bool InOrder
+    {
+        get => (bool)GetValue(InOrderProperty);
+        set => SetValue(InOrderProperty, value);
+    }
+
+    /// <summary>The last item in each column grows so all columns end at the same height.</summary>
+    public bool FillColumns
+    {
+        get => (bool)GetValue(FillColumnsProperty);
+        set => SetValue(FillColumnsProperty, value);
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         var visible = Visible();
@@ -81,13 +108,16 @@ public sealed class StackedColumns : Panel
             child.Measure(new Size(columnWidth, double.PositiveInfinity));
         }
 
-        _placements = CardColumns.Stack(visible.Select(c => c.DesiredSize.Height).ToList(), columns, RowSpacing, out double height);
+        _heights = visible.Select(c => c.DesiredSize.Height).ToArray();
+        _placements = CardColumns.Stack(_heights, columns, RowSpacing, out double height, InOrder);
+        _totalHeight = height;
         return new Size(width, height);
     }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
         double columnWidth = CardColumns.ColumnWidth(finalSize.Width, Spacing, _columns, MaxColumnWidth);
+        var heights = FillColumns ? CardColumns.FillColumns(_placements, _heights, Math.Max(_totalHeight, finalSize.Height)) : _heights;
         int index = 0;
         foreach (UIElement child in InternalChildren)
         {
@@ -97,8 +127,10 @@ public sealed class StackedColumns : Panel
                 continue;
             }
 
-            var place = _placements[index++];
-            child.Arrange(new Rect(place.Column * (columnWidth + Spacing), place.Top, columnWidth, child.DesiredSize.Height));
+            var place = _placements[index];
+            double height = index < heights.Length ? heights[index] : child.DesiredSize.Height;
+            index++;
+            child.Arrange(new Rect(place.Column * (columnWidth + Spacing), place.Top, columnWidth, height));
         }
 
         return finalSize;

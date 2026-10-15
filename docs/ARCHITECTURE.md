@@ -250,8 +250,9 @@ use (`DeviceNative.LayoutIsValid`). Events log under "Devices".
 
 ## Smart Optimize
 
-`OptimizeViewModel` (the *Smart Optimize* page, below Performance History) runs Smart Scan through four parts, each
-also a card of its own: `CleanupViewModel`, `ProtectionViewModel`, `MemoryOptimizeViewModel` and `SpeedUpViewModel`.
+`OptimizeViewModel` (the *Smart Optimize* page, above Performance History) runs Smart Scan through four parts, each
+also a card of its own (laid out by `StackedColumns` with `InOrder` and `FillColumns`, so each card is as tall as its
+content and the column bottoms line up): `CleanupViewModel`, `ProtectionViewModel`, `MemoryOptimizeViewModel` and `SpeedUpViewModel`.
 Everything Windows-specific is behind `IOptimizeService`; the app's `WindowsOptimizeService` implements it and the
 default `UnsupportedOptimizeService` makes the page explain itself where it can't work.
 

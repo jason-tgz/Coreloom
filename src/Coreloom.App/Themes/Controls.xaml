@@ -38,6 +38,13 @@
     <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
   </Style>
 
+  <!-- A heading over a group of cards on a page (one level above the cards' own titles). -->
+  <Style x:Key="Text.SectionTitle" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="17" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+  </Style>
+
   <Style x:Key="Text.CardTitle" TargetType="TextBlock">
     <Setter Property="FontSize" Value="13" />
     <Setter Property="FontWeight" Value="SemiBold" />

@@ -60,4 +60,23 @@ public class CardColumnsTests
         Assert.Empty(CardColumns.Stack([], 4, 5, out total));
         Assert.Equal(0, total, 6);
     }
+
+    [Fact]
+    public void InOrder_KeepsCardsInTheirColumns_AndFillingLinesUpTheBottoms()
+    {
+        // Smart Optimize: Cleanup (tall), Protection (short), Free up memory (short), Speed up (tall), two columns.
+        double[] heights = [630, 222, 200, 525];
+        var placements = CardColumns.Stack(heights, 2, 16, out double total, inOrder: true);
+
+        Assert.Equal<int>(new[] { 0, 1, 0, 1 }, placements.Select(p => p.Column).ToArray());
+        Assert.Equal(646, placements[2].Top, 6);
+        Assert.Equal(238, placements[3].Top, 6);
+        Assert.Equal(846, total, 6);
+
+        var filled = CardColumns.FillColumns(placements, heights, total);
+        Assert.Equal<double>(new[] { 630.0, 222, 200, 608 }, filled); // only Speed up, the last in the shorter column, grows
+
+        // By height, the third card would have gone under the short one instead.
+        Assert.Equal(1, CardColumns.Stack(heights, 2, 16, out _)[2].Column);
+    }
 }
