@@ -28,6 +28,7 @@ A smoother, lighter in-game overlay and three new boosts: the frame-time graph n
 - G-SYNC is set in the NVIDIA driver's global profile (the same settings as *Set up G-SYNC* and *Enable G-SYNC globally*), along with Windows 11's *Optimizations for windowed games* variable-refresh setting; turning the boost off puts the driver back to its default, fullscreen only.
 - The shader cache size is the driver's *Shader Cache Size* setting. The boost counts as on when a size of 10 GB or more is set, and turning it off puts back the driver's default. Changing the size while it's on applies it at once.
 - Auto HDR is Windows' own setting (*Settings › Display › Graphics*). Coreloom checks for an HDR display and asks you to turn HDR on when it's off.
+- On a PC whose precise timer still wakes late (some virtual machines), the graph asks Windows for a 1 ms timer for Coreloom while it draws, as games do.
 - The graph's own window is see-through to clicks, never takes focus, and is never in the taskbar or Alt+Tab, like the overlay. Nothing is injected into games.
 
 ### Feedback

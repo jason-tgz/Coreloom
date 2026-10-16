@@ -383,7 +383,8 @@ tick, so a graph drawn by WPF stepped at ≤ 64 uneven frames a second. So in th
 holds the place, and `FrameGraphLayer` draws the graph from its own below-normal thread into a `LayeredSurface`
 (Hardware/Native: a click-through per-pixel-alpha popup owned by the overlay window, placed by the UI thread with
 `SetWindowPos`, filled from the drawing thread with `UpdateLayeredWindow` without moving it, which never waits on the
-UI thread), woken by a `PreciseTimer` (a `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION` waitable timer) at
+UI thread), woken by a `PreciseTimer` (a `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION` waitable timer; where its short waits keep waking
+late on average, as on one CI runner, it holds `timeBeginPeriod(1)` while doing short waits) at
 `FrameGraphModel.RedrawRate` (the display's refresh, or an even fraction ≤ 144 Hz: 120 on 240 Hz) while frames come
 in and 4 times a second otherwise. The settings preview (not `FrameGraph.IsLive`) draws the same pixels into a
 `WriteableBitmap`, with a still sample trace.

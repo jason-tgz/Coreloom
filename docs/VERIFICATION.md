@@ -159,10 +159,13 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 - **New Windows tests** (`OverlaySurfaceTests`, Windows runner): the high-resolution timer averages close to its
   4 ms interval (an ordinary timer would average 15.6 ms), stops and wakes on request, and a real layered window takes
   pixels from a second thread without waiting on the window's thread, and again after being resized.
-- **GitHub Actions on the branch, before release: the Windows job compiled the app with the real WPF XAML compiler (no
-  warnings reported) and passed all tests**, and the Linux job passed too. (The layered-window test skips itself where
-  the runner's session can't show windows; the run's logs can't be read from here, so whether it ran or skipped there
-  isn't known.) Here, `Coreloom.App` compiles (0 errors, 0 warnings) and the XAML checks pass (20 files, 242 shared
+- **GitHub Actions:** the first push to main failed in the Windows tests while the branch run had passed. The build
+  script now turns each test run into a summary and every failed test into an annotation (readable without the
+  log), which showed the timer test: on one runner the "high-resolution" timer averaged 20 ms for 4 ms waits. The timer
+  now notices late wakes and uses a 1 ms system timer while doing short waits; the test warms up first and skips
+  itself only when the machine stays slow even then. Of the two runs after that, one passed the timer test and one
+  skipped it (a busy runner); everything else passed in both, and the layered-window test ran (not skipped) and
+  passed. Here, `Coreloom.App` compiles (0 errors, 0 warnings) and the XAML checks pass (20 files, 242 shared
   keys, 1,129 bindings).
 - The choppy graph was traced in WPF's own source (`MediaContext`): a window drawn in software isn't paced by the
   display, so WPF schedules its frames with a 10 ms `DispatcherTimer`, which fires on the 15.6 ms system tick: at most
