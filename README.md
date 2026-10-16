@@ -33,13 +33,15 @@ installs drivers or services, and never sends your data anywhere.
 - **Gaming.** A tab with your installed games (Steam, Epic Games, GOG, Xbox, Ubisoft Connect, EA app, Battle.net,
   Riot) as cards or a grid of covers, with search, sorting and *Play*; switches for hardware-accelerated GPU
   scheduling, the Ultimate Performance power plan, Game Mode, windowed-game optimizations, Game Bar background
-  recording and the NVIDIA *Prefer maximum performance* mode (or *Boost now* for all of them); a **frame pacer** that
-  sets the NVIDIA driver's own frame limiter for all games or for one game on its own, automatically just under your
-  refresh rate so G-SYNC/FreeSync stays engaged, with live FPS, 1% low and pacing of the game you're playing; and
-  shader-cache care (an unlimited NVIDIA shader cache, cache sizes, a notice when a new driver resets them).
-- **In-game overlay.** FPS, frame time and 1% lows with a frame-time graph and GPU, CPU and RAM readings on top of
-  your games, measured from Windows' graphics events (nothing is injected into games); a small mark shows when the
-  frame pacer limits the game. Turned on from the Graphics page or with a hotkey (End by
+  recording, the NVIDIA *Prefer maximum performance* mode, G-SYNC for fullscreen and windowed games, a 10 GB / 100 GB /
+  unlimited NVIDIA shader cache and Windows 11's Auto HDR, each saying what it helps with and how to use it (or *Boost
+  now* for the performance ones); a **frame limiter** that sets the NVIDIA driver's own frame limiter for all games or
+  for one game on its own, automatically just under your refresh rate so G-SYNC/FreeSync stays engaged, with live FPS,
+  1% low and pacing of the game you're playing; and shader-cache care (cache sizes, a notice when a new driver resets
+  them).
+- **In-game overlay.** FPS, frame time and 1% lows with a smooth frame-time graph and GPU, CPU and RAM readings on top
+  of your games, measured from Windows' graphics events (nothing is injected into games, and Coreloom gives way to the
+  game while it runs); a small mark shows when the frame limiter limits the game. Turned on from the Graphics page or with a hotkey (End by
   default); choose what it shows, where, and its text, colors, opacity and corners.
 - **Health cards** on the Overview, Graphics, Processor, Memory and Storage pages: Excellent, Good or Needs attention,
   from the last minute of temperatures, clock slowdowns, fans, memory and commit charge, free space and drive wear,
@@ -114,7 +116,7 @@ installs drivers or services, and never sends your data anywhere.
 | Wired devices (USB, displays, Thunderbolt) | Plug and Play device tree (configuration manager) | No |
 | Installed games and their pictures | The launchers' own files (Steam `libraryfolders.vdf`, app manifests and library picture cache; Epic manifests; GOG and Xbox game folders) and Windows' installed-apps list | No |
 | GPU scheduling, power plan, Game Mode, windowed-game and Game Bar settings | Windows: the graphics kernel (D3DKMT), the registry values Windows Settings uses, `powercfg` | Changing GPU scheduling: **yes** |
-| NVIDIA frame limit, shader cache size, power management mode, driver version | **NVAPI** driver settings (the store the NVIDIA Control Panel uses) | Changing them: **yes** |
+| NVIDIA frame limit, shader cache size, power management mode, G-SYNC, driver version | **NVAPI** driver settings (the store the NVIDIA Control Panel uses) and display info | Changing them: **yes** |
 
 **About PawnIO.** Reading CPU temperature and motherboard sensors on modern Windows needs a kernel driver.
 LibreHardwareMonitor uses [PawnIO](https://pawnio.eu), a signed, open-source driver. Coreloom **never installs
@@ -215,7 +217,7 @@ LibreHardwareMonitor's own report. See [docs/TESTING-ON-YOUR-PC.md](docs/TESTING
 - **The Gaming page changes settings only when you flip a switch.** Each switch sets one documented Windows setting
   (the registry values and `powercfg` commands Windows' own Settings use) or one NVIDIA driver setting (as the NVIDIA
   Control Panel does), shows its state and can be turned off again. **Nothing is injected into games**: frame rates
-  come from Windows' graphics events, the frame pacer is the driver's own limiter, and games start through their own
+  come from Windows' graphics events, the frame limiter is the driver's own limiter, and games start through their own
   launchers as you, not as administrator.
 - **The Devices page changes something only when you click.** Connect, Disconnect, the Bluetooth switch and Eject do
   what Windows' own buttons do; nothing is unpaired or reconfigured.

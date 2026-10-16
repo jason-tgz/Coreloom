@@ -138,8 +138,15 @@ public sealed class FrameRateTracker
     /// fills as much of <paramref name="buffer"/> as there are frames and returns how many. None when the process
     /// hasn't shown a frame for a moment before <paramref name="now"/>.
     /// </summary>
-    public int RecentFrameTimes(int processId, long now, Span<double> buffer)
+    public int RecentFrameTimes(int processId, long now, Span<double> buffer) => RecentFrameTimes(processId, now, buffer, out _);
+
+    /// <summary>
+    /// As <see cref="RecentFrameTimes(int, long, Span{double})"/>, and how long before <paramref name="now"/> the newest of
+    /// them was shown (milliseconds; 0 when there are none), so a graph can place each frame at its moment in time.
+    /// </summary>
+    public int RecentFrameTimes(int processId, long now, Span<double> buffer, out double newestAgeMilliseconds)
     {
+        newestAgeMilliseconds = 0;
         lock (_gate)
         {
             if (buffer.Length == 0 || !_processes.TryGetValue(processId, out var frames) || frames.Count < 2 || now - frames.Latest > Ticks(StaleAfter))
@@ -155,6 +162,7 @@ public sealed class FrameRateTracker
                 buffer[i] = (frames[first + i] - frames[first + i - 1]) * toMilliseconds;
             }
 
+            newestAgeMilliseconds = Math.Max(0, (now - frames.Latest) * toMilliseconds);
             return count;
         }
     }

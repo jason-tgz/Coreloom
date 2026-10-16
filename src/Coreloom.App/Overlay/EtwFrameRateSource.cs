@@ -55,7 +55,11 @@ internal sealed unsafe class EtwFrameRateSource : IFrameRateSource, IDisposable
 
     public FrameRateStats? Get(int processId) => _running ? _tracker.Get(processId, Stopwatch.GetTimestamp()) : null;
 
-    public int RecentFrameTimes(int processId, Span<double> buffer) => _running ? _tracker.RecentFrameTimes(processId, Stopwatch.GetTimestamp(), buffer) : 0;
+    public int RecentFrameTimes(int processId, Span<double> buffer, out double newestAgeMilliseconds)
+    {
+        newestAgeMilliseconds = 0;
+        return _running ? _tracker.RecentFrameTimes(processId, Stopwatch.GetTimestamp(), buffer, out newestAgeMilliseconds) : 0;
+    }
 
     /// <summary>
     /// Starts measuring for <paramref name="owner"/> (the overlay, the Gaming page): the session runs while anyone needs
@@ -148,7 +152,8 @@ internal sealed unsafe class EtwFrameRateSource : IFrameRateSource, IDisposable
             _running = true;
             Problem = null;
             _tracker.Clear();
-            _thread = new Thread(Pump) { IsBackground = true, Name = "Coreloom frame rates" };
+            // Below normal: it only counts frames, and must never take a moment from the game it counts.
+            _thread = new Thread(Pump) { IsBackground = true, Name = "Coreloom frame rates", Priority = ThreadPriority.BelowNormal };
             _thread.Start();
             Log.Info(LogCategory, "Frame-rate tracing started.");
             return true;
@@ -212,10 +217,10 @@ internal sealed unsafe class EtwFrameRateSource : IFrameRateSource, IDisposable
         properties->BufferSize = 64; // KB
         properties->MinimumBuffers = 4;
         properties->MaximumBuffers = 32;
-        // One set of buffers keeps events in order; flushing every 100 ms gets frames to the counter promptly even when
-        // few are drawn.
+        // One set of buffers keeps events in order; flushing every 50 ms gets frames to the counter and the frame-time
+        // graph promptly even when few are drawn (the graph hides the batches behind a short, adaptive delay).
         properties->LogFileMode = EventTraceRealTimeMode | EventTraceNoPerProcessorBuffering | (millisecondFlush ? EventTraceUseMsFlushTimer : 0);
-        properties->FlushTimer = millisecondFlush ? 100u : 1u;
+        properties->FlushTimer = millisecondFlush ? 50u : 1u;
         properties->LoggerNameOffset = (uint)sizeof(EventTraceProperties);
         return EtwNative.StartTrace(out session, SessionName, properties);
     }

@@ -516,22 +516,28 @@ internal sealed class WindowsGamingService : IGamingService
             [GamingTweak.NoBackgroundRecording] = new(true, (ReadDwordOrNull(Registry.CurrentUser, GameDvrKey, "HistoricalCaptureEnabled") ?? 0) != 1), // off unless turned on
         };
 
+        tweaks[GamingTweak.AutoHdr] = AutoHdrStatus();
+
         bool nvidia = NvApi.IsAvailable;
         int frameCap = 0;
         string? driver = null;
+        uint? shaderLimit = null;
         if (nvidia)
         {
             driver = NvApi.DriverVersion();
             uint? pstate = NvApi.GetGlobal(NvApi.PowerManagementMode, 5);
-            uint? cache = NvApi.GetGlobal(NvApi.ShaderCacheMaxSize, 0x4000);
+            var cache = NvApi.GetGlobalSetting(NvApi.ShaderCacheMaxSize);
+            shaderLimit = cache is { IsSet: true } set ? set.Value : null;
             frameCap = (int)(NvApi.GetGlobal(NvApi.FrameRateLimiter, 0) ?? 0);
             tweaks[GamingTweak.MaxGpuPerformance] = pstate is null ? TweakStatus.Unsupported("The NVIDIA driver didn't answer.") : new(true, pstate == NvApi.PreferMaximumPerformance);
-            tweaks[GamingTweak.UnlimitedShaderCache] = cache is null ? TweakStatus.Unsupported("The NVIDIA driver didn't answer.") : new(true, cache == NvApi.ShaderCacheUnlimited);
+            tweaks[GamingTweak.ShaderCache] = cache is null ? TweakStatus.Unsupported("The NVIDIA driver didn't answer.") : new(true, ShaderCacheSize.IsOn(shaderLimit));
+            tweaks[GamingTweak.GSync] = GSyncStatus();
         }
         else
         {
             tweaks[GamingTweak.MaxGpuPerformance] = TweakStatus.Unsupported("Needs an NVIDIA graphics card. AMD Software sets this per game.");
-            tweaks[GamingTweak.UnlimitedShaderCache] = TweakStatus.Unsupported("Needs an NVIDIA graphics card. AMD Software sets the shader cache in its graphics settings.");
+            tweaks[GamingTweak.ShaderCache] = TweakStatus.Unsupported("Needs an NVIDIA graphics card. AMD Software sets the shader cache in its graphics settings.");
+            tweaks[GamingTweak.GSync] = TweakStatus.Unsupported("Needs an NVIDIA graphics card. On AMD graphics, FreeSync is turned on in AMD Software.");
         }
 
         return new GamingStatus
@@ -541,9 +547,55 @@ internal sealed class WindowsGamingService : IGamingService
             FrameCap = frameCap > FrameCap.Maximum ? FrameCap.Maximum : frameCap,
             RefreshRate = DisplayInfo.MaxRefreshRate(),
             DriverVersion = driver,
+            ShaderCacheLimit = shaderLimit,
             ShaderCaches = ShaderCacheSizes(),
         };
     }, cancellationToken);
+
+    /// <summary>
+    /// G-SYNC: on when the driver's global profile has it for fullscreen and windowed games. Not offered when the gaming
+    /// display (the fastest one) can't do variable refresh; a note when it can but G-SYNC is switched off for it.
+    /// </summary>
+    private static TweakStatus GSyncStatus()
+    {
+        uint? feature = NvApi.GetGlobal(NvApi.VrrFeature, GSyncSetup.FullscreenOnly);
+        uint? requested = NvApi.GetGlobal(NvApi.VrrRequestedState, GSyncSetup.FullscreenOnly);
+        uint? mode = NvApi.GetGlobal(NvApi.VrrMode, GSyncSetup.FullscreenOnly);
+        if (feature is null || requested is null || mode is null)
+        {
+            return TweakStatus.Unsupported("The NVIDIA driver didn't answer.");
+        }
+
+        var display = DisplayInfo.FastestDisplayName() is { } name ? NvApi.DisplayVrr(name) : null;
+        if (display is { Possible: false })
+        {
+            return TweakStatus.Unsupported("Your display doesn't support G-SYNC or variable refresh.");
+        }
+
+        string? note = display is { Requested: false }
+            ? "G-SYNC looks switched off for your display: turn it on in NVIDIA Control Panel › Display › Set up G-SYNC."
+            : null;
+        return new TweakStatus(true, GSyncSetup.IsOn(feature.Value, requested.Value, mode.Value), Note: note);
+    }
+
+    /// <summary>Auto HDR: Windows 11's switch; a note when HDR itself isn't on, and not offered without an HDR display.</summary>
+    private static TweakStatus AutoHdrStatus()
+    {
+        if (Environment.OSVersion.Version.Build < 22000)
+        {
+            return TweakStatus.Unsupported("Needs Windows 11.");
+        }
+
+        var hdr = DisplayInfo.Hdr();
+        if (hdr is { Supported: false })
+        {
+            return TweakStatus.Unsupported("Needs an HDR display.");
+        }
+
+        bool on = DirectXUserSettings.IsOn(Registry.CurrentUser.OpenSubKey(DirectXUserSettings.Key)?.GetValue(DirectXUserSettings.Value) as string, DirectXUserSettings.AutoHdr);
+        string? note = hdr is { Enabled: false } ? "Turn on Use HDR in Settings › System › Display for Auto HDR to show in games." : null;
+        return new TweakStatus(true, on, Note: note);
+    }
 
     private static TweakStatus GpuSchedulingStatus()
     {
@@ -634,7 +686,9 @@ internal sealed class WindowsGamingService : IGamingService
                 GamingTweak.WindowedOptimizations => SetWindowedOptimizations(on),
                 GamingTweak.NoBackgroundRecording => SetBackgroundRecording(!on),
                 GamingTweak.MaxGpuPerformance => SetNvidia(on ? NvApi.PreferMaximumPerformance : null, NvApi.PowerManagementMode, "Power management mode"),
-                GamingTweak.UnlimitedShaderCache => SetNvidia(on ? NvApi.ShaderCacheUnlimited : null, NvApi.ShaderCacheMaxSize, "Shader cache size"),
+                GamingTweak.ShaderCache => SetNvidia(on ? ShaderCacheSize.Normalize(settings.ShaderCacheSize) : null, NvApi.ShaderCacheMaxSize, "Shader cache size"),
+                GamingTweak.GSync => SetGSync(on),
+                GamingTweak.AutoHdr => SetDirectX(DirectXUserSettings.AutoHdr, on, on ? "Auto HDR is on for SDR games you start next." : "Auto HDR is off."),
                 _ => new TweakResult(false, "Unknown setting."),
             };
             Log.Info(LogCategory, $"{tweak} {(on ? "on" : "off")}: {(result.Success ? "done" : "failed")} ({result.Message})");
@@ -725,12 +779,48 @@ internal sealed class WindowsGamingService : IGamingService
         return new TweakResult(true, on ? "Game Mode is on." : "Game Mode is off.");
     }
 
-    private static TweakResult SetWindowedOptimizations(bool on)
+    private static TweakResult SetWindowedOptimizations(bool on) =>
+        SetDirectX(DirectXUserSettings.SwapEffectUpgrade, on, "Applies to games you start next.");
+
+    /// <summary>One of Windows 11's DirectX settings for games (the others stay as they were).</summary>
+    private static TweakResult SetDirectX(string setting, bool on, string message)
     {
         using var key = Registry.CurrentUser.CreateSubKey(DirectXUserSettings.Key, writable: true);
-        string value = DirectXUserSettings.Set(key.GetValue(DirectXUserSettings.Value) as string, DirectXUserSettings.SwapEffectUpgrade, on);
+        string value = DirectXUserSettings.Set(key.GetValue(DirectXUserSettings.Value) as string, setting, on);
         key.SetValue(DirectXUserSettings.Value, value, RegistryValueKind.String);
-        return new TweakResult(true, "Applies to games you start next.");
+        return new TweakResult(true, message);
+    }
+
+    /// <summary>
+    /// G-SYNC for fullscreen and windowed games: the driver's variable-refresh feature on, requested and set for both
+    /// (NVIDIA Control Panel's "Enable for windowed and full screen mode"), plus Windows 11's variable refresh for games
+    /// that don't ask for it themselves. Off puts the driver's own settings (fullscreen only) back.
+    /// </summary>
+    private static TweakResult SetGSync(bool on)
+    {
+        if (!NvApi.IsAvailable)
+        {
+            return new TweakResult(false, "Needs an NVIDIA graphics card and driver.");
+        }
+
+        if (!on)
+        {
+            return NvApi.RestoreGlobals(NvApi.VrrRequestedState, NvApi.VrrMode)
+                ? new TweakResult(true, "G-SYNC is back to the driver's default (fullscreen games only).")
+                : new TweakResult(false, "The NVIDIA driver didn't accept the change.");
+        }
+
+        if (!NvApi.SetGlobals((NvApi.VrrFeature, 1), (NvApi.VrrRequestedState, GSyncSetup.FullscreenAndWindowed), (NvApi.VrrMode, GSyncSetup.FullscreenAndWindowed)))
+        {
+            return new TweakResult(false, "The NVIDIA driver didn't accept the change.");
+        }
+
+        if (Environment.OSVersion.Version.Build >= 22000)
+        {
+            SetDirectX(DirectXUserSettings.VariableRefreshRate, true, string.Empty);
+        }
+
+        return new TweakResult(true, "G-SYNC is on for fullscreen and windowed games you start next.");
     }
 
     private static TweakResult SetBackgroundRecording(bool record)
@@ -755,7 +845,7 @@ internal sealed class WindowsGamingService : IGamingService
     {
         if (!NvApi.IsAvailable)
         {
-            return new TweakResult(false, "The frame pacer needs an NVIDIA graphics driver.");
+            return new TweakResult(false, "The frame limiter needs an NVIDIA graphics driver.");
         }
 
         int limit = FrameCap.Clamp(fps);
@@ -800,7 +890,7 @@ internal sealed class WindowsGamingService : IGamingService
     {
         if (!NvApi.IsAvailable)
         {
-            return new TweakResult(false, "The frame pacer needs an NVIDIA graphics driver.");
+            return new TweakResult(false, "The frame limiter needs an NVIDIA graphics driver.");
         }
 
         if (executables.Count == 0)

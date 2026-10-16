@@ -25,8 +25,14 @@ public enum GamingTweak
     /// <summary>NVIDIA power management mode "Prefer maximum performance".</summary>
     MaxGpuPerformance,
 
-    /// <summary>NVIDIA shader cache size "Unlimited".</summary>
-    UnlimitedShaderCache,
+    /// <summary>G-SYNC for fullscreen and windowed games (NVIDIA), with Windows' variable refresh rate for games that don't ask for it.</summary>
+    GSync,
+
+    /// <summary>The NVIDIA shader cache's size limit set to 10 GB or more (<see cref="ShaderCacheSize"/>).</summary>
+    ShaderCache,
+
+    /// <summary>Windows 11's Auto HDR for SDR games.</summary>
+    AutoHdr,
 }
 
 /// <summary>Whether a tweak can be used here, whether it is on, and whether a restart is still needed for it.</summary>
@@ -48,7 +54,7 @@ public sealed record GamingStatus
 
     public required IReadOnlyDictionary<GamingTweak, TweakStatus> Tweaks { get; init; }
 
-    /// <summary>An NVIDIA graphics card and driver were found (frame pacer, shader cache size and power mode use its driver).</summary>
+    /// <summary>An NVIDIA graphics card and driver were found (frame limiter, shader cache size and power mode use its driver).</summary>
     public bool HasNvidiaDriver { get; init; }
 
     /// <summary>The driver's frame-rate limit for all games (0 = off).</summary>
@@ -59,6 +65,9 @@ public sealed record GamingStatus
 
     /// <summary>"581.57" (null when unknown).</summary>
     public string? DriverVersion { get; init; }
+
+    /// <summary>The shader cache's size limit set in the NVIDIA driver (MB), or null when it is the driver's default.</summary>
+    public uint? ShaderCacheLimit { get; init; }
 
     public IReadOnlyList<ShaderCacheInfo> ShaderCaches { get; init; } = [];
 
@@ -158,6 +167,12 @@ public static class GpuScheduling
 public static class DirectXUserSettings
 {
     public const string Key = @"Software\Microsoft\DirectX\UserGpuPreferences";
+
+    /// <summary>Settings › Display › Graphics › Variable refresh rate (for games that don't support it themselves).</summary>
+    public const string VariableRefreshRate = "VRROptimizeEnable";
+
+    /// <summary>Settings › Display › HDR › Auto HDR.</summary>
+    public const string AutoHdr = "AutoHDREnable";
     public const string Value = "DirectXUserGlobalSettings";
     public const string SwapEffectUpgrade = "SwapEffectUpgradeEnable";
 
@@ -190,7 +205,7 @@ public static class DirectXUserSettings
     }
 }
 
-/// <summary>Frame-rate limits for the frame pacer.</summary>
+/// <summary>Frame-rate limits for the frame limiter.</summary>
 public static class FrameCap
 {
     public const int Minimum = 20;
@@ -320,4 +335,61 @@ public static class ShaderCaches
 
         return $"The graphics driver changed from {previous} to {current}. Games compile their shaders again the first time you play them, so expect brief stutter for the first few minutes.";
     }
+}
+
+/// <summary>
+/// The NVIDIA shader cache's size limit, in megabytes as the driver keeps it (NVIDIA Control Panel › Shader Cache Size).
+/// The boost counts as on when the limit has been set to 10 GB or more; the driver's own default is left as "off", and
+/// turning the boost off returns to it.
+/// </summary>
+public static class ShaderCacheSize
+{
+    public const uint Unlimited = 0xFFFFFFFF;
+
+    /// <summary>10 GB: enough for most game libraries.</summary>
+    public const uint Recommended = 10 * 1024;
+
+    /// <summary>100 GB: for a large library.</summary>
+    public const uint Large = 100 * 1024;
+
+    /// <summary>The sizes offered, smallest first.</summary>
+    public static IReadOnlyList<uint> Choices { get; } = [Recommended, Large, Unlimited];
+
+    /// <summary>"10 GB", "100 GB", "Unlimited", "5 GB", "1.5 GB".</summary>
+    public static string Describe(uint megabytes) =>
+        megabytes == Unlimited ? "Unlimited"
+        : megabytes % 1024 == 0 ? $"{megabytes / 1024} GB"
+        : $"{(megabytes / 1024.0).ToString("0.#", System.Globalization.CultureInfo.CurrentCulture)} GB";
+
+    /// <summary>On: a limit was set (not the driver's default) and it is at least 10 GB.</summary>
+    public static bool IsOn(uint? setLimit) => setLimit is { } limit && limit >= Recommended;
+
+    /// <summary>The offered size a set limit matches best (the biggest one not above it).</summary>
+    public static uint ChoiceFor(uint limit) => limit == Unlimited ? Unlimited : limit >= Large ? Large : Recommended;
+
+    /// <summary>A saved choice that is one of the offered sizes, else the recommended one.</summary>
+    public static uint Normalize(uint choice) => Choices.Contains(choice) ? choice : Recommended;
+}
+
+/// <summary>
+/// G-SYNC as the NVIDIA driver keeps it (global profile): the variable-refresh feature, the mode NVIDIA Control Panel's
+/// "Set up G-SYNC" picks, and "Enable G-SYNC globally" — each 0 off, 1 fullscreen only (the driver's default), 2
+/// fullscreen and windowed. The boost is on when G-SYNC applies to fullscreen and windowed games.
+/// </summary>
+public static class GSyncSetup
+{
+    public const uint Off = 0;
+    public const uint FullscreenOnly = 1;
+    public const uint FullscreenAndWindowed = 2;
+
+    public static bool IsOn(uint feature, uint requestedState, uint mode) =>
+        feature != 0 && requestedState == FullscreenAndWindowed && mode == FullscreenAndWindowed;
+
+    /// <summary>What to pair it with: the frame limit just under the refresh rate.</summary>
+    public static string Recommendation(int frameCap, int refreshHz) =>
+        refreshHz <= 0
+            ? "Recommended: on for fullscreen and windowed games, with the frame limiter a little under your refresh rate."
+            : frameCap > 0
+                ? $"Recommended: on for fullscreen and windowed games, keeping your {frameCap} FPS limit for your {refreshHz} Hz display."
+                : $"Recommended: on for fullscreen and windowed games, with the frame limiter at {FrameCap.AutoTarget(refreshHz)} FPS for your {refreshHz} Hz display.";
 }

@@ -42,8 +42,13 @@ internal sealed class FakeGaming : IGamingService
         [GamingTweak.WindowedOptimizations] = new(true, false),
         [GamingTweak.NoBackgroundRecording] = new(true, true),
         [GamingTweak.MaxGpuPerformance] = new(true, false),
-        [GamingTweak.UnlimitedShaderCache] = new(true, false),
+        [GamingTweak.GSync] = new(true, false),
+        [GamingTweak.ShaderCache] = new(true, false),
+        [GamingTweak.AutoHdr] = new(true, false),
     };
+
+    /// <summary>The shader cache size last set in the "driver" (MB), or null for its default.</summary>
+    public uint? ShaderCacheLimit { get; set; }
 
     public int FrameCap { get; set; }
 
@@ -75,6 +80,7 @@ internal sealed class FakeGaming : IGamingService
         FrameCap = FrameCap,
         RefreshRate = 144,
         DriverVersion = Driver,
+        ShaderCacheLimit = ShaderCacheLimit,
         ShaderCaches =
         [
             new ShaderCacheInfo("NVIDIA DirectX", @"C:\L\NVIDIA\DXCache", 3L << 30, 1200),
@@ -99,6 +105,11 @@ internal sealed class FakeGaming : IGamingService
         if (tweak == GamingTweak.UltimatePower && on)
         {
             settings.PreviousPowerPlan = PowerPlans.Balanced.ToString();
+        }
+
+        if (tweak == GamingTweak.ShaderCache)
+        {
+            ShaderCacheLimit = on ? settings.ShaderCacheSize : null;
         }
 
         Tweaks[tweak] = new TweakStatus(true, on);
@@ -285,23 +296,95 @@ public class GamingViewModelTests
     public async Task Boosts_ShowState_AndBoostNowTurnsOnTheRest()
     {
         var (page, fake, settings) = Create();
-        Assert.Equal(6, page.Boosts.Count);
-        Assert.Equal(7, page.BoostsAvailable);
+        Assert.Equal(9, page.Boosts.Count);
+        Assert.Equal(8, page.BoostsAvailable); // Auto HDR is a matter of taste, not a boost
         Assert.Equal(2, page.BoostsOn);
-        Assert.Equal("2/7", page.ReadinessText);
-        Assert.Contains("5 boosts can make", page.HeroTitle);
+        Assert.Equal("2/8", page.ReadinessText);
+        Assert.Contains("6 boosts can make", page.HeroTitle);
         Assert.True(page.Boosts.Single(b => b.Tweak == GamingTweak.GameMode).IsOn);
 
         await page.ApplyAllCommand.ExecuteAsync(null);
 
-        Assert.All(fake.Tweaks.Values, t => Assert.True(t.IsOn));
-        Assert.Equal(7, page.BoostsOn);
+        Assert.All(fake.Tweaks.Where(t => t.Key != GamingTweak.AutoHdr), t => Assert.True(t.Value.IsOn));
+        Assert.False(fake.Tweaks[GamingTweak.AutoHdr].IsOn); // "Boost now" leaves Auto HDR to you
+        Assert.Equal(8, page.BoostsOn);
         Assert.True(page.AllBoostsOn);
         Assert.True(page.RestartPending);
         Assert.Equal("Restart Windows to finish.", page.Boosts.Single(b => b.Tweak == GamingTweak.GpuScheduling).Message);
-        Assert.Contains("Turned on 5 boosts. Restart Windows to finish.", page.HeroMessage);
+        Assert.Contains("Turned on 6 boosts. Restart Windows to finish.", page.HeroMessage);
         Assert.Equal(PowerPlans.Balanced.ToString(), settings.Current.Gaming.PreviousPowerPlan); // saved to restore later
         Assert.False(page.ApplyAllCommand.CanExecute(null));
+        settings.Dispose();
+    }
+
+    [Fact]
+    public void NewBoosts_SayWhatTheyHelpWith_HowToUseThem_AndWhatTheyDont()
+    {
+        var (page, _, settings) = Create(f => f.FrameCap = 141);
+        var gsync = page.Boosts.Single(b => b.Tweak == GamingTweak.GSync);
+        var cache = page.Boosts.Single(b => b.Tweak == GamingTweak.ShaderCache);
+        var hdr = page.Boosts.Single(b => b.Tweak == GamingTweak.AutoHdr);
+
+        Assert.Equal("Smoothness", gsync.Category);
+        Assert.True(gsync.IsSmoothness);
+        Assert.Equal("Recommended: on for fullscreen and windowed games, keeping your 141 FPS limit for your 144 Hz display.", gsync.Recommendation);
+        Assert.True(gsync.HasCaveat);
+        Assert.Equal("Frame stability", cache.Category);
+        Assert.False(cache.IsSmoothness);
+        Assert.Contains("10 GB", cache.Recommendation);
+        Assert.Equal("Visual fidelity", hdr.Category);
+        Assert.False(hdr.CountsAsBoost);
+        Assert.Contains("RTX HDR", hdr.Recommendation);
+        Assert.All(page.Boosts, b => Assert.True(b.HasCategory));
+        Assert.Same(cache, page.ShaderCache); // the Shader cache card shows the same switch
+        settings.Dispose();
+    }
+
+    [Fact]
+    public void GSyncRecommendation_SuggestsTheAutomaticLimitWhenThereIsNone()
+    {
+        var (page, _, settings) = Create();
+        Assert.Equal("Recommended: on for fullscreen and windowed games, with the frame limiter at 138 FPS for your 144 Hz display.",
+            page.Boosts.Single(b => b.Tweak == GamingTweak.GSync).Recommendation);
+        settings.Dispose();
+    }
+
+    [Fact]
+    public async Task ShaderCache_SetsTheChosenSize_AndANewSizeAppliesAtOnce()
+    {
+        var (page, fake, settings) = Create();
+        Assert.Equal(ShaderCacheSize.Recommended, page.ShaderCacheSize);
+        Assert.Equal(["10 GB", "100 GB", "Unlimited"], page.ShaderCacheSizes.Select(o => o.Label));
+        Assert.Equal("Limit now: the driver's default", page.ShaderCacheLimitText);
+
+        page.ShaderCache.IsOn = true;
+        await Task.Yield();
+        Assert.Equal(ShaderCacheSize.Recommended, fake.ShaderCacheLimit);
+        Assert.Equal("Limit now: 10 GB", page.ShaderCacheLimitText);
+
+        page.ShaderCacheSize = ShaderCacheSize.Large;
+        await Task.Yield();
+        Assert.Equal(ShaderCacheSize.Large, settings.Current.Gaming.ShaderCacheSize);
+        Assert.Equal(ShaderCacheSize.Large, fake.ShaderCacheLimit);
+        Assert.Equal("Limit now: 100 GB", page.ShaderCacheLimitText);
+
+        page.ShaderCache.IsOn = false;
+        await Task.Yield();
+        Assert.Null(fake.ShaderCacheLimit);
+        page.ShaderCacheSize = ShaderCacheSize.Unlimited; // off: only remembered for next time
+        await Task.Yield();
+        Assert.Null(fake.ShaderCacheLimit);
+        Assert.Equal(ShaderCacheSize.Unlimited, settings.Current.Gaming.ShaderCacheSize);
+        settings.Dispose();
+    }
+
+    [Fact]
+    public void ABoostsHint_IsShownWhenItCanBeUsed()
+    {
+        var (page, _, settings) = Create(f => f.Tweaks[GamingTweak.AutoHdr] = new(true, false, Note: "Turn on Use HDR in Settings › System › Display for Auto HDR to show in games."));
+        var hdr = page.Boosts.Single(b => b.Tweak == GamingTweak.AutoHdr);
+        Assert.True(hdr.CanToggle);
+        Assert.StartsWith("Turn on Use HDR", hdr.Message);
         settings.Dispose();
     }
 

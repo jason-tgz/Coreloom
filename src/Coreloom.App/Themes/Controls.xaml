@@ -662,7 +662,7 @@
     </Setter>
   </Style>
 
-  <!-- The search field: icon, text, a Ctrl K hint or a clear button, and the panel that drops down from it. -->
+  <!-- The search field: icon, text, a clear button, and the panel that drops down from it (Ctrl+K or Ctrl+F jump here). -->
   <Style TargetType="c:QuickSearch">
     <Setter Property="Height" Value="38" />
     <Setter Property="FontSize" Value="13" />
@@ -687,10 +687,6 @@
                 <!-- the hint hides once the box is clicked, so the caret is plainly where typing starts -->
                 <TextBlock x:Name="Placeholder" Grid.Column="1" Margin="11,0,4,0" VerticalAlignment="Center" IsHitTestVisible="False"
                            Text="{TemplateBinding Placeholder}" Foreground="{DynamicResource Brush.TextTertiary}" TextTrimming="CharacterEllipsis" />
-                <c:SquircleBorder x:Name="Keys" Grid.Column="2" CornerRadius="6" Padding="6,2" Margin="0,0,9,0" VerticalAlignment="Center"
-                                  Background="{DynamicResource Brush.ControlHover}" BorderBrush="{DynamicResource Brush.InputBorder}" BorderThickness="1" IsHitTestVisible="False">
-                  <TextBlock Text="Ctrl K" FontSize="10.5" FontWeight="Medium" Foreground="{DynamicResource Brush.TextTertiary}" />
-                </c:SquircleBorder>
                 <Button x:Name="ClearButton" Grid.Column="2" Style="{StaticResource Button.Icon}" Width="26" Height="26" Margin="0,0,5,0" Visibility="Collapsed"
                         Command="{x:Static c:QuickSearch.ClearCommand}" ToolTip="Clear" AutomationProperties.Name="Clear search">
                   <Path Style="{StaticResource IconPath}" Width="10" Height="10" Data="{StaticResource Icon.Close}" />
@@ -722,12 +718,10 @@
           <ControlTemplate.Triggers>
             <Trigger Property="HasText" Value="True">
               <Setter TargetName="Placeholder" Property="Visibility" Value="Collapsed" />
-              <Setter TargetName="Keys" Property="Visibility" Value="Collapsed" />
               <Setter TargetName="ClearButton" Property="Visibility" Value="Visible" />
             </Trigger>
             <Trigger SourceName="PART_TextBox" Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="Placeholder" Property="Visibility" Value="Collapsed" />
-              <Setter TargetName="Keys" Property="Visibility" Value="Collapsed" />
               <Setter TargetName="Field" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
               <Setter TargetName="Ring" Property="Opacity" Value="1" />
               <Setter TargetName="Glass" Property="Stroke" Value="{DynamicResource Brush.Accent}" />

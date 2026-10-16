@@ -525,4 +525,53 @@ public sealed class GameFrameCapTests
         Assert.Equal(("a", FrameCap.Maximum, 0), (cap.GameId, cap.Fps, cap.Choice));
         Assert.Equal(["a.exe"], cap.Executables);
     }
+
+    [Fact]
+    public void ShaderCacheSize_IsInMegabytes_AndOnFromTenGigabytes()
+    {
+        Assert.Equal(10240u, ShaderCacheSize.Recommended);
+        Assert.Equal(102400u, ShaderCacheSize.Large);
+        Assert.Equal("10 GB", ShaderCacheSize.Describe(ShaderCacheSize.Recommended));
+        Assert.Equal("Unlimited", ShaderCacheSize.Describe(ShaderCacheSize.Unlimited));
+        Assert.Equal("16 GB", ShaderCacheSize.Describe(0x4000)); // the driver's own default size
+        Assert.False(ShaderCacheSize.IsOn(null));                // the driver's default: off
+        Assert.False(ShaderCacheSize.IsOn(5 * 1024));            // a smaller limit someone set
+        Assert.True(ShaderCacheSize.IsOn(ShaderCacheSize.Recommended));
+        Assert.True(ShaderCacheSize.IsOn(ShaderCacheSize.Unlimited));
+        Assert.Equal(ShaderCacheSize.Recommended, ShaderCacheSize.Normalize(12345));
+        Assert.Equal(ShaderCacheSize.Large, ShaderCacheSize.Normalize(ShaderCacheSize.Large));
+    }
+
+    [Fact]
+    public void GSync_IsOnOnlyForFullscreenAndWindowed()
+    {
+        Assert.True(GSyncSetup.IsOn(1, 2, 2));
+        Assert.False(GSyncSetup.IsOn(1, 1, 1)); // the driver's default: fullscreen only
+        Assert.False(GSyncSetup.IsOn(0, 2, 2)); // the feature switched off
+        Assert.False(GSyncSetup.IsOn(1, 2, 1));
+        Assert.Equal("Recommended: on for fullscreen and windowed games, keeping your 237 FPS limit for your 240 Hz display.", GSyncSetup.Recommendation(237, 240));
+        Assert.Contains("224 FPS for your 240 Hz", GSyncSetup.Recommendation(0, 240));
+        Assert.Contains("a little under your refresh rate", GSyncSetup.Recommendation(0, 0));
+    }
+
+    [Fact]
+    public void DirectXSettings_NameVariableRefreshAndAutoHdrAsWindowsDoes()
+    {
+        const string current = "SwapEffectUpgradeEnable=1;";
+        string hdr = DirectXUserSettings.Set(current, DirectXUserSettings.AutoHdr, true);
+        Assert.Equal("SwapEffectUpgradeEnable=1;AutoHDREnable=1;", hdr);
+        Assert.True(DirectXUserSettings.IsOn(hdr, DirectXUserSettings.AutoHdr));
+        string vrr = DirectXUserSettings.Set(hdr, DirectXUserSettings.VariableRefreshRate, true);
+        Assert.Equal("SwapEffectUpgradeEnable=1;AutoHDREnable=1;VRROptimizeEnable=1;", vrr);
+        Assert.False(DirectXUserSettings.IsOn(DirectXUserSettings.Set(vrr, DirectXUserSettings.AutoHdr, false), DirectXUserSettings.AutoHdr));
+    }
+
+    [Fact]
+    public void GamingSettings_RepairAnUnknownShaderCacheSize()
+    {
+        var settings = new AppSettings();
+        settings.Gaming.ShaderCacheSize = 777;
+        settings.Normalize();
+        Assert.Equal(ShaderCacheSize.Recommended, settings.Gaming.ShaderCacheSize);
+    }
 }

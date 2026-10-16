@@ -24,6 +24,18 @@ internal static unsafe partial class NvApi
 
     public const uint PreferMaximumPerformance = 1;
 
+    // G-SYNC (NvApiDriverSettings.h): VRRFEATUREINDICATOR "Toggle the VRR global feature" (0 off, 1 on), VRRREQUESTSTATE
+    // "VRR requested state" and VRR_MODE "Enable G-SYNC globally" (0 off, 1 fullscreen only, 2 fullscreen and windowed).
+
+    /// <summary>The variable-refresh (G-SYNC) feature as a whole: 0 off, 1 on (the default).</summary>
+    public const uint VrrFeature = 0x1094F157;
+
+    /// <summary>G-SYNC's requested state: 0 off, 1 fullscreen only (the default), 2 fullscreen and windowed.</summary>
+    public const uint VrrRequestedState = 0x1094F1F7;
+
+    /// <summary>"Enable G-SYNC globally": 0 off, 1 fullscreen only (the default), 2 fullscreen and windowed.</summary>
+    public const uint VrrMode = 0x1194F158;
+
     /// <summary>Profiles Coreloom creates for games the driver has no profile for are named "Coreloom: game name".</summary>
     public const string ProfilePrefix = "Coreloom: ";
 
@@ -51,6 +63,11 @@ internal static unsafe partial class NvApi
     private const uint IdFindProfileByName = 0x7E4A9A0B;
     private const uint IdCreateApplication = 0x4347A9DE;
     private const uint IdDeleteProfileSetting = 0xE4A26362;
+    private const uint IdGetDisplayIdByDisplayName = 0xAE457190;
+    private const uint IdGetVrrInfo = 0xDF8FDA57;
+
+    // NV_GET_VRR_INFO_V1: version, then bits (0 enabled now, 1 possible, 2 requested), then 4 reserved words.
+    private const int VrrInfoSize = 24;
 
     // NvAPI_UnicodeString: 2048 UTF-16 code units.
     private const int UnicodeChars = 2048;
@@ -79,6 +96,7 @@ internal static unsafe partial class NvApi
     private const uint SettingVersion = SettingSize | (1u << 16);
     private const int SettingIdOffset = 4100;
     private const int SettingTypeOffset = 4104;
+    private const int IsCurrentPredefinedOffset = 4112;
     private const int CurrentValueOffset = 8220;
 
     private static readonly object Gate = new();
@@ -151,6 +169,28 @@ internal static unsafe partial class NvApi
         return result;
     }
 
+    /// <summary>
+    /// A DWORD setting of the global profile and whether someone set it (rather than it being the driver's own value);
+    /// null when NVAPI is missing or the driver didn't answer.
+    /// </summary>
+    public static (uint Value, bool IsSet)? GetGlobalSetting(uint settingId)
+    {
+        (uint, bool)? result = null;
+        WithSession(save: false, (session, profile) =>
+        {
+            var get = (delegate* unmanaged[Cdecl]<IntPtr, IntPtr, uint, byte*, int>)Query(IdGetSetting);
+            byte* setting = stackalloc byte[SettingSize];
+            new Span<byte>(setting, SettingSize).Clear();
+            *(uint*)setting = SettingVersion;
+            int status = get(session, profile, settingId, setting);
+            result = status == Ok ? (*(uint*)(setting + CurrentValueOffset), *(uint*)(setting + IsCurrentPredefinedOffset) == 0)
+                : status == SettingNotFound ? (0u, false)
+                : null;
+            return status is Ok or SettingNotFound;
+        });
+        return result;
+    }
+
     /// <summary>Sets a DWORD setting in the global profile and saves it. Returns false when the driver refused.</summary>
     public static bool SetGlobal(uint settingId, uint value) => WithSession(save: true, (session, profile) =>
     {
@@ -169,6 +209,90 @@ internal static unsafe partial class NvApi
 
         return status == Ok;
     });
+
+    /// <summary>Sets several DWORD settings of the global profile and saves them together. False when the driver refused one.</summary>
+    public static bool SetGlobals(params (uint SettingId, uint Value)[] settings) => WithSession(save: true, (session, profile) =>
+    {
+        var set = (delegate* unmanaged[Cdecl]<IntPtr, IntPtr, byte*, int>)Query(IdSetSetting);
+        byte* setting = stackalloc byte[SettingSize];
+        foreach (var (id, value) in settings)
+        {
+            new Span<byte>(setting, SettingSize).Clear();
+            *(uint*)setting = SettingVersion;
+            *(uint*)(setting + SettingIdOffset) = id;
+            *(uint*)(setting + SettingTypeOffset) = 0; // NVDRS_DWORD_TYPE
+            *(uint*)(setting + CurrentValueOffset) = value;
+            int status = set(session, profile, setting);
+            if (status != Ok)
+            {
+                Log.Warn(LogCategory, $"Setting 0x{id:X8} to {value} failed ({status}).");
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    /// <summary>Puts several settings of the global profile back to the driver's defaults, saved together.</summary>
+    public static bool RestoreGlobals(params uint[] settingIds) => WithSession(save: true, (session, profile) =>
+    {
+        var restore = (delegate* unmanaged[Cdecl]<IntPtr, IntPtr, uint, int>)Query(IdRestoreProfileDefaultSetting);
+        foreach (uint id in settingIds)
+        {
+            int status = restore(session, profile, id);
+            if (status is not (Ok or SettingNotFound))
+            {
+                Log.Warn(LogCategory, $"Restoring 0x{id:X8} failed ({status}).");
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    /// <summary>
+    /// What the driver says about variable refresh (G-SYNC) on a display ("\\.\DISPLAY1"): whether the display can do it,
+    /// whether it is turned on for the display (NVIDIA Control Panel › Set up G-SYNC), and whether it is in use right now.
+    /// Null when NVAPI or the display isn't there.
+    /// </summary>
+    public static (bool Possible, bool Requested, bool Active)? DisplayVrr(string displayName)
+    {
+        if (!IsAvailable || string.IsNullOrEmpty(displayName))
+        {
+            return null;
+        }
+
+        lock (Gate)
+        {
+            var byName = (delegate* unmanaged[Cdecl]<byte*, uint*, int>)Query(IdGetDisplayIdByDisplayName);
+            var getInfo = (delegate* unmanaged[Cdecl]<uint, byte*, int>)Query(IdGetVrrInfo);
+            if (byName is null || getInfo is null)
+            {
+                return null;
+            }
+
+            byte[] name = System.Text.Encoding.ASCII.GetBytes(displayName + "\0");
+            uint id;
+            fixed (byte* n = name)
+            {
+                if (byName(n, &id) != Ok)
+                {
+                    return null;
+                }
+            }
+
+            byte* info = stackalloc byte[VrrInfoSize];
+            new Span<byte>(info, VrrInfoSize).Clear();
+            *(uint*)info = VrrInfoSize | (1u << 16);
+            if (getInfo(id, info) != Ok)
+            {
+                return null;
+            }
+
+            uint bits = *(uint*)(info + 4);
+            return ((bits & 2) != 0, (bits & 4) != 0, (bits & 1) != 0);
+        }
+    }
 
     /// <summary>Puts a setting of the global profile back to the driver's default.</summary>
     public static bool RestoreGlobal(uint settingId) => WithSession(save: true, (session, profile) =>

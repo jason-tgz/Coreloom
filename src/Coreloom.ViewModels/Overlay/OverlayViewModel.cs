@@ -21,17 +21,23 @@ public interface IFrameRateSource
     /// <summary>The frame rate of a process, or null when it isn't drawing frames.</summary>
     FrameRateStats? Get(int processId);
 
-    /// <summary>The process's latest frame times in milliseconds, oldest first; returns how many were written.</summary>
-    int RecentFrameTimes(int processId, Span<double> buffer);
+    /// <summary>
+    /// The process's latest frame times in milliseconds, oldest first, and how long ago the newest was shown; returns how
+    /// many were written.
+    /// </summary>
+    int RecentFrameTimes(int processId, Span<double> buffer, out double newestAgeMilliseconds);
 }
 
 /// <summary>Frame times for the overlay's graph (milliseconds, oldest first), read each time the graph draws.</summary>
 public interface IFrameTimeFeed
 {
-    /// <summary>Fills <paramref name="buffer"/> with the latest frame times and returns how many; 0 when no game is drawing.</summary>
-    int Read(Span<double> buffer);
+    /// <summary>
+    /// Fills <paramref name="buffer"/> with the latest frame times and returns how many (0 when no game is drawing), and
+    /// how long ago the newest of them was shown, in milliseconds.
+    /// </summary>
+    int Read(Span<double> buffer, out double newestAgeMilliseconds);
 
-    /// <summary>The frame time the frame pacer aims for (milliseconds), or 0 when the game in front isn't paced.</summary>
+    /// <summary>The frame time the frame limiter aims for (milliseconds), or 0 when the game in front isn't limited.</summary>
     double TargetFrameTime { get; }
 }
 
@@ -97,7 +103,7 @@ public sealed class OverlayGroupViewModel
     /// <summary>The overlay it belongs to (templates read labels on/off and the layout from it).</summary>
     public OverlayViewModel Overlay { get; }
 
-    /// <summary>The FPS line: the frame-time graph and the frame pacer's mark go with it.</summary>
+    /// <summary>The FPS line: the frame-time graph and the frame limiter's mark go with it.</summary>
     public bool IsFrameRate => Id == nameof(OverlayGroup.FrameRate);
 
     public string Label { get; }
@@ -140,13 +146,13 @@ public sealed class OverlayViewModel : ObservableObject
     /// <summary>The frame-time graph is shown (under the FPS line).</summary>
     public bool ShowGraph => Options.Items.Contains(OverlayCatalog.FrameGraph);
 
-    /// <summary>The frame pacer limits the game in front (its own limit or the one for all games).</summary>
+    /// <summary>The frame limiter limits the game in front (its own limit or the one for all games).</summary>
     public bool IsPacing => _pacingCap > 0;
 
-    /// <summary>The pacer's mark next to the FPS: the limit ("116").</summary>
+    /// <summary>The limiter's mark next to the FPS: the limit ("116").</summary>
     public string PacingText => _pacingCap > 0 ? _pacingCap.ToString(CultureInfo.CurrentCulture) : string.Empty;
 
-    public string PacingToolTip => _pacingCap > 0 ? $"Frame pacer on: limited to {_pacingCap.ToString(CultureInfo.CurrentCulture)} FPS" : string.Empty;
+    public string PacingToolTip => _pacingCap > 0 ? $"Frame limiter on: limited to {_pacingCap.ToString(CultureInfo.CurrentCulture)} FPS" : string.Empty;
 
     /// <summary>The FPS number is a little bigger than the other values.</summary>
     public double HeadlineFontSize => Math.Round(Options.FontSize * 1.3, 1);
@@ -243,7 +249,7 @@ public sealed class OverlayViewModel : ObservableObject
 
     /// <summary>
     /// Refreshes the frame rate of the program in front (about twice a second). <paramref name="executable"/> (its
-    /// file name or path) tells whether the frame pacer limits it.
+    /// file name or path) tells whether the frame limiter limits it.
     /// </summary>
     public void Tick(int? foregroundProcessId, string? executable = null)
     {
@@ -458,7 +464,10 @@ public sealed class OverlayViewModel : ObservableObject
     {
         public double TargetFrameTime => overlay._pacingCap > 0 ? 1000.0 / overlay._pacingCap : 0;
 
-        public int Read(Span<double> buffer) =>
-            overlay._processId is int pid && overlay.FrameRates is { } source ? source.RecentFrameTimes(pid, buffer) : 0;
+        public int Read(Span<double> buffer, out double newestAgeMilliseconds)
+        {
+            newestAgeMilliseconds = 0;
+            return overlay._processId is int pid && overlay.FrameRates is { } source ? source.RecentFrameTimes(pid, buffer, out newestAgeMilliseconds) : 0;
+        }
     }
 }

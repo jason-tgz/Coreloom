@@ -43,6 +43,22 @@ public class OverlaySettingsTests
     }
 
     [Fact]
+    public void RecentFrameTimes_SayHowLongAgoTheNewestFrameWasShown()
+    {
+        var tracker = new FrameRateTracker(1000); // milliseconds
+        foreach (long t in new long[] { 0, 7, 14 })
+        {
+            tracker.OnPresent(42, t);
+        }
+
+        var buffer = new double[8];
+        Assert.Equal(2, tracker.RecentFrameTimes(42, 20, buffer, out double age));
+        Assert.Equal(6, age);
+        Assert.Equal(0, tracker.RecentFrameTimes(42, 5000, buffer, out age)); // stale
+        Assert.Equal(0, age);
+    }
+
+    [Fact]
     public void Defaults_AreOffWithEndAsHotkey()
     {
         var overlay = new AppSettings().Normalize().Overlay;

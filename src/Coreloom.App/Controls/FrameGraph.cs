@@ -1,55 +1,64 @@
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
+using Coreloom.App.Interop;
+using Coreloom.App.Overlay;
+using Coreloom.Core.Overlay;
 using Coreloom.ViewModels.Overlay;
 
 namespace Coreloom.App.Controls;
 
 /// <summary>
-/// The overlay's frame-time graph: the time each of the latest frames took, newest at the right, as a line over a soft
-/// fill. Even pacing is a flat line; a stutter is a spike, tinted amber or red by how far it jumps above the typical frame.
-/// When the frame pacer limits the game, a dashed line marks its target. The scale follows the frames smoothly so it
-/// doesn't jump. It reads <see cref="Feed"/> about 30 times a second while shown and redraws only while frames come in.
+/// The overlay's frame-time graph (see <see cref="FrameGraphModel"/>): how long each of the game's frames took over the
+/// last second, newest at the right, gliding along with time. Even pacing is a flat line; a stutter is a spike, tinted
+/// amber or red by how far it jumps above the typical frame; the frame limiter's target is a dashed green line.
 /// <para>
-/// In the live overlay (<see cref="IsLiveProperty"/>, set on its window) it shows only real frames; in the preview in
-/// the settings it shows a still sample trace while no game is running, so the look can be judged.
+/// In the live overlay (<see cref="IsLiveProperty"/>, set on its window) this element only holds the graph's place: a
+/// <see cref="FrameGraphLayer"/> draws the graph from its own thread into a see-through window laid exactly over it, at
+/// an even pace. Everywhere else (the preview in the settings), it draws the same pixels into a bitmap itself, with a
+/// still sample trace while no game is running so the look can be judged. Both use <see cref="FrameGraphRaster"/>, so the
+/// overlay looks exactly like its preview.
 /// </para>
 /// </summary>
 public sealed class FrameGraph : FrameworkElement
 {
     public static readonly DependencyProperty FeedProperty = DependencyProperty.Register(
-        nameof(Feed), typeof(IFrameTimeFeed), typeof(FrameGraph), new PropertyMetadata(null, (d, _) => ((FrameGraph)d).Hook()));
+        nameof(Feed), typeof(IFrameTimeFeed), typeof(FrameGraph), new PropertyMetadata(null, (d, _) => ((FrameGraph)d).Restart()));
 
     public static readonly DependencyProperty StrokeProperty = DependencyProperty.Register(
-        nameof(Stroke), typeof(Brush), typeof(FrameGraph), new FrameworkPropertyMetadata(Brushes.White, FrameworkPropertyMetadataOptions.AffectsRender));
+        nameof(Stroke), typeof(Brush), typeof(FrameGraph), new FrameworkPropertyMetadata(Brushes.White, FrameworkPropertyMetadataOptions.AffectsRender, (d, _) => ((FrameGraph)d).OnLookChanged()));
 
-    /// <summary>Inherited: true inside the live overlay window (no sample trace there).</summary>
+    /// <summary>Inherited: true inside the live overlay window.</summary>
     public static readonly DependencyProperty IsLiveProperty = DependencyProperty.RegisterAttached(
         "IsLive", typeof(bool), typeof(FrameGraph), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.Inherits));
 
-    private const int Frames = 160;
-    private static readonly TimeSpan Interval = TimeSpan.FromMilliseconds(33);
-    private static readonly Color Warm = Color.FromRgb(0xFF, 0xB5, 0x47);
-    private static readonly Color Hot = Color.FromRgb(0xFF, 0x5C, 0x5C);
-    private static readonly Color Paced = Color.FromRgb(0x45, 0xD6, 0xA0);
+    private static readonly TimeSpan MinRedraw = TimeSpan.FromMilliseconds(1000.0 / 120);
+    private static readonly TimeSpan IdleCheck = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan PreviewCheck = TimeSpan.FromMilliseconds(500);
 
-    private static readonly TimeSpan SampleInterval = TimeSpan.FromMilliseconds(500);
-
-    private readonly double[] _buffer = new double[Frames];
-    private readonly double[] _incoming = new double[Frames];
+    private readonly FrameGraphModel _model = new();
+    private readonly FrameGraphRaster _raster = new();
+    private FrameTimeReader? _read;
+    private uint[] _pixels = [];
+    private WriteableBitmap? _bitmap;
+    private FrameGraphLayer? _layer;
+    private Window? _window;
+    private Rect _placed = Rect.Empty;
+    private (uint Color, double Opacity) _look = (0, -1);
     private bool _showingSample;
-    private readonly double[] _sorted = new double[Frames];
-    private int _count;
-    private double _scale = 20;   // milliseconds at the top of the graph (eases toward what the frames need)
-    private double _target;
+    private bool _active;
     private bool _hooked;
     private TimeSpan _lastDraw;
+    private DispatcherTimer? _idle;
 
     public FrameGraph()
     {
         IsHitTestVisible = false;
-        Loaded += (_, _) => Hook();
-        Unloaded += (_, _) => Unhook();
-        IsVisibleChanged += (_, _) => Hook();
+        Loaded += (_, _) => Restart();
+        Unloaded += (_, _) => Stop(dispose: true);
+        IsVisibleChanged += (_, _) => Restart();
     }
 
     public IFrameTimeFeed? Feed
@@ -68,23 +77,186 @@ public sealed class FrameGraph : FrameworkElement
 
     public static void SetIsLive(DependencyObject element, bool value) => element.SetValue(IsLiveProperty, value);
 
-    private void Hook()
+    private uint StrokeColor => Stroke is SolidColorBrush solid ? ((uint)solid.Color.R << 16) | ((uint)solid.Color.G << 8) | solid.Color.B : 0xFFFFFF;
+
+    /// <summary>The group the graph sits in carries the overlay's text opacity.</summary>
+    private double InheritedOpacity()
     {
-        if (IsLoaded && IsVisible && Feed is not null)
+        double opacity = 1;
+        for (DependencyObject? node = this; node is not null && node is not Window; node = VisualTreeHelper.GetParent(node))
         {
-            if (!_hooked)
+            if (node is UIElement element)
             {
-                _hooked = true;
-                CompositionTarget.Rendering += OnRendering;
+                opacity *= element.Opacity;
             }
+        }
+
+        return opacity;
+    }
+
+    private void Restart()
+    {
+        if (!IsLoaded || !IsVisible || Feed is null)
+        {
+            Stop(dispose: false);
+            return;
+        }
+
+        _read = Feed.Read;
+        if (GetIsLive(this) && StartLayer())
+        {
+            return;
+        }
+
+        if (_active)
+        {
+            StartRendering();
         }
         else
         {
-            Unhook();
+            StartIdle();
         }
     }
 
+    private void Stop(bool dispose)
+    {
+        StopRendering();
+        _idle?.Stop();
+        _active = false;
+        if (_layer is not null)
+        {
+            if (dispose)
+            {
+                Unhook();
+                _layer.Dispose();
+                _layer = null;
+            }
+            else
+            {
+                _layer.SetVisible(false);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ live: the layer draws it
+
+    private bool StartLayer()
+    {
+        if (_layer is null)
+        {
+            var window = Window.GetWindow(this);
+            if (window is null || Feed is not { } feed || FrameGraphLayer.TryCreate(window, feed) is not { } layer)
+            {
+                return false;
+            }
+
+            _layer = layer;
+            _window = window;
+            _window.LocationChanged += OnMoved;
+            LayoutUpdated += OnLayoutUpdated;
+        }
+
+        StopRendering();
+        _idle?.Stop();
+        _placed = Rect.Empty;
+        _look = (0, -1);
+        PlaceLayer();
+        RefreshLook();
+        _layer.SetVisible(true);
+        InvalidateVisual();
+        return true;
+    }
+
     private void Unhook()
+    {
+        if (_window is not null)
+        {
+            _window.LocationChanged -= OnMoved;
+            _window = null;
+        }
+
+        LayoutUpdated -= OnLayoutUpdated;
+    }
+
+    private void OnMoved(object? sender, EventArgs e) => PlaceLayer();
+
+    private void OnLayoutUpdated(object? sender, EventArgs e)
+    {
+        PlaceLayer();
+        RefreshLook(); // the overlay's text opacity can change without a new layout of the graph
+    }
+
+    private void OnLookChanged() => RefreshLook();
+
+    private void RefreshLook()
+    {
+        if (_layer is null)
+        {
+            return;
+        }
+
+        var look = (StrokeColor, Math.Round(InheritedOpacity(), 3));
+        if (look != _look)
+        {
+            _look = look;
+            _layer.SetLook(look.Item1, look.Item2);
+        }
+    }
+
+    /// <summary>Lays the layer over the graph's place: its screen rectangle in pixels.</summary>
+    private void PlaceLayer()
+    {
+        if (_layer is null || !IsVisible || PresentationSource.FromVisual(this) is null)
+        {
+            return;
+        }
+
+        var topLeft = PointToScreen(new Point(0, 0));
+        var bottomRight = PointToScreen(new Point(ActualWidth, ActualHeight));
+        var rect = new Rect(Math.Round(topLeft.X), Math.Round(topLeft.Y), Math.Round(bottomRight.X - topLeft.X), Math.Round(bottomRight.Y - topLeft.Y));
+        if (rect == _placed)
+        {
+            return;
+        }
+
+        _placed = rect;
+        var dpi = VisualTreeHelper.GetDpi(this);
+        IntPtr hwnd = _window is not null ? new WindowInteropHelper(_window).Handle : IntPtr.Zero;
+        _layer.Place((int)rect.X, (int)rect.Y, (int)rect.Width, (int)rect.Height, dpi.DpiScaleX, DisplayInfo.RefreshRateAt(hwnd));
+    }
+
+    // ------------------------------------------------------------------ preview (and a fallback): drawn here
+
+    /// <summary>Nothing drawing: look for frames now and then.</summary>
+    private void StartIdle()
+    {
+        StopRendering();
+        if (_idle is null)
+        {
+            _idle = new DispatcherTimer(DispatcherPriority.Background, Dispatcher);
+            _idle.Tick += (_, _) => Check();
+        }
+
+        _idle.Interval = GetIsLive(this) ? IdleCheck : PreviewCheck;
+        if (!_idle.IsEnabled)
+        {
+            _idle.Start();
+            Check();
+        }
+    }
+
+    private void StartRendering()
+    {
+        _idle?.Stop();
+        if (!_hooked)
+        {
+            _hooked = true;
+            _lastDraw = TimeSpan.Zero;
+            CompositionTarget.Rendering += OnRendering;
+        }
+    }
+
+    private void StopRendering()
     {
         if (_hooked)
         {
@@ -93,160 +265,101 @@ public sealed class FrameGraph : FrameworkElement
         }
     }
 
+    /// <summary>The idle check: frames have started (follow them), or show the sample / the empty baseline.</summary>
+    private void Check()
+    {
+        if (Feed is not { } feed || _read is null)
+        {
+            return;
+        }
+
+        if (_model.Update(_read, feed.TargetFrameTime, IdleCheck.TotalSeconds))
+        {
+            _showingSample = false;
+            _active = true;
+            StartRendering();
+            Redraw();
+            return;
+        }
+
+        if (!GetIsLive(this))
+        {
+            if (!_showingSample)
+            {
+                _showingSample = true; // the preview: a still sample trace, drawn once
+                _model.LoadSample();
+                Redraw();
+            }
+        }
+        else if (_bitmap is null || _showingSample)
+        {
+            _showingSample = false;
+            Redraw(); // the empty baseline, drawn once
+        }
+    }
+
     private void OnRendering(object? sender, EventArgs e)
     {
         var now = e is RenderingEventArgs args ? args.RenderingTime : TimeSpan.Zero;
-        if (now - _lastDraw < (_showingSample ? SampleInterval : Interval))
+        if (_lastDraw != TimeSpan.Zero && now - _lastDraw < MinRedraw)
         {
-            return;
+            return; // Rendering fires at the display's rate (and sometimes twice a frame)
         }
 
-        double elapsed = _lastDraw == TimeSpan.Zero ? Interval.TotalSeconds : Math.Min((now - _lastDraw).TotalSeconds, 0.25);
+        double dt = _lastDraw == TimeSpan.Zero ? MinRedraw.TotalSeconds : (now - _lastDraw).TotalSeconds;
         _lastDraw = now;
-        var feed = Feed;
-        int read = feed?.Read(_incoming) ?? 0;
-        _target = feed?.TargetFrameTime ?? 0;
-        if (read == 0)
+        if (Feed is not { } feed || _read is null || !_model.Update(_read, feed.TargetFrameTime, dt))
         {
-            if (!GetIsLive(this))
-            {
-                // The preview: a still sample trace, drawn once; the feed is checked twice a second for real frames.
-                if (!_showingSample)
-                {
-                    _showingSample = true;
-                    _count = Sample(_buffer);
-                    _scale = Wanted();
-                    InvalidateVisual();
-                }
-            }
-            else if (_count > 0)
-            {
-                _count = 0; // the game stopped drawing: back to the empty baseline (drawn once)
-                InvalidateVisual();
-            }
-
+            _active = false;
+            _showingSample = false;
+            Redraw();
+            StartIdle();
             return;
         }
 
-        _showingSample = false;
-        Array.Copy(_incoming, _buffer, read);
-        _count = read;
+        Redraw();
+    }
 
-        // The top of the graph: room above the typical frame and the target, eased so the trace doesn't jump.
-        _scale += (Wanted() - _scale) * Math.Min(1, elapsed * 4);
+    /// <summary>Draws the model into the bitmap (at the display's pixel size) and shows it.</summary>
+    private void Redraw()
+    {
+        var dpi = VisualTreeHelper.GetDpi(this);
+        int width = (int)Math.Round(ActualWidth * dpi.DpiScaleX);
+        int height = (int)Math.Round(ActualHeight * dpi.DpiScaleY);
+        if (width < 2 || height < 2)
+        {
+            return;
+        }
+
+        if (_bitmap is null || _bitmap.PixelWidth != width || _bitmap.PixelHeight != height)
+        {
+            _bitmap = new WriteableBitmap(width, height, 96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32, null);
+        }
+
+        if (_pixels.Length < width * height)
+        {
+            _pixels = new uint[width * height];
+        }
+
+        _raster.Draw(_pixels, width, height, _model, new FrameGraphLook(StrokeColor, 1, dpi.DpiScaleX));
+        _bitmap.WritePixels(new Int32Rect(0, 0, width, height), _pixels, width * 4, 0);
         InvalidateVisual();
     }
 
-    private double Wanted() => Math.Max(Math.Max(Percentile(0.5) * 2, Percentile(0.95) * 1.25), Math.Max(_target * 1.6, 8));
-
-    /// <summary>A believable trace for the preview: ~7 ms frames with a little jitter and a stutter now and then.</summary>
-    private static int Sample(double[] buffer)
+    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
     {
-        for (int i = 0; i < buffer.Length; i++)
+        base.OnRenderSizeChanged(sizeInfo);
+        if (_layer is null && _bitmap is not null)
         {
-            double t = i;
-            double jitter = (Math.Sin(t * 0.9) * 0.35) + (Math.Sin(t * 2.3 + 1) * 0.2);
-            double stutter = ((int)t % 97) == 0 ? 9 : ((int)t % 53) == 0 ? 4 : 0;
-            buffer[i] = 6.9 + jitter + stutter;
+            Redraw();
         }
-
-        return buffer.Length;
-    }
-
-    private double Percentile(double p)
-    {
-        if (_count == 0)
-        {
-            return 0;
-        }
-
-        Array.Copy(_buffer, _sorted, _count);
-        Array.Sort(_sorted, 0, _count);
-        return _sorted[Math.Clamp((int)(p * (_count - 1)), 0, _count - 1)];
     }
 
     protected override void OnRender(DrawingContext dc)
     {
-        double w = ActualWidth, h = ActualHeight;
-        if (w < 8 || h < 6)
+        if (_layer is null && _bitmap is not null)
         {
-            return;
+            dc.DrawImage(_bitmap, new Rect(0, 0, ActualWidth, ActualHeight));
         }
-
-        var stroke = Stroke as SolidColorBrush;
-        var color = stroke?.Color ?? Colors.White;
-
-        // A faint baseline, so the graph's place shows even with nothing to draw.
-        dc.DrawRectangle(Solid(WithAlpha(color, 0x10)), null, new Rect(0, h - 1, w, 1));
-        if (_count < 2)
-        {
-            return;
-        }
-
-        double scale = Math.Max(_scale, 1);
-        double step = w / (Frames - 1);
-        double x0 = w - ((_count - 1) * step);
-        double Y(double ms) => Math.Clamp(h - (ms / scale * (h - 1.5)), 1, h);
-
-        var line = new StreamGeometry();
-        var area = new StreamGeometry();
-        using (var l = line.Open())
-        using (var a = area.Open())
-        {
-            l.BeginFigure(new Point(x0, Y(_buffer[0])), false, false);
-            a.BeginFigure(new Point(x0, h), true, true);
-            a.LineTo(new Point(x0, Y(_buffer[0])), false, false);
-            for (int i = 1; i < _count; i++)
-            {
-                var point = new Point(x0 + (i * step), Y(_buffer[i]));
-                l.LineTo(point, true, true);
-                a.LineTo(point, false, false);
-            }
-
-            a.LineTo(new Point(w, h), false, false);
-        }
-
-        line.Freeze();
-        area.Freeze();
-
-        var fill = new LinearGradientBrush(WithAlpha(color, 0x48), WithAlpha(color, 0x00), 90);
-        fill.Freeze();
-        dc.DrawGeometry(fill, null, area);
-        var pen = new Pen(Solid(WithAlpha(color, 0xE6)), 1.4) { LineJoin = PenLineJoin.Round };
-        pen.Freeze();
-        dc.DrawGeometry(null, pen, line);
-
-        // Stutters: frames well above the typical one, as tinted marks over the line.
-        double typical = Percentile(0.5);
-        for (int i = 1; i < _count; i++)
-        {
-            double ms = _buffer[i];
-            if (ms > typical * 1.6 && ms > typical + 2)
-            {
-                var tint = ms > typical * 2.5 ? Hot : Warm;
-                double x = x0 + (i * step);
-                var mark = new Pen(Solid(tint), 2) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
-                mark.Freeze();
-                dc.DrawLine(mark, new Point(x, Y(Math.Max(typical, ms - (scale * 0.25)))), new Point(x, Y(ms)));
-            }
-        }
-
-        // The frame pacer's target.
-        if (_target > 0)
-        {
-            double y = Math.Round(Y(_target)) + 0.5;
-            var dash = new Pen(Solid(WithAlpha(Paced, 0xCC)), 1) { DashStyle = new DashStyle([3, 3], 0) };
-            dash.Freeze();
-            dc.DrawLine(dash, new Point(0, y), new Point(w, y));
-        }
-    }
-
-    private static Color WithAlpha(Color color, byte alpha) => Color.FromArgb(alpha, color.R, color.G, color.B);
-
-    private static SolidColorBrush Solid(Color color)
-    {
-        var brush = new SolidColorBrush(color);
-        brush.Freeze();
-        return brush;
     }
 }

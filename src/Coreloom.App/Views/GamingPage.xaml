@@ -58,14 +58,19 @@
             </Grid>
             <StackPanel Grid.Column="1" Margin="12,0,10,0" VerticalAlignment="Center">
               <TextBlock Text="{Binding Title}" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}" TextWrapping="Wrap" />
-              <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                <Border x:Name="StatusPill" CornerRadius="6" Padding="7,1" Background="{DynamicResource Brush.ControlHover}">
+              <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
+                <Border x:Name="StatusPill" CornerRadius="6" Padding="7,1" Margin="0,0,6,2" Background="{DynamicResource Brush.ControlHover}">
                   <TextBlock x:Name="StatusText" Text="{Binding StatusText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{Binding ColorKey, Converter={StaticResource ColorKeyToBrush}}" />
                 </Border>
-                <Border Style="{StaticResource Badge}" Margin="6,0,0,0" Visibility="{Binding HasTag, Converter={StaticResource BoolToVisibility}}">
+                <!-- what it helps with: green for smoothness, neutral for the rest -->
+                <Border x:Name="CategoryPill" CornerRadius="6" Padding="7,1" Margin="0,0,6,2" Background="{DynamicResource Brush.ControlHover}"
+                        Visibility="{Binding HasCategory, Converter={StaticResource BoolToVisibility}}">
+                  <TextBlock x:Name="CategoryText" Text="{Binding Category}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextSecondary}" />
+                </Border>
+                <Border Style="{StaticResource Badge}" Margin="0,0,0,2" Visibility="{Binding HasTag, Converter={StaticResource BoolToVisibility}}">
                   <TextBlock Text="{Binding Tag}" FontSize="10.5" Foreground="{DynamicResource Brush.TextSecondary}" />
                 </Border>
-              </StackPanel>
+              </WrapPanel>
             </StackPanel>
             <Grid Grid.Column="2" VerticalAlignment="Top">
               <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding IsOn, Mode=TwoWay}" IsEnabled="{Binding CanToggle}"
@@ -75,7 +80,13 @@
                              Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
             </Grid>
           </Grid>
-          <TextBlock Grid.Row="1" Text="{Binding Description}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" TextTrimming="None" Margin="0,12,0,0" />
+          <StackPanel Grid.Row="1" Margin="0,12,0,0">
+            <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" TextTrimming="None" />
+            <TextBlock Text="{Binding Recommendation}" FontSize="11.5" Foreground="{DynamicResource Brush.TextSecondary}" TextWrapping="Wrap" Margin="0,8,0,0"
+                       Visibility="{Binding HasRecommendation, Converter={StaticResource BoolToVisibility}}" />
+            <TextBlock Text="{Binding Caveat}" FontSize="11.5" Foreground="{DynamicResource Brush.TextTertiary}" TextWrapping="Wrap" Margin="0,4,0,0"
+                       Visibility="{Binding HasCaveat, Converter={StaticResource BoolToVisibility}}" />
+          </StackPanel>
           <TextBlock Grid.Row="2" x:Name="Message" Text="{Binding Message}" FontSize="11.5" Foreground="{DynamicResource Brush.Elevated}" TextWrapping="Wrap" Margin="0,8,0,0"
                      Visibility="{Binding HasMessage, Converter={StaticResource BoolToVisibility}}" />
         </Grid>
@@ -87,6 +98,10 @@
         </DataTrigger>
         <DataTrigger Binding="{Binding IsOn}" Value="True">
           <Setter TargetName="StatusPill" Property="Background" Value="{DynamicResource Brush.SuccessSoft}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding IsSmoothness}" Value="True">
+          <Setter TargetName="CategoryPill" Property="Background" Value="{DynamicResource Brush.SuccessSoft}" />
+          <Setter TargetName="CategoryText" Property="Foreground" Value="{DynamicResource Brush.Success}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding NeedsRestart}" Value="True">
           <Setter TargetName="StatusPill" Property="Background" Value="{DynamicResource Brush.ElevatedSoft}" />
@@ -310,7 +325,7 @@
               <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Game Boost" Style="{StaticResource Text.Section}" />
                 <Border Style="{StaticResource Badge}" Margin="10,0,0,0" Background="{DynamicResource Brush.AccentSoft}">
-                  <TextBlock Text="boost · pace · play" FontSize="10.5" Foreground="{DynamicResource Brush.Accent}" />
+                  <TextBlock Text="boost · limit · play" FontSize="10.5" Foreground="{DynamicResource Brush.Accent}" />
                 </Border>
               </StackPanel>
               <TextBlock Text="{Binding HeroTitle}" FontSize="21" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}" TextWrapping="Wrap" Margin="0,8,0,0" />
@@ -376,7 +391,7 @@
                       <TextBlock Text="Frame limit" Style="{StaticResource Text.Label}" Margin="7,0,0,0" />
                     </StackPanel>
                     <TextBlock Text="{Binding FrameLimitText}" Style="{StaticResource StatValue}" />
-                    <TextBlock Text="frame pacer" Style="{StaticResource Text.Caption}" />
+                    <TextBlock Text="frame limiter" Style="{StaticResource Text.Caption}" />
                   </StackPanel>
                 </c:SquircleBorder>
                 <c:SquircleBorder Style="{StaticResource Card.Inset}" Padding="13,11">
@@ -412,11 +427,11 @@
       </ItemsControl>
 
       <!-- ============================================================ -->
-      <!-- Frame pacer and shader cache, side by side (stacked when narrow) -->
+      <!-- Frame limiter and shader cache, side by side (stacked when narrow) -->
       <!-- ============================================================ -->
       <c:StackedColumns MinColumnWidth="440" MaxColumns="2" Spacing="16" RowSpacing="16" InOrder="True" FillColumns="True" Margin="0,16,0,0">
 
-        <!-- Frame pacer -->
+        <!-- Frame limiter -->
         <c:SquircleBorder Style="{StaticResource Card.Glow}" GlowKey="Accent" GlowStrength="0.7" DataContext="{Binding FramePacer}">
           <StackPanel>
             <Grid>
@@ -430,7 +445,7 @@
               </c:SquircleBorder>
               <StackPanel Grid.Column="1" Margin="12,0,10,0" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal">
-                  <TextBlock Style="{StaticResource Text.CardTitle}" FontSize="14" Text="Frame pacer" />
+                  <TextBlock Style="{StaticResource Text.CardTitle}" FontSize="14" Text="Frame limiter" />
                   <Border Style="{StaticResource Badge}" Margin="8,0,0,0">
                     <TextBlock Text="NVIDIA driver" FontSize="10.5" Foreground="{DynamicResource Brush.TextSecondary}" />
                   </Border>
@@ -438,7 +453,7 @@
                 <TextBlock Style="{StaticResource Text.Caption}" Text="A precise frame-rate limit for smooth, even frames on high-refresh displays" TextWrapping="Wrap" TextTrimming="None" Margin="0,2,0,0" />
               </StackPanel>
               <Grid Grid.Column="2" VerticalAlignment="Center">
-                <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding IsOn, Mode=TwoWay}" IsEnabled="{Binding CanToggle}" AutomationProperties.Name="Frame pacer"
+                <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding IsOn, Mode=TwoWay}" IsEnabled="{Binding CanToggle}" AutomationProperties.Name="Frame limiter"
                           Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
                 <c:RadialGauge Style="{StaticResource GameSpinner}" Margin="0,0,10,0" b:Spin.IsSpinning="{Binding IsBusy}"
                                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
@@ -602,8 +617,8 @@
               </StackPanel>
             </Grid>
 
-            <!-- Unlimited shader cache switch -->
-            <c:SquircleBorder Style="{StaticResource Card.Inset}" Padding="14,12" Margin="0,14,0,0" DataContext="{Binding UnlimitedShaderCache}">
+            <!-- The shader cache boost, with the size it sets -->
+            <c:SquircleBorder Style="{StaticResource Card.Inset}" Padding="14,12" Margin="0,14,0,0" DataContext="{Binding ShaderCache}">
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*" />
@@ -617,7 +632,17 @@
                     </Border>
                   </StackPanel>
                   <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" TextTrimming="None" Margin="0,4,0,0" />
-                  <TextBlock Text="{Binding Message}" FontSize="11.5" Foreground="{DynamicResource Brush.Elevated}" TextWrapping="Wrap" Margin="0,4,0,0"
+                  <!-- the size it sets: 10 GB, 100 GB or unlimited (applied at once while on) -->
+                  <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                    <TextBlock Text="Size" Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <ComboBox Style="{StaticResource ComboBox.Default}" MinWidth="130" AutomationProperties.Name="Shader cache size"
+                              ItemsSource="{Binding DataContext.ShaderCacheSizes, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                              DisplayMemberPath="Label" SelectedValuePath="Value"
+                              SelectedValue="{Binding DataContext.ShaderCacheSize, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                    <TextBlock Text="{Binding DataContext.ShaderCacheLimitText, RelativeSource={RelativeSource AncestorType=UserControl}}" Style="{StaticResource Text.Caption}"
+                               VerticalAlignment="Center" Margin="12,0,0,0" />
+                  </StackPanel>
+                  <TextBlock Text="{Binding Message}" FontSize="11.5" Foreground="{DynamicResource Brush.Elevated}" TextWrapping="Wrap" Margin="0,6,0,0"
                              Visibility="{Binding HasMessage, Converter={StaticResource BoolToVisibility}}" />
                 </StackPanel>
                 <Grid Grid.Column="1" VerticalAlignment="Top">

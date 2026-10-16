@@ -15,6 +15,12 @@ namespace Coreloom.App.Overlay;
 /// Runs the in-game overlay: shows its window over the program in front when it is on, keeps it in its corner of that
 /// program's screen, measures frame rates only while a frame-rate reading is shown, and listens for the hotkey (which
 /// turns the overlay on and off, also from inside games).
+/// <para>
+/// It stays out of the game's way: the window is drawn on the processor (never queuing work on the graphics card), the
+/// frame-time graph draws from its own low-priority thread, it only claims the top of the screen again when another
+/// window has actually covered it, and while a program other than Coreloom is in front Coreloom runs at below-normal
+/// priority, so its own work (sensors, the overlay) always gives way to the game's threads.
+/// </para>
 /// </summary>
 internal sealed partial class OverlayService : IDisposable
 {
@@ -25,6 +31,9 @@ internal sealed partial class OverlayService : IDisposable
     private const uint SwpNoMove = 0x0002;
     private const uint SwpNoActivate = 0x0010;
     private const uint MonitorDefaultToPrimary = 1;
+    private const uint GwHwndPrev = 3;
+    private const int GwlExStyle = -20;
+    private const long WsExTopmost = 0x00000008;
 
     private readonly ShellViewModel _shell;
     private readonly SettingsService _settings;
@@ -38,7 +47,7 @@ internal sealed partial class OverlayService : IDisposable
     private OverlayWindow? _window;
     private int _lastProgramId;
     private string? _lastProgram;
-    private int _ticks;
+    private bool _yielding;
     private bool _disposed;
 
     public OverlayService(ShellViewModel shell, SettingsService settings, Dispatcher dispatcher, EtwFrameRateSource frameRates)
@@ -73,6 +82,7 @@ internal sealed partial class OverlayService : IDisposable
         _overlay.PropertyChanged -= OnOverlayChanged;
         _card.PropertyChanged -= OnCardChanged;
         _timer.Stop();
+        Yield(false);
         _hotkey.Dispose();
         _frameRates.Release(FrameRateOwner);
         _window?.Close();
@@ -167,6 +177,7 @@ internal sealed partial class OverlayService : IDisposable
             }
 
             _overlay.Tick(null);
+            Yield(false);
         }
     }
 
@@ -186,12 +197,68 @@ internal sealed partial class OverlayService : IDisposable
 
         _overlay.Tick(processId, processId is int id ? ProgramName(id) : null);
         Place();
+        Yield(processId is not null);
 
-        // Other topmost windows (some games, launchers) can end up above it; claim the top again now and then.
-        if (++_ticks % 4 == 0)
+        // Other topmost windows (some games, launchers) can end up above it: claim the top again, but only then, so the
+        // window order the game is composed with isn't touched for nothing.
+        if (IsCovered(_window.Handle))
         {
             SetWindowPos(_window.Handle, HwndTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
         }
+    }
+
+    /// <summary>
+    /// While a program other than Coreloom is in front (and the overlay is up), Coreloom runs below normal priority, so
+    /// the game's threads always come first; back to normal when Coreloom is in front or the overlay is off.
+    /// </summary>
+    private void Yield(bool yield)
+    {
+        if (yield == _yielding)
+        {
+            return;
+        }
+
+        try
+        {
+            using var process = System.Diagnostics.Process.GetCurrentProcess();
+            process.PriorityClass = yield ? System.Diagnostics.ProcessPriorityClass.BelowNormal : System.Diagnostics.ProcessPriorityClass.Normal;
+            _yielding = yield;
+        }
+        catch (Exception e) when (e is Win32Exception or InvalidOperationException or NotSupportedException)
+        {
+            Log.WarnThrottled("overlay-priority", TimeSpan.FromMinutes(10), LogCategory, "Changing Coreloom's priority failed.", e);
+        }
+    }
+
+    /// <summary>Whether a visible topmost window of another program is above the overlay and overlaps it.</summary>
+    private bool IsCovered(IntPtr hwnd)
+    {
+        if (!GetWindowRect(hwnd, out var mine))
+        {
+            return false;
+        }
+
+        IntPtr above = GetWindow(hwnd, GwHwndPrev);
+        for (int i = 0; above != IntPtr.Zero && i < 64; i++, above = GetWindow(above, GwHwndPrev))
+        {
+            if (!IsWindowVisible(above) || (GetWindowLongPtr(above, GwlExStyle) & WsExTopmost) == 0)
+            {
+                continue;
+            }
+
+            if (GetWindowThreadProcessId(above, out uint pid) != 0 && pid == _ownProcessId)
+            {
+                continue; // Coreloom's own (the graph's window sits just above the overlay)
+            }
+
+            if (GetWindowRect(above, out var other)
+                && other.Left < mine.Right && mine.Left < other.Right && other.Top < mine.Bottom && mine.Top < other.Bottom)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>"Cyberpunk2077.exe" for a process (remembered for the last one asked about).</summary>
@@ -303,4 +370,14 @@ internal sealed partial class OverlayService : IDisposable
 
     [LibraryImport("shcore.dll")]
     private static partial int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);
+
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetWindow(IntPtr hwnd, uint command);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsWindowVisible(IntPtr hwnd);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    private static partial nint GetWindowLongPtr(IntPtr hwnd, int index);
 }

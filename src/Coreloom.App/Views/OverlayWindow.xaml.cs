@@ -9,6 +9,13 @@ namespace Coreloom.App.Views;
 /// The in-game overlay: a small topmost window that clicks pass through, that never takes focus and that isn't in the
 /// taskbar or Alt+Tab. Shown over windowed and borderless games (and over exclusive-fullscreen games where Windows'
 /// fullscreen optimizations apply).
+/// <para>
+/// It is drawn on the processor, not the graphics card: a see-through WPF window drawn on the graphics card has every
+/// changed frame copied back from the card for Windows to blend, which makes the app wait on a card the game is keeping
+/// busy. Drawn on the processor, the overlay never queues work on the graphics card or waits for it; Windows only
+/// blends the finished picture over the game. The window is small and changes only twice a second (and the frame-time
+/// graph while a game draws), so this costs little.
+/// </para>
 /// </summary>
 public partial class OverlayWindow : Window
 {
@@ -35,6 +42,11 @@ public partial class OverlayWindow : Window
         style |= (nint)(WsExTransparent | WsExToolWindow | WsExLayered | WsExNoActivate);
         style &= ~(nint)WsExAppWindow;
         SetWindowLongPtr(hwnd, GwlExStyle, style);
+
+        if (HwndSource.FromHwnd(hwnd)?.CompositionTarget is { } target)
+        {
+            target.RenderMode = RenderMode.SoftwareOnly;
+        }
     }
 
     [LibraryImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]

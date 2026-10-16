@@ -147,6 +147,37 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.4.3: smooth overlay graph, overlay performance, G-SYNC, shader cache size, Auto HDR
+
+- **Core tests: 479 passed** (27 new: the graph's timing (frames placed at the moment they were shown, the delay
+  following ETW's batches and easing back, nothing drawn past the left edge), its scale, stutter classes and redraw
+  rate; the raster (line, fill, stutter marks, dashed target, opacity, premultiplied blending, nothing drawn outside
+  the bitmap); shader cache sizes, G-SYNC on/off states and the recommendation text, the DirectX settings names, and
+  repairing a stored size that isn't offered). **View-model tests: 125 passed** (4 new, and the boost tests updated
+  for 9 boosts of which 8 count: categories, recommendations, the G-SYNC recommendation from the frame limit and
+  refresh rate, the shader cache size flow, a hint shown under a card).
+- **New Windows tests** (`OverlaySurfaceTests`, Windows runner): the high-resolution timer averages close to its
+  4 ms interval (an ordinary timer would average 15.6 ms), stops and wakes on request, and a real layered window takes
+  pixels from a second thread without waiting on the window's thread, and again after being resized.
+- Here, `Coreloom.App` compiles (0 errors, 0 warnings) and the XAML checks pass (20 files, 242 shared keys, 1,129
+  bindings).
+- The choppy graph was traced in WPF's own source (`MediaContext`): a window drawn in software isn't paced by the
+  display, so WPF schedules its frames with a 10 ms `DispatcherTimer`, which fires on the 15.6 ms system tick: at most
+  64 uneven frames a second. That is why the graph now draws itself, on a precise timer, into its own window.
+- The NVIDIA setting IDs, values and units (G-SYNC's three global settings, the shader cache size in MB with 0x4000 as
+  the default, `NV_GET_VRR_INFO_V1`) were checked against NVIDIA's public NVAPI headers; the HDR query structures
+  against the Windows SDK. The graph's pixels were rendered here from the real raster code and looked at.
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Smooth, responsive graph | Model and raster unit-tested; timer and window tested on Windows CI; compiled | How smooth it looks over a running game; that it sits exactly over its place at his scaling |
+| No overlay impact on games | Software-only drawing, low-priority threads, below-normal process priority while a game is in front, top re-asserted only when covered | **Not measured**: no game, GPU or frame-time capture here. Needs the before/after check in TESTING |
+| No overlay outline | Rim removed from the template; compiled | The look over a game |
+| G-SYNC boost | IDs from NVIDIA's headers; state logic unit-tested | That the NVIDIA Control Panel shows the change on his display; the VRR query on his monitor |
+| Shader cache size | Sizes and states unit-tested | The control panel showing the chosen size |
+| Auto HDR | Setting name unit-tested; HDR query compiled | Detection on his OLED with HDR on and off |
+| Frame limiter rename, no Ctrl K badge | Text search over the app and docs; XAML checks | — |
+
 ### 1.4.2: design fixes
 
 - **Core tests: 452 passed** (10 new: which shortcut files are Coreloom's, a shortcut starting this exe (case, quotes),

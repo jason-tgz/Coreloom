@@ -365,20 +365,40 @@ In the app, `OverlayService` owns the pieces:
 
 The foreground process comes from `GetForegroundWindow`; Coreloom itself shows no frame rate.
 
-Since 1.4.1 the overlay is a squircle of smoked glass with a rim, the FPS value is the headline, and the FPS line
-carries the frame-time graph (`OverlayCatalog.FrameGraph`, offered once to existing setups through
-`OverlaySettings.Revision`) and the frame pacer's mark. `FrameGraph` reads `OverlayViewModel.FrameTimes`
-(`IFrameTimeFeed` over `IFrameRateSource.RecentFrameTimes`, i.e. `FrameRateTracker.RecentFrameTimes`) about 30 times a
-second while shown: a line over a soft fill with an eased scale, stutters (over 1.6× the median) tinted amber or red,
-and the pacing target dashed. The mark shows when `GamingSettings.ActiveFrameCap(program)` is above zero for the
-foreground program (`OverlayService` passes its file name). The settings preview draws a sample trace
-(`FrameGraph.IsLive` is set only on the overlay window).
+Since 1.4.1 the overlay is a squircle of smoked glass (no outline since 1.4.3), the FPS value is the headline, and the
+FPS line carries the frame-time graph (`OverlayCatalog.FrameGraph`, offered once to existing setups through
+`OverlaySettings.Revision`) and the frame limiter's mark. The mark shows when `GamingSettings.ActiveFrameCap(program)`
+is above zero for the foreground program (`OverlayService` passes its file name). The text shadow is set on the text
+only.
+
+**The frame-time graph (1.4.3).** `FrameGraphModel` (Core, unit-tested) reads `IFrameTimeFeed` (over
+`FrameRateTracker.RecentFrameTimes`, which also gives how long ago the newest frame was shown) and places each frame at
+the moment it was shown across one second, the graph trailing real time by a delay that follows the lateness of ETW's
+50 ms batches (rising at once, easing back), with an eased scale; `FrameGraphRaster` (Core, unit-tested) draws it into
+premultiplied BGRA pixels with its own anti-aliasing: baseline, fading fill, line (per-pixel maximum coverage so joins
+don't double), stutter marks (over 1.6× the median, red over 2.5×) and the dashed limiter target. The overlay window is
+drawn by WPF in software (`RenderMode.SoftwareOnly`, so it never queues work on the graphics card), and a software WPF
+target isn't vsync-paced: WPF schedules its frames with a 10 ms `DispatcherTimer`, which fires on the 15.6 ms system
+tick, so a graph drawn by WPF stepped at ≤ 64 uneven frames a second. So in the overlay the `FrameGraph` element only
+holds the place, and `FrameGraphLayer` draws the graph from its own below-normal thread into a `LayeredSurface`
+(Hardware/Native: a click-through per-pixel-alpha popup owned by the overlay window, placed by the UI thread with
+`SetWindowPos`, filled from the drawing thread with `UpdateLayeredWindow` without moving it, which never waits on the
+UI thread), woken by a `PreciseTimer` (a `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION` waitable timer) at
+`FrameGraphModel.RedrawRate` (the display's refresh, or an even fraction ≤ 144 Hz: 120 on 240 Hz) while frames come
+in and 4 times a second otherwise. The settings preview (not `FrameGraph.IsLive`) draws the same pixels into a
+`WriteableBitmap`, with a still sample trace.
+
+**Staying out of the game's way (1.4.3).** Besides the software-drawn window and the graph thread: `OverlayService`
+claims the top again only when a visible topmost window of another program overlaps the overlay (`GetWindow`
+`GW_HWNDPREV` walk) rather than every 2 s, and while the overlay is up and another program is in front it sets
+Coreloom's priority class to below normal (back to normal when Coreloom is in front or the overlay is off). The ETW
+consumer thread runs below normal.
 
 ## Gaming
 
 `GamingViewModel` (the *Gaming* page, above Graphics) has four parts; everything Windows-specific is behind
 `IGamingService` (`WindowsGamingService` in the app, `UnsupportedGamingService` elsewhere). Settings live in `Gaming`
-(`GamingSettings`: list or grid, sort order, the frame pacer's target, the power plans to restore, whether covers may
+(`GamingSettings`: list or grid, sort order, the frame limiter's target, the power plans to restore, whether covers may
 be downloaded, the last driver version seen).
 
 - **Library.** Core parses each launcher's own files, unit-tested with samples: Valve's text KeyValues
@@ -404,13 +424,26 @@ be downloaded, the last driver version seen).
   that was active is remembered and restored when it's switched off. Game Mode: `GameBar\AutoGameModeEnabled`.
   Windowed optimizations: `SwapEffectUpgradeEnable` in `DirectX\UserGpuPreferences\DirectXUserGlobalSettings`, keeping
   the other entries (Windows 11). Background recording: `GameDVR\HistoricalCaptureEnabled`. NVIDIA power mode:
-  NVAPI.
-- **Frame pacer.** The NVIDIA driver's frame limiter (`FRL_FPS`, 0x10835002) in the global profile through NVAPI's
+  NVAPI. Since 1.4.3 each card has a category pill (Latency, Performance, Frame stability, Smoothness, Visual
+  fidelity) and, for the newer ones, a recommendation and what it doesn't do. **G-SYNC**: the global profile's
+  `VRRFEATUREINDICATOR` (0x1094F157), `VRRREQUESTSTATE` (0x1094F1F7) and `VRR_MODE` (0x1194F158) set to 1/2/2
+  (fullscreen and windowed) in one session, plus Windows 11's `VRROptimizeEnable`; off restores the driver defaults
+  (fullscreen only). `NvAPI_DISP_GetDisplayIdByDisplayName` + `NvAPI_Disp_GetVRRInfo` (`NV_GET_VRR_INFO_V1`, 24 bytes)
+  on the fastest display: not offered when variable refresh isn't possible, a hint when it isn't turned on for the
+  display. The recommendation names the frame limit and refresh rate (`GSyncSetup`). **Shader cache**:
+  `PS_SHADERDISKCACHE_MAX_SIZE` (0x00AC8497, megabytes; the driver's default is 0x4000) set to the chosen 10 GB /
+  100 GB / unlimited (`GamingSettings.ShaderCacheSize`, `ShaderCacheSize`), on when a limit of 10 GB or more was set
+  (`NvApi.GetGlobalSetting` tells a set value from the driver's own via `isCurrentPredefined`); off restores the
+  default; a new size applies at once while on. **Auto HDR**: `AutoHDREnable` in the same DirectX settings (Windows
+  11); HDR state from `DisplayConfigGetDeviceInfo` (`DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2`, type 15, else type 9
+  without wide-color-only): not offered without an HDR display, a hint while HDR is off. Auto HDR isn't counted as a
+  boost and *Boost now* leaves it alone.
+- **Frame limiter.** The NVIDIA driver's frame limiter (`FRL_FPS`, 0x10835002) in the global profile through NVAPI's
   driver settings (`NvApi`: `nvapi_QueryInterface` function pointers, ids from NVIDIA's public `nvapi_interface.h`,
   the 12,320-byte `NVDRS_SETTING`). *Automatic* is refresh − refresh² ÷ 3600 (`FrameCap.AutoTarget`, as NVIDIA Reflex
   uses), from the fastest attached display. While a library game runs the page leases the frame-rate source and grades
   pacing from its 1% low against the average (`FramePacing`).
-- **Per-game limits (1.4.1).** The pacer's *Apply to* picker chooses all games or one. A game's limit goes into the
+- **Per-game limits (1.4.1).** The limiter's *Apply to* picker chooses all games or one. A game's limit goes into the
   driver profile of its programs: `GameExecutables.Pick` (Core, unit-tested) takes the running program in the game's
   folder, the store's launch program, Unreal's `*-Shipping.exe`, else the largest program that isn't a helper;
   `NvApi.SetForApplication` uses `NvAPI_DRS_FindApplicationByName` (NVIDIA's own profile when it lists the program;

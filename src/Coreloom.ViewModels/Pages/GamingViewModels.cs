@@ -134,7 +134,19 @@ public sealed class GamingTweakViewModel : ObservableObject
     private string? _message;
     private bool? _pending;
 
-    public GamingTweakViewModel(GamingTweak tweak, string title, string description, string iconKey, string? tag, Func<GamingTweakViewModel, bool, Task> set)
+    private string? _recommendation;
+
+    public GamingTweakViewModel(
+        GamingTweak tweak,
+        string title,
+        string description,
+        string iconKey,
+        string? tag,
+        Func<GamingTweakViewModel, bool, Task> set,
+        string? category = null,
+        string? recommendation = null,
+        string? caveat = null,
+        bool countsAsBoost = true)
     {
         Tweak = tweak;
         Title = title;
@@ -142,7 +154,42 @@ public sealed class GamingTweakViewModel : ObservableObject
         IconKey = iconKey;
         Tag = tag;
         _set = set;
+        Category = category;
+        _recommendation = recommendation;
+        Caveat = caveat;
+        CountsAsBoost = countsAsBoost;
     }
+
+    /// <summary>What it helps with ("Smoothness", "Frame stability", "Visual fidelity"…), shown as a pill.</summary>
+    public string? Category { get; }
+
+    public bool HasCategory => Category is not null;
+
+    /// <summary>"Smoothness" gets the green pill; the others a neutral one.</summary>
+    public bool IsSmoothness => Category == "Smoothness";
+
+    /// <summary>"Recommended: …" — how to use it on this PC.</summary>
+    public string? Recommendation
+    {
+        get => _recommendation;
+        set
+        {
+            if (SetProperty(ref _recommendation, value))
+            {
+                OnPropertyChanged(nameof(HasRecommendation));
+            }
+        }
+    }
+
+    public bool HasRecommendation => !string.IsNullOrEmpty(_recommendation);
+
+    /// <summary>What it doesn't do ("Improves how frames are shown, not the frame rate").</summary>
+    public string? Caveat { get; }
+
+    public bool HasCaveat => Caveat is not null;
+
+    /// <summary>Counted in the banner's "boosts on" and turned on by "Boost now" (Auto HDR is a matter of taste: not).</summary>
+    public bool CountsAsBoost { get; }
 
     public GamingTweak Tweak { get; }
 
@@ -216,7 +263,7 @@ public sealed class GamingTweakViewModel : ObservableObject
     {
         _status = status;
         _pending = null;
-        Message = status.NeedsRestart ? "Restart Windows to finish." : status.IsSupported ? null : status.Note;
+        Message = status.NeedsRestart ? "Restart Windows to finish." : status.Note; // why it can't be used, or a hint
         OnPropertyChanged(nameof(IsSupported));
         OnPropertyChanged(nameof(IsOn));
         OnPropertyChanged(nameof(NeedsRestart));
@@ -229,11 +276,11 @@ public sealed class GamingTweakViewModel : ObservableObject
 /// <summary>A shader cache folder and its size.</summary>
 public sealed record ShaderCacheRow(string Name, string Path, string SizeText) : StaticRecord;
 
-/// <summary>A game with a frame limit of its own, shown as a chip under the frame pacer.</summary>
+/// <summary>A game with a frame limit of its own, shown as a chip under the frame limiter.</summary>
 public sealed record GameCapChip(string GameId, string Name, string LimitText, IRelayCommand SelectCommand, IAsyncRelayCommand RemoveCommand) : StaticRecord;
 
 /// <summary>
-/// The frame pacer: a frame-rate limit set in the graphics driver (no injection, so it is safe with anti-cheat), for
+/// The frame limiter: a frame-rate limit set in the graphics driver (no injection, so it is safe with anti-cheat), for
 /// every game or for one game only (the driver's profile for that game's programs), automatically a little under the
 /// refresh rate so variable refresh stays engaged; plus how evenly frames arrive in the game that is running.
 /// </summary>
@@ -269,7 +316,7 @@ public sealed class FramePacerViewModel : ObservableObject
 
     public bool IsSupported => Status.HasNvidiaDriver;
 
-    public string UnsupportedText => "The frame pacer sets the NVIDIA graphics driver's own frame limiter, and no NVIDIA driver was found. On AMD graphics, AMD Software's Radeon Chill or Frame Rate Target Control does the same.";
+    public string UnsupportedText => "The frame limiter sets the NVIDIA graphics driver's own high-precision limiter, and no NVIDIA driver was found. On AMD graphics, AMD Software's Radeon Chill or Frame Rate Target Control does the same.";
 
     /// <summary>"All games" and every game in the library.</summary>
     public IReadOnlyList<Option<string>> Scopes
@@ -597,7 +644,7 @@ public sealed class FramePacerViewModel : ObservableObject
 }
 
 /// <summary>
-/// The Gaming page: boosts for Windows and the graphics card, the frame pacer, shader caches and the installed games
+/// The Gaming page: boosts for Windows and the graphics card, the frame limiter, shader caches and the installed games
 /// (as cards or a grid of covers). Every change happens only when the user flips a switch or presses a button.
 /// </summary>
 public sealed class GamingViewModel : PageViewModel
@@ -630,18 +677,26 @@ public sealed class GamingViewModel : PageViewModel
         FramePacer = new FramePacerViewModel(this);
         Boosts =
         [
-            new(GamingTweak.GpuScheduling, "Hardware-accelerated GPU scheduling", "The graphics card schedules its own work: lower latency and steadier frames. Takes effect after a restart.", "Icon.Gpu", "HAGS", SetTweakAsync),
-            new(GamingTweak.UltimatePower, "Ultimate Performance power plan", "Keeps the processor at full speed with no power-saving delays. Turning it off goes back to your previous plan.", "Icon.Power", null, SetTweakAsync),
-            new(GamingTweak.GameMode, "Game Mode", "Windows gives the game priority and holds back updates and notifications while you play.", "Icon.Controller", null, SetTweakAsync),
-            new(GamingTweak.WindowedOptimizations, "Optimizations for windowed games", "Borderless and windowed games use the faster flip presentation: lower latency, variable refresh and Auto HDR.", "Icon.Window", "Windows 11", SetTweakAsync),
-            new(GamingTweak.NoBackgroundRecording, "No background recording", "Stops Xbox Game Bar from recording the last minutes of play in the background, which costs frames.", "Icon.Camera", null, SetTweakAsync),
-            new(GamingTweak.MaxGpuPerformance, "Maximum graphics card performance", "The driver's \"Prefer maximum performance\" mode: no downclocking between scenes, fewer frame-time spikes.", "Icon.Rocket", "NVIDIA", SetTweakAsync),
+            new(GamingTweak.GpuScheduling, "Hardware-accelerated GPU scheduling", "The graphics card schedules its own work: lower latency and steadier frames. Takes effect after a restart.", "Icon.Gpu", "HAGS", SetTweakAsync, "Latency"),
+            new(GamingTweak.UltimatePower, "Ultimate Performance power plan", "Keeps the processor at full speed with no power-saving delays. Turning it off goes back to your previous plan.", "Icon.Power", null, SetTweakAsync, "Performance"),
+            new(GamingTweak.GameMode, "Game Mode", "Windows gives the game priority and holds back updates and notifications while you play.", "Icon.Controller", null, SetTweakAsync, "Performance"),
+            new(GamingTweak.WindowedOptimizations, "Optimizations for windowed games", "Borderless and windowed games use the faster flip presentation: lower latency, variable refresh and Auto HDR.", "Icon.Window", "Windows 11", SetTweakAsync, "Latency"),
+            new(GamingTweak.NoBackgroundRecording, "No background recording", "Stops Xbox Game Bar from recording the last minutes of play in the background, which costs frames.", "Icon.Camera", null, SetTweakAsync, "Performance"),
+            new(GamingTweak.MaxGpuPerformance, "Maximum graphics card performance", "The driver's \"Prefer maximum performance\" mode: no downclocking between scenes, fewer frame-time spikes.", "Icon.Rocket", "NVIDIA", SetTweakAsync, "Frame stability"),
+            new(GamingTweak.GSync, "G-SYNC & adaptive refresh", "Matches your display's refresh to the frames the graphics card sends, so there's no tearing and less stutter, in fullscreen and windowed games.", "Icon.Pulse", "NVIDIA", SetTweakAsync, "Smoothness",
+                GSyncSetup.Recommendation(0, 0), "Improves how frames are shown, not the frame rate itself."),
+            new(GamingTweak.ShaderCache, "NVIDIA shader cache", "Keeps the shaders games compile, so they aren't compiled again mid-play: fewer repeat stutters and steadier frame times the next times you play.", "Icon.Database", "NVIDIA", SetTweakAsync, "Frame stability",
+                "Recommended: 10 GB when the current limit is smaller, or a larger size for a big game library.", "Doesn't remove every shader stutter or raise the average frame rate."),
+            new(GamingTweak.AutoHdr, "Auto HDR", "Gives SDR games HDR brightness and color on an HDR display: brighter highlights and more depth.", "Icon.Sun", "Windows 11", SetTweakAsync, "Visual fidelity",
+                "Recommended: on for SDR games on an HDR or OLED display. Use a game's own HDR when it has one, and don't stack Auto HDR with RTX HDR.",
+                "Improves how the picture looks, not the detail the game renders.", countsAsBoost: false),
         ];
-        UnlimitedShaderCache = new(GamingTweak.UnlimitedShaderCache, "Unlimited shader cache", "The driver keeps every pipeline it compiles instead of discarding older ones when the cache fills, so games don't compile the same shaders again mid-play.", "Icon.Storage", "NVIDIA", SetTweakAsync);
+        ShaderCache = Boosts.First(b => b.Tweak == GamingTweak.ShaderCache);
+        ShaderCacheSizes = [.. Coreloom.Core.Gaming.ShaderCacheSize.Choices.Select(size => new Option<uint>(size, Coreloom.Core.Gaming.ShaderCacheSize.Describe(size)))];
 
         RescanCommand = new AsyncRelayCommand(ScanAsync, () => !IsScanning && IsSupported);
         RefreshCommand = new AsyncRelayCommand(() => RefreshStatusAsync(force: true));
-        ApplyAllCommand = new AsyncRelayCommand(ApplyAllAsync, () => IsSupported && !_isApplyingAll && AllTweaks.Any(t => t.IsSupported && !t.IsOn && !t.IsBusy));
+        ApplyAllCommand = new AsyncRelayCommand(ApplyAllAsync, () => IsSupported && !_isApplyingAll && CountedBoosts.Any(t => t.IsSupported && !t.IsOn && !t.IsBusy));
         ClearSearchCommand = new RelayCommand(() => Search = string.Empty);
         DownloadArtworkCommand = new AsyncRelayCommand(DownloadArtworkAsync, () => !IsDownloadingArtwork && MissingArtworkCount > 0);
         DismissDriverNoticeCommand = new RelayCommand(DismissDriverNotice);
@@ -666,14 +721,51 @@ public sealed class GamingViewModel : PageViewModel
 
     public string UnsupportedText => "Gaming tools read and change Windows and graphics-driver settings, which aren't available here.";
 
-    /// <summary>Hardware-accelerated GPU scheduling, Ultimate Performance, Game Mode, windowed optimizations, background recording, GPU power mode.</summary>
+    /// <summary>
+    /// Hardware-accelerated GPU scheduling, Ultimate Performance, Game Mode, windowed optimizations, background recording,
+    /// GPU power mode, G-SYNC, the shader cache and Auto HDR.
+    /// </summary>
     public IReadOnlyList<GamingTweakViewModel> Boosts { get; }
 
-    public GamingTweakViewModel UnlimitedShaderCache { get; }
+    /// <summary>The shader cache boost (also shown in the Shader cache card, with its size).</summary>
+    public GamingTweakViewModel ShaderCache { get; }
+
+    /// <summary>The sizes the shader cache boost can set: 10 GB, 100 GB, unlimited.</summary>
+    public IReadOnlyList<Option<uint>> ShaderCacheSizes { get; }
+
+    /// <summary>The size the shader cache boost sets; changing it while the boost is on applies it at once.</summary>
+    public uint ShaderCacheSize
+    {
+        get => Coreloom.Core.Gaming.ShaderCacheSize.Normalize(Settings.Current.Gaming.ShaderCacheSize);
+        set
+        {
+            uint size = Coreloom.Core.Gaming.ShaderCacheSize.Normalize(value);
+            if (size == ShaderCacheSize)
+            {
+                return;
+            }
+
+            Settings.Update("Gaming", s => s.Gaming.ShaderCacheSize = size);
+            OnPropertyChanged();
+            if (ShaderCache.IsOn && !ShaderCache.IsBusy)
+            {
+                _ = SetTweakAsync(ShaderCache, true);
+            }
+        }
+    }
+
+    /// <summary>"Limit: 10 GB" (what the driver has now), or the driver's default.</summary>
+    public string ShaderCacheLimitText => _status.ShaderCacheLimit is { } limit
+        ? $"Limit now: {Coreloom.Core.Gaming.ShaderCacheSize.Describe(limit)}"
+        : "Limit now: the driver's default";
 
     public FramePacerViewModel FramePacer { get; }
 
-    private IEnumerable<GamingTweakViewModel> AllTweaks => Boosts.Append(UnlimitedShaderCache);
+    /// <summary>Every switch on the page.</summary>
+    private IEnumerable<GamingTweakViewModel> AllTweaks => Boosts;
+
+    /// <summary>The switches counted as boosts (and turned on by "Boost now").</summary>
+    private IEnumerable<GamingTweakViewModel> CountedBoosts => Boosts.Where(b => b.CountsAsBoost);
 
     public IAsyncRelayCommand RescanCommand { get; }
 
@@ -701,9 +793,9 @@ public sealed class GamingViewModel : PageViewModel
 
     // ---- Hero ----------------------------------------------------------------------------------------------
 
-    public int BoostsAvailable => AllTweaks.Count(t => t.IsSupported);
+    public int BoostsAvailable => CountedBoosts.Count(t => t.IsSupported);
 
-    public int BoostsOn => AllTweaks.Count(t => t.IsSupported && t.IsOn);
+    public int BoostsOn => CountedBoosts.Count(t => t.IsSupported && t.IsOn);
 
     /// <summary>0…1 for the readiness ring.</summary>
     public double Readiness => BoostsAvailable == 0 ? 0 : BoostsOn / (double)BoostsAvailable;
@@ -1258,7 +1350,10 @@ public sealed class GamingViewModel : PageViewModel
         }
 
         FramePacer.Refresh();
+        var gsync = Boosts.First(b => b.Tweak == GamingTweak.GSync);
+        gsync.Recommendation = GSyncSetup.Recommendation(status.FrameCap, status.RefreshRate);
         ApplyShaderCaches();
+        OnPropertyChanged(nameof(ShaderCacheLimitText));
         HeroChanged();
         OnPropertyChanged(nameof(DisplayText));
         OnPropertyChanged(nameof(DriverText));
@@ -1430,7 +1525,7 @@ public sealed class GamingViewModel : PageViewModel
         try
         {
             int changed = 0;
-            foreach (var tweak in AllTweaks.Where(t => t.IsSupported && !t.IsOn).ToList())
+            foreach (var tweak in CountedBoosts.Where(t => t.IsSupported && !t.IsOn).ToList())
             {
                 await SetTweakAsync(tweak, true);
                 if (tweak.IsOn)

@@ -78,8 +78,11 @@ public class OverlayViewModelTests
 
         public FrameRateStats? Get(int processId) => Rates.TryGetValue(processId, out var stats) ? stats : null;
 
-        public int RecentFrameTimes(int processId, Span<double> buffer)
+        public double NewestAge { get; set; } = 4;
+
+        public int RecentFrameTimes(int processId, Span<double> buffer, out double newestAgeMilliseconds)
         {
+            newestAgeMilliseconds = 0;
             if (!FrameTimes.TryGetValue(processId, out var times))
             {
                 return 0;
@@ -87,6 +90,7 @@ public class OverlayViewModelTests
 
             int count = Math.Min(times.Length, buffer.Length);
             times.AsSpan(times.Length - count).CopyTo(buffer);
+            newestAgeMilliseconds = NewestAge;
             return count;
         }
     }
@@ -158,15 +162,17 @@ public class OverlayViewModelTests
         Assert.Equal("141", overlay.PacingText);
         Assert.Equal(1000.0 / 141, overlay.FrameTimes.TargetFrameTime, 6);
         var buffer = new double[8];
-        Assert.Equal(5, overlay.FrameTimes.Read(buffer));
+        Assert.Equal(5, overlay.FrameTimes.Read(buffer, out double age));
         Assert.Equal(16.4, buffer[3]);
+        Assert.Equal(4, age); // how long ago the newest frame was shown, from the source
 
         overlay.Tick(1234, "Paced.exe"); // its own limit wins over the one for all games
         Assert.Equal("90", overlay.PacingText);
 
         overlay.Tick(99, "notepad.exe"); // not drawing frames: no mark, nothing to graph
         Assert.False(overlay.IsPacing);
-        Assert.Equal(0, overlay.FrameTimes.Read(buffer));
+        Assert.Equal(0, overlay.FrameTimes.Read(buffer, out age));
+        Assert.Equal(0, age);
         settings.Dispose();
     }
 
@@ -336,6 +342,10 @@ public class OverlaySettingsViewModelTests
 
         public FrameRateStats? Get(int processId) => null;
 
-        public int RecentFrameTimes(int processId, Span<double> buffer) => 0;
+        public int RecentFrameTimes(int processId, Span<double> buffer, out double newestAgeMilliseconds)
+        {
+            newestAgeMilliseconds = 0;
+            return 0;
+        }
     }
 }

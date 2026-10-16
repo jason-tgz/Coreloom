@@ -7,6 +7,33 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-10-16
+
+A smoother, lighter in-game overlay and three new boosts: the frame-time graph now glides at your display's pace and reacts at once, the overlay drops its outline and stays out of your game's way, the frame pacer is now the frame limiter, and the Boosts section adds G-SYNC, a sized NVIDIA shader cache and Auto HDR.
+
+### Highlights
+
+- **A fluid frame-time graph.** The overlay's graph used to step along at a low, uneven rate. It now draws on a thread of its own, on a precise timer, at an even share of your display's refresh rate (120 times a second on a 240 Hz display), with every frame placed at the moment it was shown, so it glides smoothly and a spike shows up the moment it happens. It looks exactly like the preview in the overlay's settings.
+- **Out of your game's way.** The overlay is drawn on the processor, never on the graphics card the game is using; the graph's thread and the frame-rate reader run at low priority and allocate nothing as they go; while a game is in front, Coreloom as a whole steps down to below-normal priority so the game's threads always come first; and the overlay only re-asserts itself on top when another window actually covers it.
+- **No outline on the overlay.** The overlay is just the smoked glass now, the same as its preview, without the light rim around it.
+- **Frame limiter.** The frame pacer is renamed *Frame limiter* everywhere: the Gaming page, its messages, search and the overlay's settings.
+- **G-SYNC & adaptive refresh.** A new boost (NVIDIA) turns on G-SYNC for fullscreen and windowed games, so the display's refresh follows the frames the graphics card sends: no tearing and less stutter. It recommends keeping your frame limit just under the refresh rate (for example 237 FPS on a 240 Hz display), says when G-SYNC is switched off for your display in the NVIDIA Control Panel, and isn't offered on a display without variable refresh. It improves how frames are shown, not the frame rate itself.
+- **NVIDIA shader cache, sized.** The shader cache boost now has a size: 10 GB (recommended), 100 GB for a big game library, or Unlimited, with the limit currently set shown under the picker. A bigger cache keeps compiled shaders between sessions, so fewer stutters come back; it doesn't remove every shader stutter or raise the average frame rate.
+- **Auto HDR.** A new switch (Windows 11, HDR display) gives SDR games HDR brightness and color. Use a game's own HDR when it has one, and don't stack it with RTX HDR. As it changes how games look rather than how they run, *Boost now* leaves it alone and it isn't counted with the boosts.
+- **Clearer boosts.** Every boost card now shows what it helps with (*Latency*, *Performance*, *Frame stability*, *Smoothness*, *Visual fidelity*), and the new ones also show a recommendation and what they don't do.
+- **No Ctrl K badge.** The search boxes no longer show the *Ctrl K* badge. Ctrl+K and Ctrl+F still jump to the search box.
+
+### In detail
+
+- G-SYNC is set in the NVIDIA driver's global profile (the same settings as *Set up G-SYNC* and *Enable G-SYNC globally*), along with Windows 11's *Optimizations for windowed games* variable-refresh setting; turning the boost off puts the driver back to its default, fullscreen only.
+- The shader cache size is the driver's *Shader Cache Size* setting. The boost counts as on when a size of 10 GB or more is set, and turning it off puts back the driver's default. Changing the size while it's on applies it at once.
+- Auto HDR is Windows' own setting (*Settings › Display › Graphics*). Coreloom checks for an HDR display and asks you to turn HDR on when it's off.
+- The graph's own window is see-through to clicks, never takes focus, and is never in the taskbar or Alt+Tab, like the overlay. Nothing is injected into games.
+
+### Feedback
+
+Something still not where it should be? [Open an issue](https://github.com/jerryubah/Coreloom/issues) with a screenshot and a CoreloomDiag report.
+
 ## [1.4.2] - 2026-10-15
 
 Polish for the new design: temperatures take their own colors, the edge glow matches each card, the collapsed sidebar shows its icons in full, dropdowns stay with their box, the search list sits centered under the search box, and Coreloom's shortcuts switch to the dark-mode icon too.

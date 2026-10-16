@@ -267,7 +267,7 @@ Work through each area and tick what works.
 - [ ] Dark theme: the background is near-black but not black, cards a step lighter, text easy to read. Light theme
       still looks right.
 - [ ] The Overview's summary cards, the PC header, Memory/Storage/Health panels, the page gauge cards, the speed test
-      and benchmark cards, the Smart Optimize, Gaming and Devices banners and the frame pacer glow faintly in their
+      and benchmark cards, the Smart Optimize, Gaming and Devices banners and the frame limiter glow faintly in their
       color from the bottom. Moving the pointer over them lights the edge near the pointer in that color, following it
       smoothly, brighter near the edge, fading out when the pointer leaves; the content never glows, and nothing lags.
 - [ ] The sidebar floats with a gap all round, rounded and glassy with a bright rim; collapsing it (button or a
@@ -293,14 +293,14 @@ Work through each area and tick what works.
 
 - [ ] Collapse the sidebar (button, or a narrow window): every icon is whole and centered in its button; the logo and
       the expand button line up with them; an update badge, if showing, shows its whole icon.
-- [ ] Hover the cards that glow (dashboard summary cards, the PC header, page gauge cards, banners, frame pacer): the
+- [ ] Hover the cards that glow (dashboard summary cards, the PC header, page gauge cards, banners, frame limiter): the
       edge lights in the color already inside the card (green Graphics, blue Processor, your accent on the banners),
       as a soft glow just outside the edge with a bright line on it; no purple or second shade; it doesn't flicker
       when the pointer crosses to a neighbouring card, and buttons right next to a card still click.
 - [ ] Temperatures: on Graphics and Processor, and the dashboard's GPU and CPU temperature cards, an idle PC shows a
       blue gauge and glow; under load it turns teal-green, then amber-orange near the warning level and red at the
       limit, fading between them. Other gauges keep the green/blue/orange/red scale. Check the light theme too.
-- [ ] Gaming › Frame pacer: open *Apply to*, then turn the mouse wheel over the list and over the page: the list stays
+- [ ] Gaming › Frame limiter: open *Apply to*, then turn the mouse wheel over the list and over the page: the list stays
       attached right under its box and the page doesn't move (a long list scrolls itself). Same with the limit picker
       and a Settings picker.
 - [ ] Devices and Gaming search: type a letter; the list is exactly as wide as the search box, directly under it,
@@ -310,9 +310,39 @@ Work through each area and tick what works.
       dark-mode icon after a few seconds (a pinned taskbar button may need sign-out or *Restart Explorer* to redraw);
       switching to the light theme puts the usual icon back. A shortcut you gave a custom icon keeps it.
 
+**Overlay and boosts (1.4.3)**
+
+- [ ] No search box (Devices, Gaming) shows a *Ctrl K* badge any more; Ctrl+K and Ctrl+F still jump to the box.
+- [ ] The renamed *Frame limiter*: the Gaming card, its notes and messages, the sidebar search and the overlay settings
+      say *Frame limiter* (nothing says *Frame pacer*).
+- [ ] The in-game overlay has no outline: just the smoked glass, with the same corners and look as the preview in its
+      settings (compare them side by side at a few opacities and both themes).
+- [ ] The frame-time graph in a game glides smoothly and reacts at once: it moves on evenly (not in steps), a camera
+      flick or a loading hitch shows as a spike within a moment, and the line follows small changes in frame time.
+      It looks the same as the preview (line, fill, amber/red spikes, dashed limiter line) and follows the overlay's
+      color and opacity. Move the overlay to another corner or monitor: the graph moves with it, exactly in place.
+- [ ] Performance with the overlay on: play a demanding game for a few minutes with the overlay off, then on (same
+      scene): average FPS and 1% low stay within run-to-run variation, frame times stay as flat (the game's own graph,
+      or NVIDIA's/CapFrameX if you have one), and there is no new hitching. Task Manager › Details: *Coreloom.exe*
+      shows *Below normal* priority while the game is in front and *Normal* again when Coreloom is in front.
+      The log (*Settings › Diagnostics › Open log folder*) says "Frame-time graph drawing on its own thread (precise
+      timer)".
+- [ ] Gaming › Boosts: each card shows a category pill (*Latency*, *Performance*, *Frame stability*, *Smoothness* in
+      green, *Visual fidelity*); the three new cards also show a *Recommended* line and what they don't do.
+- [ ] *G-SYNC & adaptive refresh* (NVIDIA, G-SYNC or G-SYNC Compatible display): on sets NVIDIA Control Panel ›
+      *Set up G-SYNC* to *Enable for windowed and full screen mode*; the recommendation names your frame limit and refresh rate (e.g. 237 FPS on 240 Hz). Off puts it back to
+      full screen only. With G-SYNC switched off for the display in the control panel, the card says so. On a display
+      without variable refresh, the card explains it can't be used.
+- [ ] *NVIDIA shader cache*: pick 10 GB / 100 GB / Unlimited in *Size*, switch it on: NVIDIA Control Panel ›
+      *Shader Cache Size* shows that size; *Limit now* under the picker matches. Changing the size while it's on
+      applies at once. Off puts *Shader Cache Size* back to *Driver Default*.
+- [ ] *Auto HDR* (Windows 11): with an HDR display and HDR on, the switch matches *Settings › Display › Graphics ›
+      Auto HDR*. With HDR off it says to turn on HDR; without an HDR display it explains it can't be used. *Boost now*
+      leaves Auto HDR alone and the ring counts the other boosts (e.g. 8/8).
+
 **Gaming**
 
-- [ ] Frame pacer *Apply to*: pick a game, choose a limit and switch it on: the NVIDIA Control Panel (*Manage 3D
+- [ ] Frame limiter *Apply to*: pick a game, choose a limit and switch it on: the NVIDIA Control Panel (*Manage 3D
       settings › Program settings*) shows *Max Frame Rate* for that game's program (in NVIDIA's own profile for it, or a
       "Coreloom: game" profile), and nothing changes for other games. The game stays at that limit after a restart of
       it; the chip under the picker shows it, clicking the chip shows it, × removes it (and the Coreloom profile).
@@ -327,27 +357,27 @@ Work through each area and tick what works.
 - [ ] *Play* starts the game through its launcher and the game is **not** elevated (Task Manager › Details ›
       *Elevated* column says No). The folder button opens the game's folder.
 - [ ] With a library game running and the page open: the banner shows *Now playing* with its FPS, the game's card or
-      cover is marked *Playing*, and the frame pacer card shows FPS, 1% low and consistency close to the overlay's.
+      cover is marked *Playing*, and the frame limiter card shows FPS, 1% low and consistency close to the overlay's.
 - [ ] Boosts: each switch matches Windows (Settings › Display › Graphics for HAGS and windowed games, Control Panel
       power plans, Settings › Gaming for Game Mode and *Record what happened*) and the NVIDIA Control Panel (*Power
-      management mode*, *Shader Cache Size*). Flip each on and off and check it there.
+      management mode*, *Shader Cache Size*, *Set up G-SYNC*). Flip each on and off and check it there.
 - [ ] HAGS shows *Restart to finish* after switching it, and *On*/*Off* correctly after the restart.
 - [ ] Ultimate Performance creates and activates the plan; switching it off goes back to the plan you had before.
-- [ ] *Boost now* turns on everything that was off and says how many; the ring shows e.g. 7/7.
-- [ ] Frame pacer: switching it on sets *Max Frame Rate* in the NVIDIA Control Panel (global) to the shown limit (138
+- [ ] *Boost now* turns on everything that was off (except Auto HDR) and says how many; the ring shows e.g. 8/8.
+- [ ] Frame limiter: switching it on sets *Max Frame Rate* in the NVIDIA Control Panel (global) to the shown limit (138
       on a 144 Hz display); a game started afterwards stays at that limit with flat frame times; switching it off
       sets *Max Frame Rate* back to Off. Picking another limit in the list changes it.
-- [ ] Shader cache: the switch matches *Shader Cache Size: Unlimited* in the NVIDIA Control Panel; the sizes look
+- [ ] Shader cache: the switch matches *Shader Cache Size* (10 GB or more) in the NVIDIA Control Panel; the sizes look
       plausible next to `%LOCALAPPDATA%\NVIDIA\DXCache` and `D3DSCache`. After a driver update the notice appears once
       and *Got it* hides it.
-- [ ] On a PC without an NVIDIA card: the frame pacer, power mode and shader-cache switches explain why they can't be
-      used.
+- [ ] On a PC without an NVIDIA card: the frame limiter, power mode, shader-cache and G-SYNC switches explain why they
+      can't be used.
 
 **In-game overlay**
 
-- [ ] (1.4.1) The overlay is a rounded glass panel with a light rim; FPS is bigger and bold; a frame-time graph sits
+- [ ] (1.4.1, 1.4.3) The overlay is a rounded glass panel without an outline; FPS is bigger and bold; a frame-time graph sits
       under the FPS line (after it in the one-line layout) and moves smoothly; stutters show as amber/red spikes. With
-      the frame pacer limiting the game (all games or its own limit), a small green mark with the limit shows next to
+      the frame limiter limiting the game (all games or its own limit), a small green mark with the limit shows next to
       FPS and a dashed line on the graph. The graph can be turned off in the overlay's settings, where the preview shows
       a sample trace.
 - [ ] *Graphics*: the *In-game overlay* switch sits on the same line as *Clock limits*; the clock limits text wraps when

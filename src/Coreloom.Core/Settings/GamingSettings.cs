@@ -2,14 +2,14 @@ using Coreloom.Core.Gaming;
 
 namespace Coreloom.Core.Settings;
 
-/// <summary>The Gaming page: how the library is shown, the frame pacer, and what Coreloom remembers to undo its changes.</summary>
+/// <summary>The Gaming page: how the library is shown, the frame limiter, and what Coreloom remembers to undo its changes.</summary>
 public sealed class GamingSettings
 {
     public GameLibraryView LibraryView { get; set; } = GameLibraryView.List;
 
     public GameSort LibrarySort { get; set; } = GameSort.RecentlyPlayed;
 
-    /// <summary>The frame pacer's limit (0 = automatic, a little under the refresh rate).</summary>
+    /// <summary>The frame limiter's limit (0 = automatic, a little under the refresh rate).</summary>
     public int FramePacerTarget { get; set; }
 
     /// <summary>The power plan that was active before Ultimate Performance was turned on (restored when it's turned off).</summary>
@@ -53,8 +53,12 @@ public sealed class GamingSettings
         return GlobalFrameCap;
     }
 
+    /// <summary>The shader cache size the boost sets (MB): 10 GB, 100 GB or unlimited.</summary>
+    public uint ShaderCacheSize { get; set; } = Gaming.ShaderCacheSize.Recommended;
+
     public void Normalize()
     {
+        ShaderCacheSize = Gaming.ShaderCacheSize.Normalize(ShaderCacheSize);
         if (!Enum.IsDefined(LibraryView))
         {
             LibraryView = GameLibraryView.List;
