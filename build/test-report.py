@@ -34,6 +34,13 @@ def report(path: pathlib.Path) -> None:
     if skipped:
         line += " - skipped: " + "; ".join(skipped[:12])
     print(f"::notice title=Tests::{escape(line)}")
+    for result in [r for r in results if r.get("outcome") == "NotExecuted"][:4]:
+        reason = result.find("t:Output/t:ErrorInfo/t:Message", NS)
+        if reason is None or not (reason.text or "").strip():
+            reason = result.find("t:Output/t:StdOut", NS)
+        if reason is not None and (reason.text or "").strip():
+            title = escape(f"Skipped: {result.get('testName', '?')}", prop=True)
+            print(f"::notice title={title}::{escape(reason.text.strip())}")
     for result in results:
         if result.get("outcome") != "Failed":
             continue

@@ -97,6 +97,13 @@ function Write-TestReport([string] $Directory) {
             $summary = "$project ($outcome): $($counters.GetAttribute('passed')) passed, $($counters.GetAttribute('failed')) failed, $($skipped.Count) skipped"
             if ($skipped.Count -gt 0) { $summary += ' - skipped: ' + (($skipped | Select-Object -First 12) -join '; ') }
             Write-Host "::notice title=Tests::$(Escape $summary)"
+            foreach ($result in @($trx.SelectNodes('//t:UnitTestResult[@outcome="NotExecuted"]', $ns)) | Select-Object -First 4) {
+                $reason = $result.SelectSingleNode('t:Output/t:ErrorInfo/t:Message', $ns)
+                if (-not $reason) { $reason = $result.SelectSingleNode('t:Output/t:StdOut', $ns) }
+                if ($reason -and $reason.InnerText.Trim()) {
+                    Write-Host "::notice title=$(Escape "Skipped: $($result.GetAttribute('testName'))" -Property)::$(Escape $reason.InnerText.Trim())"
+                }
+            }
             foreach ($result in $trx.SelectNodes('//t:UnitTestResult[@outcome="Failed"]', $ns)) {
                 $message = $result.SelectSingleNode('t:Output/t:ErrorInfo/t:Message', $ns)
                 $stack = $result.SelectSingleNode('t:Output/t:ErrorInfo/t:StackTrace', $ns)
