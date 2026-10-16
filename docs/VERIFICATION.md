@@ -166,7 +166,10 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
   itself only when the machine stays slow even then. 1.4.3 was published from that state (its release build passed
   every test). CI on main then hit one 200 ms pause of the runner in the same test, so the test now judges the middle
   wait length instead of the average and the worst; with that, two runs passed all 663 tests, the timer test and the
-  layered-window test included (neither skipped). Here, `Coreloom.App` compiles (0 errors, 0 warnings) and the XAML checks pass (20 files, 242 shared
+  layered-window test included (neither skipped). The Linux job now reports its tests the same way, which caught an
+  older flaky test (`StorageBenchmarkViewModelTests.Run_FillsTheGaugesAndTable`, seen failing once before in 1.4.0):
+  without a UI context, `Progress<T>` queued the last live report to the thread pool, where it could overwrite the
+  finished results. `ContextProgress` handles it in order; the app's behaviour is unchanged. Here, `Coreloom.App` compiles (0 errors, 0 warnings) and the XAML checks pass (20 files, 242 shared
   keys, 1,129 bindings).
 - The choppy graph was traced in WPF's own source (`MediaContext`): a window drawn in software isn't paced by the
   display, so WPF schedules its frames with a 10 ms `DispatcherTimer`, which fires on the 15.6 ms system tick: at most
