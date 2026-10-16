@@ -147,6 +147,7 @@ internal sealed class FrameGraphLayer : IDisposable
             long next = last;
             bool active = false;
             bool blankShown = false;
+            bool fineTimerLogged = timer.UsesFineSystemTimer;
             (int Width, int Height) shownSize = default;
             Log.Info(LogCategory, $"Frame-time graph drawing on its own thread ({(timer.IsHighResolution ? "precise" : "standard")} timer).");
 
@@ -165,6 +166,12 @@ internal sealed class FrameGraphLayer : IDisposable
                 if (woke == 0)
                 {
                     return; // stop
+                }
+
+                if (!fineTimerLogged && timer.UsesFineSystemTimer)
+                {
+                    fineTimerLogged = true;
+                    Log.Info(LogCategory, "The precise timer woke late on this PC; the frame-time graph uses a 1 ms system timer while it draws.");
                 }
 
                 if (woke == 1)
