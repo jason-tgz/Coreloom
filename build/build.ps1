@@ -75,6 +75,42 @@ function Invoke-Native {
     }
 }
 
+# On GitHub Actions, sums up each test run (trx) and turns every failed test into an annotation, so a failure can be read
+# on the run's summary page without the log.
+function Write-TestReport([string] $Directory) {
+    if (-not $env:GITHUB_ACTIONS -or -not (Test-Path $Directory)) { return }
+    function Escape([string] $Text, [switch] $Property) {
+        $Text = $Text -replace '%', '%25' -replace "`r", '%0D' -replace "`n", '%0A'
+        if ($Property) { $Text = $Text -replace ':', '%3A' -replace ',', '%2C' }
+        return $Text
+    }
+    foreach ($file in Get-ChildItem $Directory -Filter '*.trx' -Recurse) {
+        try {
+            [xml] $trx = Get-Content $file.FullName -Raw
+            $ns = New-Object System.Xml.XmlNamespaceManager($trx.NameTable)
+            $ns.AddNamespace('t', 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010')
+            $method = $trx.SelectSingleNode('//t:UnitTest/t:TestMethod', $ns)
+            $project = if ($method) { [System.IO.Path]::GetFileNameWithoutExtension($method.GetAttribute('codeBase')) } else { $file.Name }
+            $counters = $trx.SelectSingleNode('//t:ResultSummary/t:Counters', $ns)
+            $outcome = $trx.SelectSingleNode('//t:ResultSummary', $ns).GetAttribute('outcome')
+            $skipped = @($trx.SelectNodes('//t:UnitTestResult[@outcome="NotExecuted"]', $ns) | ForEach-Object { $_.GetAttribute('testName') -replace '^.*\.([^.]+\.[^.]+)$', '$1' })
+            $summary = "$project ($outcome): $($counters.GetAttribute('passed')) passed, $($counters.GetAttribute('failed')) failed, $($skipped.Count) skipped"
+            if ($skipped.Count -gt 0) { $summary += ' - skipped: ' + (($skipped | Select-Object -First 12) -join '; ') }
+            Write-Host "::notice title=Tests::$(Escape $summary)"
+            foreach ($result in $trx.SelectNodes('//t:UnitTestResult[@outcome="Failed"]', $ns)) {
+                $message = $result.SelectSingleNode('t:Output/t:ErrorInfo/t:Message', $ns)
+                $stack = $result.SelectSingleNode('t:Output/t:ErrorInfo/t:StackTrace', $ns)
+                $text = if ($message) { $message.InnerText.Trim() } else { '(no message)' }
+                if ($stack) { $text += "`n" + ((($stack.InnerText -split "`n") | Select-Object -First 4) -join "`n") }
+                Write-Host "::error title=$(Escape "Test failed: $($result.GetAttribute('testName'))" -Property)::$(Escape $text)"
+            }
+        }
+        catch {
+            Write-Host "::warning title=Tests::$(Escape "Couldn't read $($file.Name): $_")"
+        }
+    }
+}
+
 function Get-DefaultVersion {
     [xml] $props = Get-Content (Join-Path $Root 'Directory.Build.props')
     $node = $props.SelectSingleNode('//VersionPrefix')
@@ -121,8 +157,13 @@ Invoke-Native 'dotnet' (@('build', $Solution, '-c', $Configuration, '--no-restor
 
 if (-not $SkipTests) {
     Write-Step 'Unit tests'
-    Invoke-Native 'dotnet' (@('test', $Solution, '-c', $Configuration, '--no-build', '-nologo',
-        '--logger', 'trx', '--results-directory', $TestResults) + $msbuildProps)
+    try {
+        Invoke-Native 'dotnet' (@('test', $Solution, '-c', $Configuration, '--no-build', '-nologo',
+            '--logger', 'trx', '--results-directory', $TestResults) + $msbuildProps)
+    }
+    finally {
+        Write-TestReport $TestResults
+    }
 }
 
 if ($Publish) {
