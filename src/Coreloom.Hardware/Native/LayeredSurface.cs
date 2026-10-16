@@ -90,9 +90,16 @@ public sealed unsafe partial class LayeredSurface : IDisposable
         }
     }
 
-    /// <summary>Moves and sizes the window, in screen pixels (on the owner's thread).</summary>
+    /// <summary>
+    /// Moves and sizes the window, in screen pixels (on the owner's thread). This is done with UpdateLayeredWindow
+    /// itself, giving the position and size along with the pixels (clear after a resize): a layered window shows nothing
+    /// until UpdateLayeredWindow has given it a size, and later updates that leave the size out (<see cref="Present"/>,
+    /// from the drawing thread) only replace the pixels.
+    /// </summary>
     public void Place(int x, int y, int width, int height)
     {
+        width = Math.Max(1, width);
+        height = Math.Max(1, height);
         lock (_gate)
         {
             if (_disposed)
@@ -100,11 +107,22 @@ public sealed unsafe partial class LayeredSurface : IDisposable
                 return;
             }
 
-            _width = Math.Max(1, width);
-            _height = Math.Max(1, height);
+            _width = width;
+            _height = height;
+            if (EnsureBitmap(width, height))
+            {
+                var position = new Point { X = x, Y = y };
+                var size = new Size { Width = width, Height = height };
+                var source = default(Point);
+                var blend = new BlendFunction { BlendOp = 0, BlendFlags = 0, SourceConstantAlpha = 255, AlphaFormat = 1 };
+                if (UpdateLayeredWindow(_hwnd, IntPtr.Zero, &position, &size, _dc, &source, 0, &blend, UlwAlpha))
+                {
+                    return;
+                }
+            }
         }
 
-        SetWindowPos(_hwnd, IntPtr.Zero, x, y, Math.Max(1, width), Math.Max(1, height), SwpNoZOrder | SwpNoActivate | SwpNoOwnerZOrder);
+        SetWindowPos(_hwnd, IntPtr.Zero, x, y, width, height, SwpNoZOrder | SwpNoActivate | SwpNoOwnerZOrder);
     }
 
     /// <summary>Shows or hides the window without activating it (on the owner's thread).</summary>
@@ -256,6 +274,13 @@ public sealed unsafe partial class LayeredSurface : IDisposable
         public int Y;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Size
+    {
+        public int Width;
+        public int Height;
+    }
+
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     private struct BlendFunction
     {
@@ -317,7 +342,7 @@ public sealed unsafe partial class LayeredSurface : IDisposable
 
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool UpdateLayeredWindow(IntPtr hwnd, IntPtr dcDestination, Point* position, void* size, IntPtr dcSource, Point* source, uint colorKey, BlendFunction* blend, uint flags);
+    private static partial bool UpdateLayeredWindow(IntPtr hwnd, IntPtr dcDestination, Point* position, Size* size, IntPtr dcSource, Point* source, uint colorKey, BlendFunction* blend, uint flags);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
