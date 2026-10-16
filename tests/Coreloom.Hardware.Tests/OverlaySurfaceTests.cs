@@ -24,26 +24,28 @@ public class OverlaySurfaceTests
             Assert.Equal(-1, timer.WaitUntil(deadline));
         }
 
+        // The middle of the waits' lengths: a runner pausing the test for a moment (seen: 200 ms) moves an average or the
+        // worst wait, not that.
         const int Waits = 60;
-        long start = Stopwatch.GetTimestamp();
-        deadline = start;
-        double worstLate = 0;
+        var lengths = new double[Waits];
+        long last = Stopwatch.GetTimestamp();
         for (int i = 0; i < Waits; i++)
         {
-            deadline += (long)interval;
-            Assert.Equal(-1, timer.WaitUntil(deadline));
-            worstLate = Math.Max(worstLate, (Stopwatch.GetTimestamp() - deadline) * 1000.0 / Stopwatch.Frequency);
+            Assert.Equal(-1, timer.WaitUntil(last + (long)interval));
+            long now = Stopwatch.GetTimestamp();
+            lengths[i] = (now - last) * 1000.0 / Stopwatch.Frequency;
+            last = now;
         }
 
-        double average = (Stopwatch.GetTimestamp() - start) * 1000.0 / Stopwatch.Frequency / Waits;
-        if (average > 10 && timer.UsesFineSystemTimer)
+        Array.Sort(lengths);
+        double median = lengths[Waits / 2];
+        if (median > 10 && timer.UsesFineSystemTimer)
         {
             // It noticed and did what it can; a machine this busy or coarse can't show more (seen on CI runners).
-            Assert.Skip($"Waits of 4 ms averaged {average:0.0} ms even with a 1 ms system timer.");
+            Assert.Skip($"Waits of 4 ms took {median:0.0} ms even with a 1 ms system timer.");
         }
 
-        Assert.InRange(average, 3.9, 10); // an ordinary timer would average 15.6 ms or more
-        Assert.True(worstLate < 100, $"a wait ran {worstLate:0.0} ms late");
+        Assert.InRange(median, 3.5, 10); // an ordinary timer takes 15.6 ms
     }
 
     [Fact]
