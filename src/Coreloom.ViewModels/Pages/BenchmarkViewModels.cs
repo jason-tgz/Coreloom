@@ -347,7 +347,7 @@ public sealed class StorageBenchmarkViewModel : ObservableObject
         WriteGauge.Clear();
         IsRunning = true;
         Status = "Preparing the test file…";
-        var progress = new Progress<DiskBenchmarkProgress>(p => OnProgress(run, p));
+        var progress = new ContextProgress<DiskBenchmarkProgress>(p => OnProgress(run, p));
         try
         {
             var options = new DiskBenchmarkOptions(drive.Drive.Folder, SelectedSize.Bytes);
@@ -601,7 +601,7 @@ public sealed class SpeedTestViewModel : ObservableObject
         Phase = "Connecting";
         Status = "Connecting to the test server…";
         IsRunning = true;
-        var progress = new Progress<SpeedTestProgress>(p => OnProgress(run, p));
+        var progress = new ContextProgress<SpeedTestProgress>(p => OnProgress(run, p));
         try
         {
             var result = await _service.RunAsync(progress, _cts.Token);
