@@ -79,7 +79,13 @@ jobs:
 
       # The platform-neutral layers must stay free of Windows dependencies.
       - name: Test Coreloom.Core
-        run: dotnet test tests/Coreloom.Core.Tests/Coreloom.Core.Tests.csproj -c Release
+        run: dotnet test tests/Coreloom.Core.Tests/Coreloom.Core.Tests.csproj -c Release --logger trx --results-directory artifacts/test-results
 
       - name: Test Coreloom.ViewModels
-        run: dotnet test tests/Coreloom.ViewModels.Tests/Coreloom.ViewModels.Tests.csproj -c Release
+        if: success() || failure()
+        run: dotnet test tests/Coreloom.ViewModels.Tests/Coreloom.ViewModels.Tests.csproj -c Release --logger trx --results-directory artifacts/test-results
+
+      # Each test project's counts as a notice and each failed test as an annotation on the run's summary page.
+      - name: Test report
+        if: always()
+        run: python3 build/test-report.py artifacts/test-results
