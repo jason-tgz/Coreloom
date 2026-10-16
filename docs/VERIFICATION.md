@@ -147,6 +147,31 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.4.4: automatic game pictures, no G-SYNC warning, quieter search box
+
+- **Core tests: 502 passed** (23 new, `SteamStoreTests`: Steam's real search answer for "Assassin's Creed Shadows"
+  (curly apostrophe) picks the game and not its DLC; names that must and mustn't match (editions, GOTY, ™/®, accents,
+  "Tetris Ultimate" ≠ "Tetris", a soundtrack, another game of a series); error pages; the store item's hashed picture
+  addresses and the order tried; the requests carry only the name or the app number). **View-model tests: 126 passed**
+  (the old offer test replaced by two: every game without a picture is looked up after the scan without asking, and a
+  slow look-up shows its indicator while a quick one doesn't).
+- The answers' shapes were checked against Steam itself: the store search and app details were fetched for Assassin's
+  Creed Shadows (app 3159330; its capsule pictures sit under a hashed folder, its header at the plain address), and the
+  `IStoreBrowseService/GetItems` asset format (`asset_url_format` with `${FILENAME}`, `library_capsule_2x` with a hash
+  folder) from a public bug report of another app that switched to it because the plain library addresses fail for
+  newer games. The pictures themselves couldn't be downloaded from here (this environment's web access doesn't fetch
+  images), so the first real download is on Jerry's PC.
+- The G-SYNC warning came from NVAPI's per-display VRR "requested" flag, which read off on Jerry's PC with G-SYNC on;
+  the warning is removed and the card only uses the flag that says whether the display can do variable refresh.
+- Here, `Coreloom.App` compiles (0 errors, 0 warnings) and the XAML checks pass (20 files, 242 shared keys, 1,126
+  bindings).
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Automatic pictures | Matching and parsing unit-tested against Steam's real answers; the flow tested with a fake service | Real downloads on his PC; which of his games Steam has (Ubisoft/EA/Battle.net/Riot names vs Steam's) |
+| No G-SYNC warning | Code path removed; compiled | — |
+| Search box hint on one line | Compiled; XAML checks | The look |
+
 ### 1.4.3: smooth overlay graph, overlay performance, G-SYNC, shader cache size, Auto HDR
 
 - **Core tests: 479 passed** (27 new: the graph's timing (frames placed at the moment they were shown, the delay

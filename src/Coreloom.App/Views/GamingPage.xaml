@@ -714,30 +714,10 @@
         </Button>
       </WrapPanel>
 
-      <!-- Covers can be downloaded (only when asked) -->
-      <c:SquircleBorder Style="{StaticResource Card.Inset}" Padding="14,12" Margin="0,4,0,14" Visibility="{Binding ShowArtworkOffer, Converter={StaticResource BoolToVisibility}}">
-        <Grid>
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <Path Style="{StaticResource IconPath}" Width="16" Height="16" Data="{StaticResource Icon.Image}" Stroke="{DynamicResource Brush.Accent}" VerticalAlignment="Center" Margin="0,0,12,0" />
-          <StackPanel Grid.Column="1" VerticalAlignment="Center">
-            <TextBlock Text="{Binding ArtworkOfferText}" FontSize="13" Foreground="{DynamicResource Brush.Text}" TextWrapping="Wrap" />
-            <TextBlock Text="Pictures come from Steam's and Epic's servers and are kept on this PC. Nothing else is sent." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" TextTrimming="None" Margin="0,2,0,0" />
-          </StackPanel>
-          <Button Grid.Column="2" Style="{StaticResource Button.Secondary}" Padding="14,7" Margin="12,0,0,0" VerticalAlignment="Center" Command="{Binding DownloadArtworkCommand}">
-            <StackPanel Orientation="Horizontal">
-              <Path Style="{StaticResource IconPath}" Width="13" Height="13" Data="{StaticResource Icon.Download}" />
-              <TextBlock Text="Download covers" Margin="7,0,0,0" />
-            </StackPanel>
-          </Button>
-        </Grid>
-      </c:SquircleBorder>
+      <!-- Pictures for games without one are downloaded automatically after each scan -->
       <StackPanel Orientation="Horizontal" Margin="2,0,0,12" Visibility="{Binding IsDownloadingArtwork, Converter={StaticResource BoolToVisibility}}">
         <c:RadialGauge Style="{StaticResource GameSpinner}" b:Spin.IsSpinning="{Binding IsDownloadingArtwork}" />
-        <TextBlock Text="Downloading covers…" Style="{StaticResource Text.Secondary}" Margin="8,0,0,0" VerticalAlignment="Center" />
+        <TextBlock Text="Finding pictures for your games…" Style="{StaticResource Text.Secondary}" Margin="8,0,0,0" VerticalAlignment="Center" />
       </StackPanel>
 
       <TextBlock Text="Looking for games…" Style="{StaticResource Text.Secondary}" Margin="2,0,0,8"

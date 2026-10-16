@@ -79,7 +79,7 @@ public static class SteamLibrary
         ToolIds.Contains(appId) || ToolNamePrefixes.Any(p => name.StartsWith(p, StringComparison.OrdinalIgnoreCase))
         || name.EndsWith("Dedicated Server", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Steam's public store pictures for a game (only fetched after the user asks).</summary>
+    /// <summary>Steam's long-standing public picture addresses for a game (fetched when it has no picture on the PC).</summary>
     public static IReadOnlyList<string> CoverUrls(string appId) =>
     [
         $"https://cdn.cloudflare.steamstatic.com/steam/apps/{appId}/library_600x900_2x.jpg",

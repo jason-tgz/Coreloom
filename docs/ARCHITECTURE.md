@@ -399,8 +399,8 @@ consumer thread runs below normal.
 
 `GamingViewModel` (the *Gaming* page, above Graphics) has four parts; everything Windows-specific is behind
 `IGamingService` (`WindowsGamingService` in the app, `UnsupportedGamingService` elsewhere). Settings live in `Gaming`
-(`GamingSettings`: list or grid, sort order, the frame limiter's target, the power plans to restore, whether covers may
-be downloaded, the last driver version seen).
+(`GamingSettings`: list or grid, sort order, the frame limiter's target, the power plans to restore, the last driver
+version seen; `DownloadArtwork` is only kept for older settings files).
 
 - **Library.** Core parses each launcher's own files, unit-tested with samples: Valve's text KeyValues
   (`KeyValues`) for Steam's `libraryfolders.vdf` and `appmanifest_*.acf` (fully installed games only, tools such as
@@ -411,8 +411,16 @@ be downloaded, the last driver version seen).
   packages from `PackageManager.FindPackagesForUser` that carry a `MicrosoftGame.config`. Pictures: Steam's library
   cache (`appcache\librarycache`, both the old `{appid}_library_600x900.jpg` names and the newer per-game folders),
   Xbox's package logos and splash, covers downloaded earlier, else the program's icon saved as a 256 px PNG
-  (`Icon.ExtractIcon`). Missing covers are downloaded (to `%LOCALAPPDATA%\Coreloom\Artwork`) only after the user
-  presses *Download covers*. `GameLibrary` merges (by id and folder), sorts, searches and finds the running game: a
+  (`Icon.ExtractIcon`). Since 1.4.4 every game without a cover or banner gets one looked up automatically after each
+  scan (`WindowsGamingService.DownloadArtworkAsync`, saved to `%LOCALAPPDATA%\Coreloom\Artwork`): the store's own
+  catalog pictures (Epic), else Steam's, for the game's own Steam app or the Steam app with the same name
+  (`SteamStore`, Core, unit-tested: the store search `store.steampowered.com/api/storesearch` sends only the name; names
+  match only when equal once case, ™/®, apostrophes, punctuation and accents are set aside, or equal without an
+  edition, so a DLC or another game of the series never counts; `IStoreBrowseService/GetItems` with `include_assets`
+  gives the picture files, which carry a hash for newer games, then the long-standing addresses), the 600 × 900 cover
+  first, else the wide store header as the banner. A game nothing is found for gets a `.none` marker and is looked up
+  again after a week; a network failure before any store answers leaves no marker, and three in a row stop the round.
+  The page shows *Finding pictures for your games…* only when it takes longer than 400 ms. `GameLibrary` merges (by id and folder), sorts, searches and finds the running game: a
   process whose file is inside a game's folder (the most specific folder wins; launchers, crash reporters and
   anti-cheat services don't count), checked every 3 s while the page is open. *Play* starts the launcher's link, the
   package's app id or the program through `ShellLaunch`, which asks the desktop's shell (`IShellDispatch2.ShellExecute`

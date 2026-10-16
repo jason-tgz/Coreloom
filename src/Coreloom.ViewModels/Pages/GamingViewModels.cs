@@ -69,8 +69,8 @@ public sealed class GameViewModel : ObservableObject
     /// <summary>Only the program's icon is known (shown over the placeholder color).</summary>
     public bool HasIconOnly => GridPicture is null && Icon is not null;
 
-    /// <summary>Has no cover or banner, but one can be downloaded (if the user allows it).</summary>
-    public bool CanDownloadPicture => GridPicture is null && _game.CoverUrls.Count > 0;
+    /// <summary>Has no cover or banner on this PC, so one is looked up and downloaded automatically.</summary>
+    public bool CanDownloadPicture => GridPicture is null;
 
     public string SizeText { get; private set; } = string.Empty;
 
@@ -658,6 +658,7 @@ public sealed class GamingViewModel : PageViewModel
     private bool _isLoaded;
     private bool _isScanning;
     private bool _isDownloadingArtwork;
+    private bool _lookingUpArtwork;
     private bool _isApplyingAll;
     private bool _statusBusy;
     private bool _statusAgain;
@@ -698,7 +699,6 @@ public sealed class GamingViewModel : PageViewModel
         RefreshCommand = new AsyncRelayCommand(() => RefreshStatusAsync(force: true));
         ApplyAllCommand = new AsyncRelayCommand(ApplyAllAsync, () => IsSupported && !_isApplyingAll && CountedBoosts.Any(t => t.IsSupported && !t.IsOn && !t.IsBusy));
         ClearSearchCommand = new RelayCommand(() => Search = string.Empty);
-        DownloadArtworkCommand = new AsyncRelayCommand(DownloadArtworkAsync, () => !IsDownloadingArtwork && MissingArtworkCount > 0);
         DismissDriverNoticeCommand = new RelayCommand(DismissDriverNotice);
         ShowListCommand = new RelayCommand(() => IsGridView = false);
         ShowGridCommand = new RelayCommand(() => IsGridView = true);
@@ -776,7 +776,6 @@ public sealed class GamingViewModel : PageViewModel
 
     public IRelayCommand ClearSearchCommand { get; }
 
-    public IAsyncRelayCommand DownloadArtworkCommand { get; }
 
     public IRelayCommand DismissDriverNoticeCommand { get; }
 
@@ -993,27 +992,14 @@ public sealed class GamingViewModel : PageViewModel
         }
     }
 
-    /// <summary>Games without a picture that can be downloaded from their store.</summary>
+    /// <summary>Games without a cover or banner on this PC (looked up and downloaded automatically after each scan).</summary>
     public int MissingArtworkCount => _all.Count(g => g.CanDownloadPicture);
 
-    /// <summary>The offer to download missing covers (until the user has allowed it once).</summary>
-    public bool ShowArtworkOffer => MissingArtworkCount > 0 && !Settings.Current.Gaming.DownloadArtwork && !IsDownloadingArtwork;
-
-    public string ArtworkOfferText => MissingArtworkCount == 1
-        ? "1 game has no cover picture on this PC. Download it from its store?"
-        : $"{MissingArtworkCount.ToString(CultureInfo.CurrentCulture)} games have no cover picture on this PC. Download them from their stores?";
-
+    /// <summary>Pictures are being downloaded (shown only when it takes a moment, not for a quick look-up).</summary>
     public bool IsDownloadingArtwork
     {
         get => _isDownloadingArtwork;
-        private set
-        {
-            if (SetProperty(ref _isDownloadingArtwork, value))
-            {
-                OnPropertyChanged(nameof(ShowArtworkOffer));
-                DownloadArtworkCommand.NotifyCanExecuteChanged();
-            }
-        }
+        private set => SetProperty(ref _isDownloadingArtwork, value);
     }
 
     // ---- Lifecycle -----------------------------------------------------------------------------------------
@@ -1097,9 +1083,9 @@ public sealed class GamingViewModel : PageViewModel
         {
             var games = await _service.ScanLibraryAsync(CancellationToken.None);
             ApplyGames(games);
-            if (Settings.Current.Gaming.DownloadArtwork && MissingArtworkCount > 0)
+            if (MissingArtworkCount > 0)
             {
-                _ = DownloadArtworkAsync();
+                _ = DownloadArtworkAsync(); // automatic since 1.4.4: games without a picture get one from their store or Steam
             }
         }
         catch (Exception e) when (IsExpected(e))
@@ -1159,9 +1145,6 @@ public sealed class GamingViewModel : PageViewModel
         OnPropertyChanged(nameof(EmptyText));
         OnPropertyChanged(nameof(SearchSuggestions));
         OnPropertyChanged(nameof(MissingArtworkCount));
-        OnPropertyChanged(nameof(ShowArtworkOffer));
-        OnPropertyChanged(nameof(ArtworkOfferText));
-        DownloadArtworkCommand.NotifyCanExecuteChanged();
     }
 
     internal void Play(GameViewModel game)
@@ -1182,21 +1165,22 @@ public sealed class GamingViewModel : PageViewModel
 
     private async Task DownloadArtworkAsync()
     {
-        if (IsDownloadingArtwork)
+        if (_lookingUpArtwork)
         {
             return;
         }
 
-        if (!Settings.Current.Gaming.DownloadArtwork)
-        {
-            Settings.Update("Gaming", s => s.Gaming.DownloadArtwork = true);
-        }
-
-        IsDownloadingArtwork = true;
+        _lookingUpArtwork = true;
         try
         {
             var missing = _all.Where(g => g.CanDownloadPicture).Select(g => g.Game).ToList();
-            var updated = await _service.DownloadArtworkAsync(missing, CancellationToken.None);
+            var download = _service.DownloadArtworkAsync(missing, CancellationToken.None);
+            if (!download.IsCompleted && await Task.WhenAny(download, Task.Delay(400)) != download)
+            {
+                IsDownloadingArtwork = true; // games already looked up recently come back at once: no flicker
+            }
+
+            var updated = await download;
             var now = Now();
             var byId = _all.ToDictionary(g => g.Id, StringComparer.OrdinalIgnoreCase);
             foreach (var entry in updated)
@@ -1213,6 +1197,7 @@ public sealed class GamingViewModel : PageViewModel
         }
         finally
         {
+            _lookingUpArtwork = false;
             IsDownloadingArtwork = false;
             ApplyLibrary();
         }

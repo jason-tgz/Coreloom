@@ -164,7 +164,10 @@ public interface IGamingService
 
     void OpenFolder(string path);
 
-    /// <summary>Downloads missing cover pictures (only when the user asked); returns the games with the pictures found.</summary>
+    /// <summary>
+    /// Downloads pictures for games that have none on this PC (automatically after a scan); returns the games a picture
+    /// was found for.
+    /// </summary>
     Task<IReadOnlyList<GameEntry>> DownloadArtworkAsync(IReadOnlyList<GameEntry> games, CancellationToken cancellationToken);
 }
 

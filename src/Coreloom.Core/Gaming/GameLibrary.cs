@@ -63,7 +63,7 @@ public sealed record GameEntry(string Id, string Name, GameStore Store)
 
     public GameArtwork Artwork { get; init; } = GameArtwork.None;
 
-    /// <summary>Where a cover picture can be downloaded, best first (used only after the user asks for it).</summary>
+    /// <summary>Where the store keeps a cover picture, best first (tried first when the game has no picture on the PC).</summary>
     public IReadOnlyList<string> CoverUrls { get; init; } = [];
 
     /// <summary>The store's own id (Steam app id, Epic app name…).</summary>

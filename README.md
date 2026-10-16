@@ -31,7 +31,8 @@ installs drivers or services, and never sends your data anywhere.
   drag its corner to resize it. *Customize* opens a card right on the Overview to show or hide the PC picture, pick
   its lighting, and hide and reorder cards; the layout is saved.
 - **Gaming.** A tab with your installed games (Steam, Epic Games, GOG, Xbox, Ubisoft Connect, EA app, Battle.net,
-  Riot) as cards or a grid of covers, with search, sorting and *Play*; switches for hardware-accelerated GPU
+  Riot) as cards or a grid of covers (a game without a picture on your PC gets one from its store or Steam
+  automatically), with search, sorting and *Play*; switches for hardware-accelerated GPU
   scheduling, the Ultimate Performance power plan, Game Mode, windowed-game optimizations, Game Bar background
   recording, the NVIDIA *Prefer maximum performance* mode, G-SYNC for fullscreen and windowed games, a 10 GB / 100 GB /
   unlimited NVIDIA shader cache and Windows 11's Auto HDR, each saying what it helps with and how to use it (or *Boost
@@ -114,7 +115,7 @@ installs drivers or services, and never sends your data anywhere.
 | Network throughput | Windows network statistics | No |
 | Bluetooth devices, adapter state, battery levels | Windows Bluetooth APIs (WinRT) and the device tree | No |
 | Wired devices (USB, displays, Thunderbolt) | Plug and Play device tree (configuration manager) | No |
-| Installed games and their pictures | The launchers' own files (Steam `libraryfolders.vdf`, app manifests and library picture cache; Epic manifests; GOG and Xbox game folders) and Windows' installed-apps list | No |
+| Installed games and their pictures | The launchers' own files (Steam `libraryfolders.vdf`, app manifests and library picture cache; Epic manifests; GOG and Xbox game folders) and Windows' installed-apps list; for games without a picture, Epic's catalog pictures or Steam's public store | No |
 | GPU scheduling, power plan, Game Mode, windowed-game and Game Bar settings | Windows: the graphics kernel (D3DKMT), the registry values Windows Settings uses, `powercfg` | Changing GPU scheduling: **yes** |
 | NVIDIA frame limit, shader cache size, power management mode, G-SYNC, driver version | **NVAPI** driver settings (the store the NVIDIA Control Panel uses) and display info | Changing them: **yes** |
 
@@ -227,9 +228,11 @@ LibreHardwareMonitor's own report. See [docs/TESTING-ON-YOUR-PC.md](docs/TESTING
   Defender for scans and threats, the shell for the Recycle Bin, defrag.exe for drives.
 - **No telemetry.** Coreloom makes network requests only for the update check to `api.github.com` and the update
   download from GitHub (both can be turned off in *Settings → Updates*), to `speed.cloudflare.com` when you start
-  an internet speed test, and, only after you press *Download covers* on the Gaming page, to Steam's
-  (`cdn.cloudflare.steamstatic.com`) and Epic's (`cdn1.epicgames.com` and the links in the Epic launcher's catalog)
-  picture servers for games that have no cover on your PC. No hardware data is included.
+  an internet speed test, and, for games that have no picture on your PC, to fetch one: Epic's picture servers
+  (`cdn1.epicgames.com` and the links in the Epic launcher's catalog) and Steam's public store (a search on
+  `store.steampowered.com` with the game's name, the game's pictures from `api.steampowered.com`, and the picture
+  servers `shared.akamai.steamstatic.com` and `cdn.cloudflare.steamstatic.com`). Pictures are kept on your PC; a game
+  nothing is found for is looked up again after a week. No hardware data is included.
 - **Always elevated.** Coreloom runs as administrator so the sensor driver can be read and Smart Optimize can clean
   system folders, but it never installs drivers or services and has no remote access of any kind.
 - **Alert thresholds are reminders, not safety limits.** Check your hardware vendor's specifications;

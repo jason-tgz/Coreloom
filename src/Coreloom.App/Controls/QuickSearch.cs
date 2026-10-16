@@ -29,13 +29,14 @@ public enum QuickSearchRowKind
 }
 
 /// <summary>A row in the search box's list.</summary>
-public sealed class QuickSearchRow(QuickSearchRowKind kind, string title, string detail, string iconKey, SearchSuggestion? suggestion = null)
+public sealed class QuickSearchRow(QuickSearchRowKind kind, string title, string? detail, string iconKey, SearchSuggestion? suggestion = null)
 {
     public QuickSearchRowKind Kind { get; } = kind;
 
     public string Title { get; } = title;
 
-    public string Detail { get; } = detail;
+    /// <summary>The second line, or null for none.</summary>
+    public string? Detail { get; } = detail;
 
     public string IconKey { get; } = iconKey;
 
@@ -257,7 +258,7 @@ public sealed class QuickSearch : Control
         var rows = new List<QuickSearchRow>();
         if (text.Length == 0)
         {
-            rows.Add(new QuickSearchRow(QuickSearchRowKind.Hint, Hint, "Ctrl+K or Ctrl+F jumps here from anywhere on this page", "Icon.Search"));
+            rows.Add(new QuickSearchRow(QuickSearchRowKind.Hint, Hint, null, "Icon.Search"));
         }
         else
         {

@@ -18,7 +18,9 @@ namespace Coreloom.App.Services;
 /// The Gaming page on Windows. Reads launchers' own library files (Steam, Epic, GOG, Xbox) and Windows' installed-apps
 /// list (Ubisoft, EA, Battle.net, Riot); changes only documented Windows settings (the same registry values and
 /// powercfg commands Windows' Settings app uses) and NVIDIA driver settings through NVAPI (as the NVIDIA Control Panel
-/// does). Nothing is ever added to games. Cover pictures are downloaded only after the user asks.
+/// does). Nothing is ever added to games. Games without a picture on the PC get one downloaded automatically (since
+/// 1.4.4) from Epic's catalog pictures or Steam's public store (<see cref="SteamStore"/>), sending only the game's name or
+/// Steam app id.
 /// </summary>
 internal sealed class WindowsGamingService : IGamingService
 {
@@ -26,6 +28,7 @@ internal sealed class WindowsGamingService : IGamingService
     private const string GameBarKey = @"Software\Microsoft\GameBar";
     private const string GameDvrKey = @"Software\Microsoft\Windows\CurrentVersion\GameDVR";
     private const string FrameRateOwner = "gaming";
+    private static readonly TimeSpan RetryMissingPictureAfter = TimeSpan.FromDays(7);
 
     private readonly EtwFrameRateSource _frameRates;
     private readonly string _artworkDirectory;
@@ -334,6 +337,11 @@ internal sealed class WindowsGamingService : IGamingService
             art = art with { Cover = ArtworkFile(game) };
         }
 
+        if (art.Banner is null && File.Exists(BannerFile(game)))
+        {
+            art = art with { Banner = BannerFile(game) };
+        }
+
         if (art.Cover is null && art.Banner is null && art.Icon is null && game.Executable is { } exe && File.Exists(exe))
         {
             art = art with { Icon = IconFile(exe) };
@@ -342,7 +350,15 @@ internal sealed class WindowsGamingService : IGamingService
         return game with { Artwork = art };
     }
 
-    private string ArtworkFile(GameEntry game) => Path.Combine(_artworkDirectory, $"{game.Store.ToString().ToLowerInvariant()}-{Hash(game.StoreId)}.jpg");
+    private string ArtworkFile(GameEntry game) => Path.Combine(_artworkDirectory, $"{ArtworkName(game)}.jpg");
+
+    /// <summary>A wide picture (Steam's store header), kept when no tall cover was found.</summary>
+    private string BannerFile(GameEntry game) => Path.Combine(_artworkDirectory, $"{ArtworkName(game)}-wide.jpg");
+
+    /// <summary>Marks a game no picture was found for, so it is looked up again only after a week.</summary>
+    private string NotFoundFile(GameEntry game) => Path.Combine(_artworkDirectory, $"{ArtworkName(game)}.none");
+
+    private static string ArtworkName(GameEntry game) => $"{game.Store.ToString().ToLowerInvariant()}-{Hash(game.StoreId)}";
 
     /// <summary>The program's icon saved as a 256 px picture (once), or null.</summary>
     private string? IconFile(string executable)
@@ -374,53 +390,187 @@ internal sealed class WindowsGamingService : IGamingService
 
     private static string Hash(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)))[..16].ToLowerInvariant();
 
+    /// <summary>
+    /// Finds and downloads a picture for each game that has none: the store's own catalog pictures (Epic), else Steam's
+    /// (the game's own app, or the Steam app with the same name). A game nothing is found for is tried again after a
+    /// week; when the internet can't be reached, it stops and tries again next time.
+    /// </summary>
     public async Task<IReadOnlyList<GameEntry>> DownloadArtworkAsync(IReadOnlyList<GameEntry> games, CancellationToken cancellationToken)
     {
         var http = Http();
         var result = new List<GameEntry>();
+        int notFound = 0, offline = 0;
         Directory.CreateDirectory(_artworkDirectory);
         foreach (var game in games)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            string target = ArtworkFile(game);
-            if (File.Exists(target))
+            if (File.Exists(ArtworkFile(game)) || File.Exists(BannerFile(game)))
             {
-                result.Add(game with { Artwork = game.Artwork with { Cover = target } });
+                result.Add(WithLocalArtwork(game));
                 continue;
             }
 
-            foreach (string url in game.CoverUrls)
+            string marker = NotFoundFile(game);
+            if (File.Exists(marker) && DateTime.UtcNow - File.GetLastWriteTimeUtc(marker) < RetryMissingPictureAfter)
             {
-                try
+                continue;
+            }
+
+            try
+            {
+                if (await FindPictureAsync(http, game, cancellationToken) is { } found)
                 {
-                    using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                    string? type = response.Content.Headers.ContentType?.MediaType;
-                    if (!response.IsSuccessStatusCode || type is null || !type.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    byte[] bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-                    if (bytes.Length < 1024 || bytes.Length > 16 << 20)
-                    {
-                        continue;
-                    }
-
-                    string temp = target + ".part";
-                    await File.WriteAllBytesAsync(temp, bytes, cancellationToken);
-                    File.Move(temp, target, overwrite: true);
-                    result.Add(game with { Artwork = game.Artwork with { Cover = target } });
+                    result.Add(found);
+                    offline = 0;
+                    TryDelete(marker);
+                }
+                else
+                {
+                    notFound++;
+                    offline = 0;
+                    await File.WriteAllTextAsync(marker, game.Name, cancellationToken);
+                }
+            }
+            catch (Exception e) when (e is HttpRequestException || (e is TaskCanceledException && !cancellationToken.IsCancellationRequested))
+            {
+                Log.Debug(LogCategory, $"Looking up a picture for {game.Name} failed: {e.Message}");
+                if (++offline >= 3)
+                {
+                    Log.Info(LogCategory, "Game pictures: the stores can't be reached; trying again on the next scan.");
                     break;
                 }
-                catch (Exception e) when (e is HttpRequestException or IOException or UnauthorizedAccessException || (e is TaskCanceledException && !cancellationToken.IsCancellationRequested))
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Log.Debug(LogCategory, $"Saving a picture for {game.Name} failed: {e.Message}");
+            }
+        }
+
+        Log.Info(LogCategory, $"Game pictures: found {result.Count} of {games.Count} missing ({notFound} not on Steam or Epic).");
+        return result;
+    }
+
+    /// <summary>
+    /// The game with a downloaded cover (or, failing that, a wide picture), or null when the stores answered but had
+    /// none. Throws when no store could be reached at all, so the game isn't marked as having no picture while offline.
+    /// </summary>
+    private async Task<GameEntry?> FindPictureAsync(HttpClient http, GameEntry game, CancellationToken cancellationToken)
+    {
+        bool reached = false;
+        Exception? failure = null;
+        var tried = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        async Task<bool> Download(string url, string target)
+        {
+            if (!tried.Add(url))
+            {
+                return false;
+            }
+
+            try
+            {
+                bool saved = await TryDownloadAsync(http, url, target, cancellationToken);
+                reached = true;
+                return saved;
+            }
+            catch (Exception e) when (e is HttpRequestException || (e is TaskCanceledException && !cancellationToken.IsCancellationRequested))
+            {
+                failure = e; // one host may be blocked: try the next address
+                return false;
+            }
+        }
+
+        async Task<string?> Text(string url)
+        {
+            try
+            {
+                string? text = await GetTextAsync(http, url, cancellationToken);
+                reached = true;
+                return text;
+            }
+            catch (Exception e) when (e is HttpRequestException || (e is TaskCanceledException && !cancellationToken.IsCancellationRequested))
+            {
+                failure = e;
+                return null;
+            }
+        }
+
+        foreach (string url in game.CoverUrls)
+        {
+            if (await Download(url, ArtworkFile(game)))
+            {
+                return game with { Artwork = game.Artwork with { Cover = ArtworkFile(game) } };
+            }
+        }
+
+        // Steam games by their own app; others by the Steam app with the same name (the search sends only the name).
+        string? appId = game.Store == GameStore.Steam ? game.StoreId : null;
+        if (appId is null && SteamStore.Normalize(game.Name).Length > 0 && await Text(SteamStore.SearchUrl(game.Name)) is { } results)
+        {
+            appId = SteamStore.BestMatch(game.Name, SteamStore.ParseSearch(results));
+        }
+
+        if (appId is not null)
+        {
+            var assets = await Text(SteamStore.ItemUrl(appId)) is { } item ? SteamStore.ParseAssets(item) : null;
+            foreach (var source in SteamStore.PictureUrls(appId, assets))
+            {
+                string target = source.IsCover ? ArtworkFile(game) : BannerFile(game);
+                if (await Download(source.Url, target))
                 {
-                    Log.Debug(LogCategory, $"Cover for {game.Name} not downloaded from {new Uri(url).Host}: {e.Message}");
+                    Log.Debug(LogCategory, $"Picture for {game.Name} from Steam app {appId}.");
+                    return game with { Artwork = source.IsCover ? game.Artwork with { Cover = target } : game.Artwork with { Banner = target } };
                 }
             }
         }
 
-        Log.Info(LogCategory, $"Downloaded {result.Count} of {games.Count} missing covers.");
-        return result;
+        if (!reached && failure is not null)
+        {
+            throw new HttpRequestException("No picture store could be reached.", failure);
+        }
+
+        return null;
+    }
+
+    /// <summary>A text answer, or null for an error status (network failures throw).</summary>
+    private static async Task<string?> GetTextAsync(HttpClient http, string url, CancellationToken cancellationToken)
+    {
+        using var response = await http.GetAsync(url, cancellationToken);
+        return response.IsSuccessStatusCode ? await response.Content.ReadAsStringAsync(cancellationToken) : null;
+    }
+
+    /// <summary>Saves the picture at <paramref name="url"/> as <paramref name="target"/>; false when it isn't a picture.</summary>
+    private static async Task<bool> TryDownloadAsync(HttpClient http, string url, string target, CancellationToken cancellationToken)
+    {
+        using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        string? type = response.Content.Headers.ContentType?.MediaType;
+        if (!response.IsSuccessStatusCode || type is null || !type.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        byte[] bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        if (bytes.Length < 1024 || bytes.Length > 16 << 20)
+        {
+            return false;
+        }
+
+        string temp = target + ".part";
+        await File.WriteAllBytesAsync(temp, bytes, cancellationToken);
+        File.Move(temp, target, overwrite: true);
+        return true;
+    }
+
+    private static void TryDelete(string file)
+    {
+        try
+        {
+            File.Delete(file);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // stays; harmless
+        }
     }
 
     private HttpClient Http()
@@ -554,7 +704,8 @@ internal sealed class WindowsGamingService : IGamingService
 
     /// <summary>
     /// G-SYNC: on when the driver's global profile has it for fullscreen and windowed games. Not offered when the gaming
-    /// display (the fastest one) can't do variable refresh; a note when it can but G-SYNC is switched off for it.
+    /// display (the fastest one) can't do variable refresh. (1.4.3 also warned when the display didn't report G-SYNC as
+    /// requested, but that per-display flag read off on a PC with G-SYNC switched on, so the warning is gone.)
     /// </summary>
     private static TweakStatus GSyncStatus()
     {
@@ -572,10 +723,7 @@ internal sealed class WindowsGamingService : IGamingService
             return TweakStatus.Unsupported("Your display doesn't support G-SYNC or variable refresh.");
         }
 
-        string? note = display is { Requested: false }
-            ? "G-SYNC looks switched off for your display: turn it on in NVIDIA Control Panel › Display › Set up G-SYNC."
-            : null;
-        return new TweakStatus(true, GSyncSetup.IsOn(feature.Value, requested.Value, mode.Value), Note: note);
+        return new TweakStatus(true, GSyncSetup.IsOn(feature.Value, requested.Value, mode.Value));
     }
 
     /// <summary>Auto HDR: Windows 11's switch; a note when HDR itself isn't on, and not offered without an HDR display.</summary>

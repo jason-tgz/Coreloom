@@ -174,8 +174,25 @@ internal sealed class FakeGaming : IGamingService
 
     public void OpenFolder(string path) => Opened.Add(path);
 
-    public Task<IReadOnlyList<GameEntry>> DownloadArtworkAsync(IReadOnlyList<GameEntry> games, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<GameEntry>>(games.Select(g => g with { Artwork = g.Artwork.Or(new GameArtwork(@"C:\Coreloom\Artwork\" + g.StoreId + ".jpg", null, null)) }).ToList());
+    /// <summary>The games pictures were asked for, by id.</summary>
+    public List<string> ArtworkRequests { get; } = [];
+
+    /// <summary>Holds the picture look-up until completed (null: answers at once).</summary>
+    public TaskCompletionSource? ArtworkGate { get; set; }
+
+    /// <summary>A picture is "found" for games with a store link (Alan Wake 2); none for the others (The Witcher 3).</summary>
+    public async Task<IReadOnlyList<GameEntry>> DownloadArtworkAsync(IReadOnlyList<GameEntry> games, CancellationToken cancellationToken)
+    {
+        ArtworkRequests.AddRange(games.Select(g => g.Id));
+        if (ArtworkGate is { } gate)
+        {
+            await gate.Task;
+        }
+
+        return games.Where(g => g.CoverUrls.Count > 0)
+            .Select(g => g with { Artwork = g.Artwork.Or(new GameArtwork(@"C:\Coreloom\Artwork\" + g.StoreId + ".jpg", null, null)) })
+            .ToList();
+    }
 }
 
 public class GamingViewModelTests
@@ -275,21 +292,40 @@ public class GamingViewModelTests
     }
 
     [Fact]
-    public async Task MissingCovers_AreOffered_AndDownloadedOnlyWhenAsked()
+    public void MissingPictures_AreLookedUpAutomatically_ForEveryGameWithoutOne()
     {
-        var (page, _, settings) = Create();
-        Assert.Equal(1, page.MissingArtworkCount); // Alan Wake 2 has a link; The Witcher 3 has none
-        Assert.True(page.ShowArtworkOffer);
-        Assert.Contains("1 game has no cover", page.ArtworkOfferText);
-        Assert.False(settings.Current.Gaming.DownloadArtwork);
-
-        await page.DownloadArtworkCommand.ExecuteAsync(null);
-
-        Assert.True(settings.Current.Gaming.DownloadArtwork);
-        Assert.Equal(0, page.MissingArtworkCount);
-        Assert.False(page.ShowArtworkOffer);
+        var (page, fake, settings) = Create();
+        Assert.Equal(["epic:Dodo", "gog:1207658924"], fake.ArtworkRequests.Order()); // Cyberpunk 2077 has its own
         Assert.EndsWith("Dodo.jpg", page.Games.Single(g => g.Name == "Alan Wake 2").GridPicture);
+        Assert.Equal(1, page.MissingArtworkCount); // nothing found for The Witcher 3: its initials stay
+        Assert.False(page.IsDownloadingArtwork);
+        Assert.False(settings.Current.Gaming.DownloadArtwork); // nothing was asked
         settings.Dispose();
+    }
+
+    [Fact]
+    public async Task ASlowLookUp_ShowsItself_AndAQuickOneDoesNot()
+    {
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var (page, fake, settings) = Create(f => f.ArtworkGate = gate);
+        Assert.False(page.IsDownloadingArtwork); // not at once: most look-ups come back right away
+        await WaitFor(() => page.IsDownloadingArtwork);
+
+        gate.SetResult();
+        await WaitFor(() => !page.IsDownloadingArtwork);
+        Assert.EndsWith("Dodo.jpg", page.Games.Single(g => g.Name == "Alan Wake 2").GridPicture);
+        Assert.Equal(2, fake.ArtworkRequests.Count); // asked once
+        settings.Dispose();
+    }
+
+    private static async Task WaitFor(Func<bool> condition)
+    {
+        for (int i = 0; i < 500 && !condition(); i++)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.True(condition(), "Timed out waiting for the condition.");
     }
 
     [Fact]

@@ -18,7 +18,10 @@ public sealed class GamingSettings
     /// <summary>The Ultimate Performance plan Coreloom created.</summary>
     public string? UltimatePowerPlan { get; set; }
 
-    /// <summary>The user allowed missing cover pictures to be downloaded from Steam's and Epic's servers.</summary>
+    /// <summary>
+    /// The user allowed missing cover pictures to be downloaded (1.4.0–1.4.3 asked first). Since 1.4.4 pictures are
+    /// always downloaded for games without one; kept so older settings files still read.
+    /// </summary>
     public bool DownloadArtwork { get; set; }
 
     /// <summary>The graphics driver version seen last (a new one means shader caches start over).</summary>

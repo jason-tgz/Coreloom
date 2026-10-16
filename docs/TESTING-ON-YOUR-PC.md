@@ -340,6 +340,15 @@ Work through each area and tick what works.
       Auto HDR*. With HDR off it says to turn on HDR; without an HDR display it explains it can't be used. *Boost now*
       leaves Auto HDR alone and the ring counts the other boosts (e.g. 8/8).
 
+**Fixes (1.4.4)**
+
+- [ ] Gaming › *G-SYNC & adaptive refresh* with G-SYNC on: no yellow warning under the card.
+- [ ] Devices and Gaming search: clicking the empty box shows just *Start typing…* (no second line about Ctrl+K).
+- [ ] Gaming › Your games: Assassin's Creed and any other game that showed initials gets its cover (or the store's wide
+      picture) within a few seconds of opening the page, with *Finding pictures for your games…* showing meanwhile
+      if it takes a moment. The pictures stay after a restart (they're in `%LOCALAPPDATA%\Coreloom\Artwork`). A game
+      that isn't on Steam (e.g. Valorant) keeps its initials.
+
 **Gaming**
 
 - [ ] Frame limiter *Apply to*: pick a game, choose a limit and switch it on: the NVIDIA Control Panel (*Manage 3D
@@ -353,7 +362,9 @@ Work through each area and tick what works.
       dedicated servers) and no DLC as separate entries. Note any game that is missing or doubled.
 - [ ] Steam games show their library art in both views; others show their cover, banner, icon or initials. *List*
       and *Grid* switch views (kept after a restart); search, and *Recently played / Name / Size* order, work.
-- [ ] *Download covers* (if offered) fills in Epic covers; afterwards new games get covers without asking.
+- [ ] Games without a picture (Ubisoft, EA, Battle.net, Riot, GOG, Epic without a cover) get one by themselves a few
+      seconds after the page opens, without asking; note any game that shows another game's picture (it should rather
+      keep its initials).
 - [ ] *Play* starts the game through its launcher and the game is **not** elevated (Task Manager › Details ›
       *Elevated* column says No). The folder button opens the game's folder.
 - [ ] With a library game running and the page open: the banner shows *Now playing* with its FPS, the game's card or

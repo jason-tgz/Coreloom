@@ -7,6 +7,26 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-10-16
+
+Covers for every game without asking, no G-SYNC warning while G-SYNC is on, and a quieter search box.
+
+### Highlights
+
+- **Covers for every game, automatically.** A game that has no picture on your PC (most Ubisoft, EA, Battle.net, Riot and GOG games) now gets one by itself when the Gaming page scans your games: from its store's own pictures, else from Steam's store, where most of these games are sold too. There's no *Download covers* question any more. A game Steam doesn't have keeps its initials rather than getting another game's picture.
+- **No G-SYNC warning while G-SYNC is on.** The yellow "G-SYNC looks switched off for your display" line under the G-SYNC boost is gone; the display report it relied on said "off" even with G-SYNC switched on.
+- **A quieter search box.** The list under an empty search box now shows only *Start typing…*, without the Ctrl+K line. Ctrl+K and Ctrl+F still jump to the box.
+
+### In detail
+
+- Only the game's name (or its Steam app number) is sent: a search on `store.steampowered.com`, the game's pictures from `api.steampowered.com`, and the pictures themselves from Steam's picture servers. Names have to match exactly, apart from capitals, ™ and ®, apostrophes, punctuation, accents and the edition ("Deluxe Edition", "GOTY"), so a DLC or another game of the series is never taken for it.
+- The tall 600 × 900 cover comes first; when a game has none, Steam's wide store picture is used instead. Newer games keep their pictures under addresses with a code in them, which Coreloom now asks the store for, so recent releases get their covers too.
+- Pictures are saved in `%LOCALAPPDATA%\Coreloom\Artwork` and reused. A game nothing is found for is looked up again after a week; when the internet can't be reached, it simply tries again next time.
+
+### Feedback
+
+Something still not where it should be? [Open an issue](https://github.com/jerryubah/Coreloom/issues) with a screenshot and a CoreloomDiag report.
+
 ## [1.4.3] - 2026-10-16
 
 A smoother, lighter in-game overlay and three new boosts: the frame-time graph now glides at your display's pace and reacts at once, the overlay drops its outline and stays out of your game's way, the frame pacer is now the frame limiter, and the Boosts section adds G-SYNC, a sized NVIDIA shader cache and Auto HDR.
