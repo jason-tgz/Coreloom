@@ -86,7 +86,7 @@ function Write-TestReport([string] $Directory) {
     }
     foreach ($file in Get-ChildItem $Directory -Filter '*.trx' -Recurse) {
         try {
-            [xml] $trx = Get-Content $file.FullName -Raw
+            [xml] $trx = Get-Content -LiteralPath $file.FullName -Raw
             $ns = New-Object System.Xml.XmlNamespaceManager($trx.NameTable)
             $ns.AddNamespace('t', 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010')
             $method = $trx.SelectSingleNode('//t:UnitTest/t:TestMethod', $ns)
