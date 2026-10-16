@@ -10,9 +10,10 @@ namespace Coreloom.Hardware.Native;
 /// own thread, so it redraws at an even pace however busy the app's window thread is.
 /// <para>
 /// The window is created, placed, shown, hidden and destroyed on the thread of its owner window, which keeps it just
-/// above the owner. <see cref="Present"/> may be called from one other thread: it only replaces the pixels
-/// (UpdateLayeredWindow without moving or resizing), which never waits on the window's thread, so neither thread can
-/// hold the other up. Nothing is drawn on the graphics card: Windows only blends the finished pixels over what is behind.
+/// above the owner. <see cref="Present"/> may be called from one other thread: it replaces the pixels, naming the
+/// position and size the window already has (so nothing moves), which never waits on the window's thread, so neither
+/// thread can hold the other up (both checked on Windows by the hardware tests, the pixels on screen too). Nothing is
+/// drawn on the graphics card: Windows only blends the finished pixels over what is behind.
 /// </para>
 /// </summary>
 [SupportedOSPlatform("windows")]
@@ -94,9 +95,7 @@ public sealed unsafe partial class LayeredSurface : IDisposable
 
     /// <summary>
     /// Moves and sizes the window, in screen pixels (on the owner's thread). This is done with UpdateLayeredWindow
-    /// itself, giving the position and size along with the pixels (clear after a resize): a layered window shows nothing
-    /// until UpdateLayeredWindow has given it a size, and later updates that leave the size out (<see cref="Present"/>,
-    /// from the drawing thread) only replace the pixels.
+    /// itself, giving the position and size along with the pixels (clear after a resize).
     /// </summary>
     public void Place(int x, int y, int width, int height)
     {
@@ -142,6 +141,11 @@ public sealed unsafe partial class LayeredSurface : IDisposable
     /// Puts <paramref name="pixels"/> (premultiplied BGRA, <paramref name="width"/> × <paramref name="height"/>, rows top
     /// to bottom) on screen. The size must be the one last given to <see cref="Place"/>; returns false when it isn't (the
     /// window was just resized: draw again at <see cref="Size"/>), when Windows refused, or after disposal.
+    /// <para>
+    /// The update names the window's position and size (the ones it already has, so nothing moves and the window's
+    /// thread isn't involved): an update that leaves them out is accepted but doesn't change what is shown, as found
+    /// with the on-screen test (1.4.3 shipped that way, and the graph never appeared).
+    /// </para>
     /// </summary>
     public bool Present(ReadOnlySpan<uint> pixels, int width, int height)
     {

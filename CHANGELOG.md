@@ -7,6 +7,24 @@ into the GitHub release notes, so keep each version's heading in the form `## [x
 
 ## [Unreleased]
 
+## [1.4.5] - 2026-10-16
+
+The frame-time graph is back in the in-game overlay, and the frame limiter's mark next to FPS is gone.
+
+### Highlights
+
+- **The frame-time graph shows again.** Since 1.4.3 the graph is drawn in a small see-through window of its own laid over the overlay, so it can glide at your display's pace. That window was being filled in a way Windows accepts but doesn't put on screen, so the graph never appeared. It now shows, smooth and in place, and moves with the overlay.
+- **The graph's place always shows.** With no game in front (FPS "—"), the graph is a flat line under the FPS line instead of being nearly invisible, so you can see where it is and that it's on.
+- **No frame limiter mark.** The small green pill with the limit next to FPS is gone. When a game is limited, the limit still shows as the dashed green line on the graph.
+
+### In detail
+
+- The fix was found and checked with a new test on GitHub's Windows machines that puts a window set up like the overlay on screen, draws the graph's window over it from another thread, and reads the pixels back: before the fix the overlay's color showed through where the graph should be; after it, the graph's pixels are on screen, also after the overlay moves.
+
+### Feedback
+
+Something still not where it should be? [Open an issue](https://github.com/jerryubah/Coreloom/issues) with a screenshot and a CoreloomDiag report.
+
 ## [1.4.4] - 2026-10-16
 
 Covers for every game without asking, no G-SYNC warning while G-SYNC is on, and a quieter search box.

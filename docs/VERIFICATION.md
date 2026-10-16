@@ -147,6 +147,27 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 | In-place update of portable copies | File operations unit-tested on Linux (staging, copy, rollback, cleanup) | Windows specifics: the elevated helper starting without a prompt, locked files and antivirus timing, the hidden `.coreloom-update` folder, the splash while copying, `Compress-Archive` zips from the real release |
 | Per-copy trust key `HKLM\SOFTWARE\Coreloom\Updates\Copies\<id>` | Code review | Registry writes and clean-up on Windows |
 
+### 1.4.5: the frame-time graph on screen, no frame limiter mark
+
+- **Why the graph didn't show (1.4.3–1.4.4).** A new Windows test (`OverlayVisibilityTests`) puts a WPF window set up
+  like the overlay on screen (see-through, topmost, click-through, drawn in software, moved with `SetWindowPos`),
+  places the graph's layered window over it, presents opaque red pixels from another thread and reads the screen. On
+  the first run the graph's window was visible, in place and above the overlay, `UpdateLayeredWindow` returned success,
+  yet the screen showed the overlay's blue where the red should be. Two variants were run side by side: giving the
+  position and size only when placing (on the window's thread) showed the pixels after a move but not the first ones
+  presented from the drawing thread; giving the position and size in every update (the ones the window already has)
+  showed them every time. That is the fix. The existing test that the drawing thread never waits on the window's thread
+  (the window's thread not pumping messages meanwhile) passes with it.
+- **Core tests: 502 passed** (the empty-graph test now expects the clearer flat line, and a faint baseline under a
+  trace). View-model tests: 126 passed. Here, `Coreloom.App` compiles (0 errors, 0 warnings) and the XAML checks pass
+  (20 files, 242 shared keys, 1,121 bindings).
+
+| Change | What was done here | Not verified here |
+|---|---|---|
+| Graph on screen | Pixels read back on the Windows runner over an overlay-like WPF window, before and after a move | Over a real game on his PC; at his scaling and refresh rate |
+| Flat line when idle | Raster unit-tested | How it looks to him |
+| No frame limiter mark | Removed from the overlay template; XAML checks | — |
+
 ### 1.4.4: automatic game pictures, no G-SYNC warning, quieter search box
 
 - **Core tests: 502 passed** (23 new, `SteamStoreTests`: Steam's real search answer for "Assassin's Creed Shadows"

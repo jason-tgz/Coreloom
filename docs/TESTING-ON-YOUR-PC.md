@@ -340,6 +340,13 @@ Work through each area and tick what works.
       Auto HDR*. With HDR off it says to turn on HDR; without an HDR display it explains it can't be used. *Boost now*
       leaves Auto HDR alone and the ring counts the other boosts (e.g. 8/8).
 
+**Fixes (1.4.5)**
+
+- [ ] On the desktop (no game in front, FPS "—"), the overlay shows the graph's place as a flat line under the FPS line.
+- [ ] In a game, the frame-time graph shows and glides under the FPS line, the same look as the preview; it follows
+      the overlay when it moves to another corner or monitor.
+- [ ] With the frame limiter on, there's no green pill with the limit next to FPS any more.
+
 **Fixes (1.4.4)**
 
 - [ ] Gaming › *G-SYNC & adaptive refresh* with G-SYNC on: no yellow warning under the card.
@@ -388,8 +395,8 @@ Work through each area and tick what works.
 
 - [ ] (1.4.1, 1.4.3) The overlay is a rounded glass panel without an outline; FPS is bigger and bold; a frame-time graph sits
       under the FPS line (after it in the one-line layout) and moves smoothly; stutters show as amber/red spikes. With
-      the frame limiter limiting the game (all games or its own limit), a small green mark with the limit shows next to
-      FPS and a dashed line on the graph. The graph can be turned off in the overlay's settings, where the preview shows
+      the frame limiter limiting the game (all games or its own limit), a dashed green line on the graph shows the
+      limit (since 1.4.5 there is no green mark next to FPS). The graph can be turned off in the overlay's settings, where the preview shows
       a sample trace.
 - [ ] *Graphics*: the *In-game overlay* switch sits on the same line as *Clock limits*; the clock limits text wraps when
       the window is narrow. The switch turns the overlay on and off, and the End badge shows the hotkey.

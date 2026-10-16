@@ -367,23 +367,26 @@ The foreground process comes from `GetForegroundWindow`; Coreloom itself shows n
 
 Since 1.4.1 the overlay is a squircle of smoked glass (no outline since 1.4.3), the FPS value is the headline, and the
 FPS line carries the frame-time graph (`OverlayCatalog.FrameGraph`, offered once to existing setups through
-`OverlaySettings.Revision`) and the frame limiter's mark. The mark shows when `GamingSettings.ActiveFrameCap(program)`
-is above zero for the foreground program (`OverlayService` passes its file name). The text shadow is set on the text
-only.
+`OverlaySettings.Revision`). Up to 1.4.4 it also carried a green mark with the frame limit while
+`GamingSettings.ActiveFrameCap(program)` was above zero for the foreground program; 1.4.5 removed it (the limit is still
+the graph's dashed target line, from the same value). The text shadow is set on the text only.
 
 **The frame-time graph (1.4.3).** `FrameGraphModel` (Core, unit-tested) reads `IFrameTimeFeed` (over
 `FrameRateTracker.RecentFrameTimes`, which also gives how long ago the newest frame was shown) and places each frame at
 the moment it was shown across one second, the graph trailing real time by a delay that follows the lateness of ETW's
 50 ms batches (rising at once, easing back), with an eased scale; `FrameGraphRaster` (Core, unit-tested) draws it into
-premultiplied BGRA pixels with its own anti-aliasing: baseline, fading fill, line (per-pixel maximum coverage so joins
+premultiplied BGRA pixels with its own anti-aliasing: baseline (a clearer flat line, `IdleAlpha`, while there are no
+frames, so the graph's place always shows), fading fill, line (per-pixel maximum coverage so joins
 don't double), stutter marks (over 1.6× the median, red over 2.5×) and the dashed limiter target. The overlay window is
 drawn by WPF in software (`RenderMode.SoftwareOnly`, so it never queues work on the graphics card), and a software WPF
 target isn't vsync-paced: WPF schedules its frames with a 10 ms `DispatcherTimer`, which fires on the 15.6 ms system
 tick, so a graph drawn by WPF stepped at ≤ 64 uneven frames a second. So in the overlay the `FrameGraph` element only
 holds the place, and `FrameGraphLayer` draws the graph from its own below-normal thread into a `LayeredSurface`
 (Hardware/Native: a click-through per-pixel-alpha popup owned by the overlay window, placed by the UI thread with
-`SetWindowPos`, filled from the drawing thread with `UpdateLayeredWindow` without moving it, which never waits on the
-UI thread), woken by a `PreciseTimer` (a `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION` waitable timer; where its short waits keep waking
+`UpdateLayeredWindow` giving position and size, filled from the drawing thread with `UpdateLayeredWindow` naming the
+position and size it already has, which never waits on the UI thread; an update that leaves them out is accepted but
+shows nothing, which is why 1.4.3 and 1.4.4 showed no graph, found by `OverlayVisibilityTests` reading the screen on
+the Windows runner), woken by a `PreciseTimer` (a `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION` waitable timer; where its short waits keep waking
 late on average, as on one CI runner, it holds `timeBeginPeriod(1)` while doing short waits) at
 `FrameGraphModel.RedrawRate` (the display's refresh, or an even fraction ≤ 144 Hz: 120 on 240 Hz) while frames come
 in and 4 times a second otherwise. The settings preview (not `FrameGraph.IsLive`) draws the same pixels into a

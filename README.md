@@ -42,8 +42,8 @@ installs drivers or services, and never sends your data anywhere.
   them).
 - **In-game overlay.** FPS, frame time and 1% lows with a smooth frame-time graph and GPU, CPU and RAM readings on top
   of your games, measured from Windows' graphics events (nothing is injected into games, and Coreloom gives way to the
-  game while it runs); a small mark shows when the frame limiter limits the game. Turned on from the Graphics page or with a hotkey (End by
-  default); choose what it shows, where, and its text, colors, opacity and corners.
+  game while it runs); while the frame limiter limits the game, its limit is a dashed line on the graph. Turned on
+  from the Graphics page or with a hotkey (End by default); choose what it shows, where, and its text, colors, opacity and corners.
 - **Health cards** on the Overview, Graphics, Processor, Memory and Storage pages: Excellent, Good or Needs attention,
   from the last minute of temperatures, clock slowdowns, fans, memory and commit charge, free space and drive wear,
   with the reasons.
