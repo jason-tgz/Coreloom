@@ -16,6 +16,9 @@ public sealed class FrameGraphRaster
     private const uint HotColor = 0xFF5C5C;
     private const uint TargetColor = 0x45D6A0;
 
+    /// <summary>How opaque the flat line is while there are no frames (0–255).</summary>
+    public const int IdleAlpha = 0x50;
+
     private FrameGraphPoint[] _points = new FrameGraphPoint[FrameGraphModel.MaxFrames + 1];
     private float[] _coverage = [];
 
@@ -32,11 +35,11 @@ public sealed class FrameGraphRaster
         double opacity = Math.Clamp(look.Opacity, 0, 1);
         double scale = look.Scale > 0 && double.IsFinite(look.Scale) ? look.Scale : 1;
 
-        // A faint baseline, so the graph's place shows even with nothing to draw.
+        // The baseline: faint under a trace; with nothing to draw (no game in front, or it isn't drawing), a clearer
+        // flat line, so the graph's place always shows.
         int baseline = Math.Max(1, (int)Math.Round(scale));
-        FillRect(canvas, width, height, 0, height - baseline, width, baseline, look.Color, (0x10 / 255.0) * opacity);
-
         int count = model.Layout(width, height, _points);
+        FillRect(canvas, width, height, 0, height - baseline, width, baseline, look.Color, (count < 2 ? IdleAlpha : 0x10) / 255.0 * opacity);
         if (count < 2)
         {
             return;

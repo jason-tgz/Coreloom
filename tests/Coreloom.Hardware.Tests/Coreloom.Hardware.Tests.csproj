@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="System.IO" /> <!-- WPF projects leave it out of the implicit usings -->
   </ItemGroup>
 
   <ItemGroup>

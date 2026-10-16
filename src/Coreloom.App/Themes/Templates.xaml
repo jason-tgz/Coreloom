@@ -513,9 +513,9 @@
     </DataTemplate.Triggers>
   </DataTemplate>
 
-  <!-- A line: "GPU  97 %  72 °C  350 W". Labels line up in a column when stacked. The FPS line also carries the frame
-       limiter's mark (a small green pill with the limit, only while the game in front is limited) and the frame-time graph
-       (under the line when stacked, after it on one line). The text shadow is set on the text parts, never the graph. -->
+  <!-- A line: "GPU  97 %  72 °C  350 W". Labels line up in a column when stacked. The FPS line also carries the
+       frame-time graph (under the line when stacked, after it on one line). The text shadow is set on the text parts,
+       never the graph. (1.4.1–1.4.4 also showed a green pill with the frame limit next to FPS.) -->
   <DataTemplate x:Key="OverlayGroup" DataType="{x:Type overlay:OverlayGroupViewModel}">
     <Grid Margin="{Binding Overlay.GroupSpacing}">
       <Grid.ColumnDefinitions>
@@ -538,14 +538,6 @@
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
       </ItemsControl>
-      <!-- the frame limiter's mark -->
-      <Border x:Name="Pacing" Grid.Column="2" CornerRadius="6" Padding="5,0,6,1" Margin="0,0,0,2" VerticalAlignment="Bottom" Background="#2645D6A0"
-              ToolTip="{Binding Overlay.PacingToolTip}" Visibility="Collapsed">
-        <StackPanel Orientation="Horizontal">
-          <Ellipse Width="5" Height="5" Fill="#45D6A0" VerticalAlignment="Center" Margin="0,1,4,0" />
-          <TextBlock Text="{Binding Overlay.PacingText}" FontSize="{Binding Overlay.SmallFontSize}" FontWeight="SemiBold" Foreground="#7DEBC2" />
-        </StackPanel>
-      </Border>
       <!-- the graph: after the values on one line -->
       <c:FrameGraph x:Name="InlineGraph" Grid.Column="3" Margin="8,0,0,2" VerticalAlignment="Bottom" Visibility="Collapsed"
                     Width="{Binding Overlay.GraphWidth}" Height="{Binding Overlay.GraphHeight}"
@@ -559,15 +551,7 @@
       <DataTrigger Binding="{Binding Overlay.TextShadow}" Value="True">
         <Setter TargetName="Label" Property="Effect" Value="{StaticResource OverlayTextShadow}" />
         <Setter TargetName="Values" Property="Effect" Value="{StaticResource OverlayTextShadow}" />
-        <Setter TargetName="Pacing" Property="Effect" Value="{StaticResource OverlayTextShadow}" />
       </DataTrigger>
-      <MultiDataTrigger>
-        <MultiDataTrigger.Conditions>
-          <Condition Binding="{Binding IsFrameRate}" Value="True" />
-          <Condition Binding="{Binding Overlay.IsPacing}" Value="True" />
-        </MultiDataTrigger.Conditions>
-        <Setter TargetName="Pacing" Property="Visibility" Value="Visible" />
-      </MultiDataTrigger>
       <MultiDataTrigger>
         <MultiDataTrigger.Conditions>
           <Condition Binding="{Binding IsFrameRate}" Value="True" />

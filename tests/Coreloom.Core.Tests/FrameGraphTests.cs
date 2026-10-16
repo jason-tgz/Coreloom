@@ -131,13 +131,17 @@ public class FrameGraphTests
     private static uint Alpha(uint pixel) => pixel >> 24;
 
     [Fact]
-    public void Raster_DrawsTheBaselineEvenWithoutFrames()
+    public void Raster_DrawsAClearFlatLineWithoutFrames_AndAFaintBaselineUnderATrace()
     {
         var model = new FrameGraphModel();
         var pixels = new uint[100 * 20];
         new FrameGraphRaster().Draw(pixels, 100, 20, model, new FrameGraphLook(0xFFFFFF, 1, 1));
-        Assert.Equal(0x10u, Alpha(pixels[(19 * 100) + 50]));
+        Assert.Equal((uint)FrameGraphRaster.IdleAlpha, Alpha(pixels[(19 * 100) + 50])); // seen, so the graph's place shows
         Assert.Equal(0u, pixels[(10 * 100) + 50]);
+
+        model.Update(Steady(7, 600, 20), 0, 1 / 120.0);
+        new FrameGraphRaster().Draw(pixels, 100, 20, model, new FrameGraphLook(0xFFFFFF, 1, 1));
+        Assert.True(Alpha(pixels[(19 * 100) + 50]) < FrameGraphRaster.IdleAlpha, "under a trace the baseline steps back");
     }
 
     [Fact]
