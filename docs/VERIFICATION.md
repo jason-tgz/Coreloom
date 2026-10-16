@@ -159,8 +159,11 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
 - **New Windows tests** (`OverlaySurfaceTests`, Windows runner): the high-resolution timer averages close to its
   4 ms interval (an ordinary timer would average 15.6 ms), stops and wakes on request, and a real layered window takes
   pixels from a second thread without waiting on the window's thread, and again after being resized.
-- Here, `Coreloom.App` compiles (0 errors, 0 warnings) and the XAML checks pass (20 files, 242 shared keys, 1,129
-  bindings).
+- **GitHub Actions on the branch, before release: the Windows job compiled the app with the real WPF XAML compiler (no
+  warnings reported) and passed all tests**, and the Linux job passed too. (The layered-window test skips itself where
+  the runner's session can't show windows; the run's logs can't be read from here, so whether it ran or skipped there
+  isn't known.) Here, `Coreloom.App` compiles (0 errors, 0 warnings) and the XAML checks pass (20 files, 242 shared
+  keys, 1,129 bindings).
 - The choppy graph was traced in WPF's own source (`MediaContext`): a window drawn in software isn't paced by the
   display, so WPF schedules its frames with a 10 ms `DispatcherTimer`, which fires on the 15.6 ms system tick: at most
   64 uneven frames a second. That is why the graph now draws itself, on a precise timer, into its own window.
