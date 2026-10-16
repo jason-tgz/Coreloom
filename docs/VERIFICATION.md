@@ -158,6 +158,8 @@ How this change was checked in the Linux container (no Windows, no nuget.org):
   presented from the drawing thread; giving the position and size in every update (the ones the window already has)
   showed them every time. That is the fix. The existing test that the drawing thread never waits on the window's thread
   (the window's thread not pumping messages meanwhile) passes with it.
+- **GitHub Actions on two branch runs before release: all 688 tests passed in both, none skipped, the on-screen
+  check included (Core 502, view models 126, hardware 60).**
 - **Core tests: 502 passed** (the empty-graph test now expects the clearer flat line, and a faint baseline under a
   trace). View-model tests: 126 passed. Here, `Coreloom.App` compiles (0 errors, 0 warnings) and the XAML checks pass
   (20 files, 242 shared keys, 1,121 bindings).
