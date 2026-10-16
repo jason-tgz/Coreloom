@@ -44,6 +44,8 @@ public sealed unsafe partial class LayeredSurface : IDisposable
     private uint* _bits;
     private int _bitmapWidth;
     private int _bitmapHeight;
+    private int _x;
+    private int _y;
     private int _width;
     private int _height;
     private bool _disposed;
@@ -107,6 +109,8 @@ public sealed unsafe partial class LayeredSurface : IDisposable
                 return;
             }
 
+            _x = x;
+            _y = y;
             _width = width;
             _height = height;
             if (EnsureBitmap(width, height))
@@ -156,7 +160,9 @@ public sealed unsafe partial class LayeredSurface : IDisposable
             pixels[..(width * height)].CopyTo(new Span<uint>(_bits, width * height));
             var source = default(Point);
             var blend = new BlendFunction { BlendOp = 0, BlendFlags = 0, SourceConstantAlpha = 255, AlphaFormat = 1 };
-            return UpdateLayeredWindow(_hwnd, IntPtr.Zero, null, null, _dc, &source, 0, &blend, UlwAlpha);
+            var position = new Point { X = _x, Y = _y };
+            var size = new NativeSize { Width = width, Height = height };
+            return UpdateLayeredWindow(_hwnd, IntPtr.Zero, &position, &size, _dc, &source, 0, &blend, UlwAlpha);
         }
     }
 
