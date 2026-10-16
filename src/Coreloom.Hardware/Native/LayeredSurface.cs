@@ -112,7 +112,7 @@ public sealed unsafe partial class LayeredSurface : IDisposable
             if (EnsureBitmap(width, height))
             {
                 var position = new Point { X = x, Y = y };
-                var size = new Size { Width = width, Height = height };
+                var size = new NativeSize { Width = width, Height = height };
                 var source = default(Point);
                 var blend = new BlendFunction { BlendOp = 0, BlendFlags = 0, SourceConstantAlpha = 255, AlphaFormat = 1 };
                 if (UpdateLayeredWindow(_hwnd, IntPtr.Zero, &position, &size, _dc, &source, 0, &blend, UlwAlpha))
@@ -275,7 +275,7 @@ public sealed unsafe partial class LayeredSurface : IDisposable
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct Size
+    private struct NativeSize
     {
         public int Width;
         public int Height;
@@ -342,7 +342,7 @@ public sealed unsafe partial class LayeredSurface : IDisposable
 
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool UpdateLayeredWindow(IntPtr hwnd, IntPtr dcDestination, Point* position, Size* size, IntPtr dcSource, Point* source, uint colorKey, BlendFunction* blend, uint flags);
+    private static partial bool UpdateLayeredWindow(IntPtr hwnd, IntPtr dcDestination, Point* position, NativeSize* size, IntPtr dcSource, Point* source, uint colorKey, BlendFunction* blend, uint flags);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
